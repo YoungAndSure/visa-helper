@@ -1,0 +1,20 @@
+iceland/
+.claude/
+
+# audit/ — 每次运行的产物（可能含真实文件名/扫描结果）
+audit/report.md
+
+# form/ backend
+form/backend/.venv/
+form/backend/__pycache__/
+form/backend/**/__pycache__/
+form/backend/.pytest_cache/
+*.pyc
+
+# extension/ — Vite output and node_modules
+extension/dist/
+extension/dist-zip/
+extension/node_modules/
+extension/.vite-cache/
+*.log
+.DS_Store

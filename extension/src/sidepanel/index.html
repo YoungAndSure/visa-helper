@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>visa-helper</title>
+    <style>
+      :root {
+        --bg: #fafaf8;
+        --fg: #1c1c1c;
+        --muted: #6b6b6b;
+        --border: #e3e1da;
+        --accent: #1c5d99;
+        --accent-soft: #e8f0fa;
+        --ok: #2c8a4f;
+        --warn: #c08400;
+        --err: #c44b4b;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #1a1a1a;
+          --fg: #e7e7e7;
+          --muted: #8a8a8a;
+          --border: #2e2e2e;
+          --accent: #6cb6ff;
+          --accent-soft: #1e2c3a;
+        }
+      }
+      html, body {
+        margin: 0;
+        padding: 0;
+        background: var(--bg);
+        color: var(--fg);
+        font: 14px/1.5 system-ui, -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      }
+      header {
+        display: flex;
+        gap: 8px;
+        padding: 10px 12px;
+        border-bottom: 1px solid var(--border);
+        align-items: center;
+      }
+      header h1 {
+        font-size: 14px;
+        font-weight: 600;
+        margin: 0;
+        padding: 4px 0;
+        flex: 0 0 auto;
+      }
+      .tabs {
+        display: flex;
+        gap: 4px;
+        flex: 1;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+      }
+      .tab {
+        background: transparent;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        padding: 4px 10px;
+        font: inherit;
+        cursor: pointer;
+        color: var(--muted);
+      }
+      .tab[aria-selected="true"] {
+        background: var(--accent);
+        border-color: var(--accent);
+        color: white;
+      }
+      main {
+        padding: 0 12px 14px;
+      }
+      /* --- site banner --- */
+      .site-banner {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 12px;
+        margin: 0;
+        background: var(--accent-soft);
+        border-bottom: 1px solid var(--border);
+        font-size: 13px;
+      }
+      .site-banner .badge {
+        flex: 0 0 auto;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 28px;
+        height: 28px;
+        border-radius: 6px;
+        background: var(--accent);
+        color: white;
+        font-weight: 700;
+        font-size: 12px;
+        letter-spacing: 0.02em;
+      }
+      .site-banner.unknown .badge {
+        background: var(--muted);
+      }
+      .site-banner .meta {
+        flex: 1;
+        min-width: 0;
+      }
+      .site-banner .meta .label {
+        font-weight: 600;
+      }
+      .site-banner .meta .hint {
+        display: block;
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .site-banner .url {
+        font-size: 11px;
+        color: var(--muted);
+        font-family: ui-monospace, SFMono-Regular, monospace;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 220px;
+        direction: rtl;
+      }
+      /* --- demo picker --- */
+      .demo-bar {
+        padding: 10px 12px;
+        border-bottom: 1px solid var(--border);
+        background: var(--bg);
+      }
+      .demo-bar .label {
+        color: var(--muted);
+        font-size: 12px;
+        margin-bottom: 6px;
+      }
+      .demo-bar .row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+      .demo-bar button {
+        background: transparent;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        padding: 4px 10px;
+        font: inherit;
+        cursor: pointer;
+        color: var(--fg);
+      }
+      .demo-bar button[aria-pressed="true"] {
+        background: var(--accent);
+        border-color: var(--accent);
+        color: white;
+      }
+      /* --- view content --- */
+      section {
+        padding: 14px 4px 0;
+      }
+      section h2 {
+        margin: 0 0 8px;
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+      }
+      .placeholder {
+        color: var(--muted);
+        padding: 12px;
+        border: 1px dashed var(--border);
+        border-radius: 8px;
+      }
+      .status {
+        display: flex;
+        gap: 6px;
+        align-items: center;
+        font-size: 12px;
+        color: var(--muted);
+      }
+      .status .dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--muted);
+      }
+      .status .dot.ok { background: var(--ok); }
+      .status .dot.warn { background: var(--warn); }
+      .status .dot.err { background: var(--err); }
+      button.action {
+        background: var(--accent);
+        color: white;
+        border: 0;
+        border-radius: 6px;
+        padding: 6px 12px;
+        cursor: pointer;
+        font: inherit;
+      }
+      button.action:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+      ul { margin: 0; padding-left: 18px; }
+      code {
+        font: 12px/1.4 ui-monospace, SFMono-Regular, monospace;
+        background: var(--border);
+        padding: 1px 4px;
+        border-radius: 3px;
+      }
+      #diag {
+        margin: 10px 0 0;
+        white-space: pre-wrap;
+        font-size: 12px;
+        font-family: ui-monospace, SFMono-Regular, monospace;
+      }
+      .footer {
+        margin-top: 10px;
+        font-size: 11px;
+        color: var(--muted);
+        border-top: 1px dashed var(--border);
+        padding-top: 8px;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>visa-helper</h1>
+      <div class="tabs" id="tabs">
+        <button class="tab" data-view="form-assist"    aria-selected="true">伴行填表</button>
+        <button class="tab" data-view="material-audit" aria-selected="false">材料审核</button>
+        <button class="tab" data-view="settings"       aria-selected="false">设置</button>
+      </div>
+    </header>
+
+    <!-- site 上下文横幅：根据当前 tab URL 自动填充 -->
+    <div class="site-banner" id="site-banner">
+      <div class="badge" id="site-badge">?</div>
+      <div class="meta">
+        <div class="label" id="site-label">读取中…</div>
+        <span class="hint" id="site-hint"></span>
+      </div>
+      <div class="url" id="site-url"></div>
+    </div>
+
+    <!--
+      没有匹配 site 时显示的 demo 按钮组。
+      用户可手动"假装"在某个站点，以测试 shell：
+      横幅、tab 切换、view 占位是否正确渲染。
+    -->
+    <div class="demo-bar" id="demo-bar" hidden>
+      <div class="label">未识别当前页面 — 可手动选择 site 验证显示框架：</div>
+      <div class="row" id="demo-row"></div>
+    </div>
+
+    <main id="view">
+      <section id="view-form-assist">
+        <h2>伴行填表</h2>
+        <div class="placeholder" id="form-assist-body">
+          站点尚未匹配…
+        </div>
+      </section>
+      <section id="view-material-audit" hidden>
+        <h2>材料审核</h2>
+        <div class="placeholder">
+          上传材料清单 / PDF，调用 /audit 端点（Phase 2+）。
+        </div>
+      </section>
+      <section id="view-settings" hidden>
+        <h2>设置 / 调试</h2>
+        <div class="status" style="margin-bottom: 10px">
+          <span class="dot" id="dot-sw"></span>
+          <span id="status-sw">service worker …</span>
+          <span style="margin-left: auto" id="backend-status"></span>
+        </div>
+        <button class="action" id="ping-sw">Ping service worker</button>
+        <button class="action" id="ping-backend">Ping 后端 /healthz</button>
+        <pre id="diag"></pre>
+        <div class="footer">
+          Phase 0 骨架。manifest host_permissions 当前仅包含 <code>vfsglobal.com</code>。
+          要识别挪威 UDI 等其它站点，请在 manifest 里加 <code>https://*.udi.no/*</code> 后重新构建。
+        </div>
+      </section>
+    </main>
+
+    <script type="module" src="./app.ts"></script>
+  </body>
+</html>

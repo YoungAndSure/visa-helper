@@ -1,0 +1,155 @@
+{
+  "source_pdf": "iceland/visa-document-checklist.pdf",
+  "country": "Iceland",
+  "visa_type": "Schengen Short-Stay (Tourism)",
+  "items": [
+    {
+      "id": 1,
+      "description": "Harmonized Schengen visa application form. Printed and signed by the applicant.\n统一申根签证申请表。申请人填表打印并签字。",
+      "applies_to": "per_applicant",
+      "condition": null,
+      "match_keywords": [
+        "visa-application",
+        "application-form",
+        "申请表"
+      ]
+    },
+    {
+      "id": 2,
+      "description": "The travel document must be valid for a minimum of 3 months after departure from the Schengen area. It must be issued within the previous 10\nyears and have at least 2 blank pages.\n旅行证件 - 须满足自申根区离境后仍然有至少3个月的有效期，于过去10年内签发，至少保留2页空白页。",
+      "applies_to": "per_applicant",
+      "condition": null,
+      "match_keywords": [
+        "passport",
+        "护照"
+      ]
+    },
+    {
+      "id": 3,
+      "description": "1 passport photograph (max. 6 months old, on a white background, measuring 3.5 x 4.5 cm.) No photoshopping allowed.\n1张未经编辑的2寸照片，要求6个月之内拍摄，白底，3.5cm x 4.5cm。",
+      "applies_to": "per_applicant",
+      "condition": null,
+      "match_keywords": [
+        "photo",
+        "照片"
+      ]
+    },
+    {
+      "id": 4,
+      "description": "Travel medical insurance - with a minimum coverage of 30,000 Euro (300,000 CNY) for duration of stay in the Schengen area. The insurance must\ncover your entire stay (until your flight departs). Please note that if the coverage period of your insurance is stated in Beijing time you may need to\npurchase one extra day of insurance because of the time difference between China and the Schengen area.\n旅行医疗保险 - 能覆盖申根区全部停留周期，保额最低为3万欧元/30万人民币。该保险要求覆盖整个停留时间（直到航班起飞）。请注\n意，如果您的保险覆盖期限标注为北京时间，考虑到中国与申根区的时差，建议额外购买一天的保险。",
+      "applies_to": "shared",
+      "condition": null,
+      "match_keywords": [
+        "insurance",
+        "保险"
+      ]
+    },
+    {
+      "id": 5,
+      "description": "Proof of Transportation – Round trip reservation. If the applicant is travelling to several Schengen states, proof of\nintra-Schengen flight reservation, train itinerary or car rental is required. Please note that the tickets do not have to\nbe paid, only reserved.\n交通证明 – 往返预订。如果申请人前往多个申根国家，须提供申根地区内机票订单，火车行程单或租车订单。此类票证\n无需付款，预订即可。",
+      "applies_to": "shared",
+      "condition": null,
+      "match_keywords": [
+        "flight",
+        "机票",
+        "car-rental",
+        "rental"
+      ]
+    },
+    {
+      "id": 6,
+      "description": "Travel itinerary - Detailed description of planned daily travel itinerary.\n旅行行程安排 – 旅行日程计划详述。",
+      "applies_to": "shared",
+      "condition": null,
+      "match_keywords": [
+        "itinerary",
+        "行程"
+      ]
+    },
+    {
+      "id": 7,
+      "description": "Proof of accommodation - Hotel bookings or accommodations covering the whole duration of the intended stay.\n住宿证明 – 覆盖全部停留周期的酒店订单。",
+      "applies_to": "shared",
+      "condition": null,
+      "match_keywords": [
+        "accommodation",
+        "hotel",
+        "hostel",
+        "camping",
+        "住宿"
+      ]
+    },
+    {
+      "id": 8,
+      "description": "Chinese Identity Card with 1 photocopy (both sides, no translation).\nNon-Chinese citizens are required to submit a copy of a valid Chinese residence permit. (Valid for at least 3 months after return)\n中国身份证及正反面复印件1份，无需翻译。\n非中国公民须提交有效的中国居留许可复印件。",
+      "applies_to": "per_applicant",
+      "condition": null,
+      "match_keywords": [
+        "id-card",
+        "身份证",
+        "identity-card"
+      ]
+    },
+    {
+      "id": 9,
+      "description": "Copy of Hukou (no translation) with photocopies of all pages (only for Chinese nationals).\n户口本所有内容页复印件，无需翻译（仅限中国公民）。",
+      "applies_to": "per_applicant",
+      "condition": null,
+      "match_keywords": [
+        "hukou",
+        "户口"
+      ]
+    },
+    {
+      "id": 10,
+      "description": "Proof of sufficient funds - Bank statements from the last consecutive 3 months, no deposit account or credit card statement.\n足量的资金证明 – 近3个月的银行对账单，无需存款证明或信用卡对账单。",
+      "applies_to": "per_applicant",
+      "condition": null,
+      "match_keywords": [
+        "bank-statement",
+        "bank-statement",
+        "流水",
+        "cmb"
+      ]
+    },
+    {
+      "id": 11,
+      "description": "Proof of employment/retired/unemployment.\n在职/退休/无业证明\nEmployed: A copy of the business license of the employing company.\nA letter from the employer (in English, or in Chinese with English translation) on official company paper including stamp, signature, date and\nclearly mentioning; address, telephone, and fax numbers of the employing company, the name and position of the countersigning officer, the name,\nposition, salary, and years of service of the applicant as well as an approval of leave of absence.\n在职者：雇主营业执照复印件。在职证明英文原件或中文原件附英文翻译，要求公司抬头纸书写，签字、附日期并加盖公章，并写明公\n司地址/电话及传真号码、签字人员姓名及职务、申请人姓名/职务/薪资/供职年限、准假周期。\nRetired: Proof of pension or other regular income.\n退休者：退休证或其他固定收入证明。\nUnemployed adults: If married: Letter of employment and income of the spouse and notary certificate of marriage, legalised by the Ministry for\nForeign Affairs. If single/divorced/widow/widower: Any other proof of regular income. If sponsored by other than spouse: Letter of employment\nand income of the sponsor, bank statement from the sponsor, sponsorship letter signed by the sponsor and a copy of the sponsor’s passport.\n无业者：如已婚 – 配偶的工作证明和收入证明，以及由外交部认证的婚姻关系公证书。\n如单身/离异/丧偶 - 其他固定收入证明。\n除配偶以外的人作担保 – 担保人的工作证明、收入证明和银行对账单，以及由其本人签署的担保函和本人的护照复印件。",
+      "applies_to": "per_applicant",
+      "condition": null,
+      "match_keywords": [
+        "employment-letter",
+        "business-license",
+        "在职",
+        "employment",
+        "retired",
+        "pension",
+        "退休"
+      ]
+    },
+    {
+      "id": 12,
+      "description": "For volunteer work:\nAn invitation letter from an acknowledged non-governmental organization which is non-profit and tax exempt and works on charity or\nhumanitarian issues.\nThe letter must be dated and signed by the representative of the organization. The invitation letter must state what kind of work the applicant\nwill carry out and the length of stay in Iceland.\nIf applicable, confirmation that the organization guarantees accommodation for the applicant. - Hotel/Hostel booking or accommodation that\ncovers the whole trip.\n志愿活动\n来自公认的非政府组织的邀请函，该组织是非营利性和免税的，致力于慈善或人道主义事务。\n邀请函必须注明日期、由组织代表签名，说明申请人将从事何种工作以及在冰岛停留的时间。\n确认组织为申请人提供住宿（如适用。 酒店 旅舍预订或住宿，涵盖整个行程。",
+      "applies_to": "conditional",
+      "condition": "volunteer_only",
+      "match_keywords": [
+        "invitation",
+        "ngo",
+        "邀请函"
+      ]
+    },
+    {
+      "id": 13,
+      "description": "For minors: (<18 years)\nStudent card and original letter from the school, mentioning full address and telephone number of the school, permission for absence, name and\nfunction of the person giving the permission.\nNotary certificate of family relation or proof of guardianship must be legalised by the Ministry for Foreign Affairs, one photocopy thereof.\nMinors travelling alone or with just one parent: Notary certificate of permission to travel from both parents or legal guardians (when minor is\ntravelling alone) or the parent or legal guardian is not accompanying (if minor is travelling with one parent), must be legalised by the Ministry\nof Foreign Affairs, and when not in China, attested by the relevant authorities in the parents'/legal guardians' country of residence, one\nphotocopy thereof.\n未成年人（18岁以下）\n学生证及在读证明英文原件或中文原件附英文翻译，要求注明学校地址、电话号码、准假周期、批准人姓名及职务。\n由外交部认证的亲属关系/监护关系公证书原件及复印件。\n未成年人独自旅行或与父母一方旅行：如独自旅行 - 父母双方或法定监护人出行同意函公证书；如与父母一方旅行 – 不随行的父母\n一方或法定监护人出行同意函公证书；如父母双方或法定监护人不在中国，由其所在国相关机构开具的证明。该公证书须由外交部\n认证，原件及复印件。",
+      "applies_to": "conditional",
+      "condition": "minor_only",
+      "match_keywords": [
+        "student-card",
+        "school-letter",
+        "在读",
+        "学生证",
+        "guardianship"
+      ]
+    }
+  ]
+}
