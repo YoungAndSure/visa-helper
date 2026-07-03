@@ -12,7 +12,8 @@ form/backend/.pytest_cache/
 *.pyc
 
 # extension/ — Vite output and node_modules
-extension/dist/
+# dist/ is committed on purpose: this is a portable-loadable build artifact.
+# Don't rsync node_modules across machines — reinstall per env instead.
 extension/dist-zip/
 extension/node_modules/
 extension/.vite-cache/
