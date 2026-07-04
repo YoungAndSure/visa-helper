@@ -1,11 +1,11 @@
 /**
  * visa-helper 侧边栏。
  *
- * Phase 0 框架职责：
- *   1. 读活动 tab 的 URL → 匹配 shared/sites.ts 注册表 → 渲染 site 横幅。
- *   2. 根据匹配到的 site 自动切到 defaultView。
- *   3. 三个 tab 可手动切换。
- *   4. 站点未匹配时显示 demo 按钮组，可手动指定 site 验证显示框架。
+ * 框架职责：
+ *   1. 读活动 tab 的 URL → 匹配 shared/sites.ts 注册表 → 作为 form-assist 的默认值。
+ *   2. 三个 tab 可手动切换。
+ *   3. 伴行填表顶部有 site 选择器，默认跟随 URL（detectedSite），用户可手动覆盖。
+ *   4. 材料审核顶部有国家选择器，永远手动，不跟 URL、不继承伴行填表。
  *   5. settings tab 提供 ping SW / ping 后端的调试入口。
  *
  * 后续 phase：
@@ -28,27 +28,49 @@ const $ = <T extends HTMLElement>(sel: string) =>
 // ---------- state ----------
 type State = {
   url: string;
-  site: SiteProfile | null; // null = 未识别
+  /** URL 自动检测出的 site（只读语义，banner / form-assist 默认值都用它） */
+  detectedSite: SiteProfile | null;
   view: ViewId;
-  userChoseView: boolean;   // 用户点过 tab 后，不再被默认 view 自动覆盖
+  /** 用户点过 tab 后，不再被默认 view 自动覆盖 */
+  userChoseView: boolean;
+  /**
+   * 伴行填表当前生效的 site。
+   *  - null  = 跟随 detectedSite（URL 自动）
+   *  - 'xxx' = 用户在 form-assist 选择器里手动指定，覆盖 URL 检测
+   * 切换 tab 时不会被 material-audit 污染。
+   */
+  formAssistSiteId: string | null;
+  /**
+   * 材料审核当前生效的国家（用 site.id 表达，因为 audit checklist 是按 country 切的）。
+   * 永远手动，初始为 null → 必须用户选才能进入审核流程。
+   * 不受 URL 检测影响，不受 formAssistSiteId 影响。
+   */
+  auditCountryId: string | null;
 };
 const state: State = {
   url: "(loading)",
-  site: null,
+  detectedSite: null,
   view: "form-assist",
   userChoseView: false,
+  formAssistSiteId: null,
+  auditCountryId: null,
 };
 
+/** 当前 form-assist 真正展示用的 site（手动 > URL） */
+function effectiveFormAssistSite(): SiteProfile | null {
+  const id = state.formAssistSiteId;
+  if (id) return SITES.find((s) => s.id === id) ?? null;
+  return state.detectedSite;
+}
+
+/** 当前 material-audit 选中的 country（手动，没有 fallback） */
+function effectiveAuditSite(): SiteProfile | null {
+  const id = state.auditCountryId;
+  if (!id) return null;
+  return SITES.find((s) => s.id === id) ?? null;
+}
+
 // ---------- DOM refs ----------
-const banner = $("#site-banner")!;
-const badge = $("#site-badge")!;
-const labelEl = $("#site-label")!;
-const hintEl = $("#site-hint")!;
-const urlEl = $("#site-url")!;
-
-const demoBar = $("#demo-bar")!;
-const demoRow = $("#demo-row")!;
-
 const tabBtns = document.querySelectorAll<HTMLButtonElement>(".tab");
 const sections: Record<ViewId, HTMLElement> = {
   "form-assist": $("#view-form-assist")!,
@@ -66,43 +88,6 @@ let backendUrl = BACKEND_DEFAULT;
 
 // ---------- 渲染 ----------
 
-function renderBanner() {
-  const s = state.site;
-  if (s) {
-    banner.classList.remove("unknown");
-    badge.textContent = s.country;
-    labelEl.textContent = s.label;
-    hintEl.textContent = s.contextHint;
-  } else {
-    banner.classList.add("unknown");
-    badge.textContent = "?";
-    labelEl.textContent = "未识别页面";
-    hintEl.textContent = "等待站点注册表匹配或选择 demo";
-  }
-  urlEl.textContent = state.url;
-  urlEl.title = state.url;
-}
-
-function renderDemoBar() {
-  demoRow.innerHTML = "";
-  for (const s of SITES) {
-    const btn = document.createElement("button");
-    btn.textContent = s.label;
-    btn.dataset.siteId = s.id;
-    btn.setAttribute(
-      "aria-pressed",
-      state.site?.id === s.id ? "true" : "false",
-    );
-    btn.addEventListener("click", () => {
-      state.site = s;
-      if (!state.userChoseView) state.view = s.defaultView;
-      renderAll();
-    });
-    demoRow.appendChild(btn);
-  }
-  demoBar.hidden = state.site !== null;
-}
-
 function renderTabs() {
   tabBtns.forEach((b) => {
     b.setAttribute("aria-selected", String(b.dataset.view === state.view));
@@ -114,13 +99,30 @@ function renderTabs() {
 
 function renderFormAssistView() {
   const body = $("#form-assist-body")!;
-  const s = state.site;
+  const s = effectiveFormAssistSite();
+  // 顶部选择器：跟随 URL 自动 / 手动指定 site
+  const selectorHtml = `
+    <div class="site-selector" style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+      <label for="fa-site" style="color:var(--muted);font-size:12px;flex:0 0 auto">当前 site</label>
+      <select id="fa-site" style="flex:1;font:inherit;padding:4px 6px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--fg)">
+        <option value="" ${state.formAssistSiteId === null ? "selected" : ""}>自动（URL 检测${state.detectedSite ? ` · ${state.detectedSite.country}` : ""}）</option>
+        ${SITES.map(
+          (site) =>
+            `<option value="${site.id}" ${state.formAssistSiteId === site.id ? "selected" : ""}>${site.label}</option>`,
+        ).join("")}
+      </select>
+    </div>
+  `;
+
   if (!s) {
     body.innerHTML =
-      "未匹配站点 — 选中上方 demo 按钮即可切换 view shell，验证显示框架。";
+      selectorHtml +
+      `<div style="color:var(--muted);font-size:13px">未匹配站点 — 在上方选择 site 进入填表流程即可（"自动" 模式只在 URL 命中已注册 site 时有效）。</div>`;
     return;
   }
-  body.innerHTML = `
+  body.innerHTML =
+    selectorHtml +
+    `
     <div style="font-size:13px">
       <div><b>${s.label}</b> · <span style="color:var(--muted)">${s.contextHint}</span></div>
       <div style="margin-top:8px;color:var(--muted)">
@@ -133,13 +135,68 @@ function renderFormAssistView() {
       </ul>
     </div>
   `;
+
+  // 绑定 selector 事件（每次重渲染后重绑）
+  const sel = $("#fa-site") as HTMLSelectElement | null;
+  if (sel) {
+    sel.addEventListener("change", () => {
+      state.formAssistSiteId = sel.value || null;
+      renderFormAssistView();
+    });
+  }
+}
+
+function renderMaterialAuditView() {
+  const body = $("#material-audit-body")!;
+  const s = effectiveAuditSite();
+  // 顶部选择器：永远手动，跟 URL 检测 / form-assist 选择都解耦
+  const selectorHtml = `
+    <div class="audit-selector" style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+      <label for="ma-country" style="color:var(--muted);font-size:12px;flex:0 0 auto">审核国家</label>
+      <select id="ma-country" style="flex:1;font:inherit;padding:4px 6px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--fg)">
+        <option value="">请选择…</option>
+        ${SITES.map(
+          (site) =>
+            `<option value="${site.id}" ${state.auditCountryId === site.id ? "selected" : ""}>${site.label} · ${site.flow}</option>`,
+        ).join("")}
+      </select>
+    </div>
+  `;
+
+  if (!s) {
+    body.innerHTML =
+      selectorHtml +
+      `<div style="color:var(--muted);font-size:13px">
+         审核哪个国家由你手动选择 — 这里不跟随 URL 检测，也不继承伴行填表的选择。
+         <div style="margin-top:8px;font-size:12px">Phase 2+ 会读取 <code>audit/checklist.json</code> + <code>audit/audit.py</code> 跑核对。</div>
+       </div>`;
+    return;
+  }
+  body.innerHTML =
+    selectorHtml +
+    `
+    <div style="font-size:13px">
+      <div><b>${s.label}</b> · <span style="color:var(--muted)">${s.contextHint}</span></div>
+      <div style="margin-top:8px;color:var(--muted)">
+        Phase 1+：将根据所选国家加载 <code>audit/checklist-${s.country.toLowerCase()}.json</code>，
+        上传材料后调 <code>POST /audit</code>（或本地 <code>audit.py</code>）。
+      </div>
+    </div>
+  `;
+
+  const sel = $("#ma-country") as HTMLSelectElement | null;
+  if (sel) {
+    sel.addEventListener("change", () => {
+      state.auditCountryId = sel.value || null;
+      renderMaterialAuditView();
+    });
+  }
 }
 
 function renderAll() {
-  renderBanner();
   renderTabs();
   renderFormAssistView();
-  renderDemoBar();
+  renderMaterialAuditView();
 }
 
 // ---------- tabs ----------
@@ -201,10 +258,13 @@ async function detectSite() {
   });
 
   state.url = url;
-  state.site = matchSite(url);
+  state.detectedSite = matchSite(url);
+  // form-assist 跟随 URL 检测（仅在用户没手动指定时才用 detectedSite），
+  // 这里**不**重置 formAssistSiteId — 用户手动选过就保留用户的。
   if (!state.userChoseView) {
-    state.view = defaultViewFor(state.site);
+    state.view = defaultViewFor(state.detectedSite);
   }
+  // material-audit 的 auditCountryId 永远不动；它不跟 URL 也不跟 form-assist。
   renderAll();
 }
 

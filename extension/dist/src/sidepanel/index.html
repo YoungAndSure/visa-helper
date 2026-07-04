@@ -70,86 +70,6 @@
       main {
         padding: 0 12px 14px;
       }
-      /* --- site banner --- */
-      .site-banner {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        padding: 10px 12px;
-        margin: 0;
-        background: var(--accent-soft);
-        border-bottom: 1px solid var(--border);
-        font-size: 13px;
-      }
-      .site-banner .badge {
-        flex: 0 0 auto;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        width: 28px;
-        height: 28px;
-        border-radius: 6px;
-        background: var(--accent);
-        color: white;
-        font-weight: 700;
-        font-size: 12px;
-        letter-spacing: 0.02em;
-      }
-      .site-banner.unknown .badge {
-        background: var(--muted);
-      }
-      .site-banner .meta {
-        flex: 1;
-        min-width: 0;
-      }
-      .site-banner .meta .label {
-        font-weight: 600;
-      }
-      .site-banner .meta .hint {
-        display: block;
-        color: var(--muted);
-        font-size: 12px;
-      }
-      .site-banner .url {
-        font-size: 11px;
-        color: var(--muted);
-        font-family: ui-monospace, SFMono-Regular, monospace;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        max-width: 220px;
-        direction: rtl;
-      }
-      /* --- demo picker --- */
-      .demo-bar {
-        padding: 10px 12px;
-        border-bottom: 1px solid var(--border);
-        background: var(--bg);
-      }
-      .demo-bar .label {
-        color: var(--muted);
-        font-size: 12px;
-        margin-bottom: 6px;
-      }
-      .demo-bar .row {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 6px;
-      }
-      .demo-bar button {
-        background: transparent;
-        border: 1px solid var(--border);
-        border-radius: 6px;
-        padding: 4px 10px;
-        font: inherit;
-        cursor: pointer;
-        color: var(--fg);
-      }
-      .demo-bar button[aria-pressed="true"] {
-        background: var(--accent);
-        border-color: var(--accent);
-        color: white;
-      }
       /* --- view content --- */
       section {
         padding: 14px 4px 0;
@@ -218,7 +138,7 @@
         padding-top: 8px;
       }
     </style>
-    <script type="module" crossorigin src="/assets/sidepanel-CI7CKKzU.js"></script>
+    <script type="module" crossorigin src="/assets/sidepanel-_gq8u-Ip.js"></script>
   </head>
   <body>
     <header>
@@ -230,26 +150,6 @@
       </div>
     </header>
 
-    <!-- site 上下文横幅：根据当前 tab URL 自动填充 -->
-    <div class="site-banner" id="site-banner">
-      <div class="badge" id="site-badge">?</div>
-      <div class="meta">
-        <div class="label" id="site-label">读取中…</div>
-        <span class="hint" id="site-hint"></span>
-      </div>
-      <div class="url" id="site-url"></div>
-    </div>
-
-    <!--
-      没有匹配 site 时显示的 demo 按钮组。
-      用户可手动"假装"在某个站点，以测试 shell：
-      横幅、tab 切换、view 占位是否正确渲染。
-    -->
-    <div class="demo-bar" id="demo-bar" hidden>
-      <div class="label">未识别当前页面 — 可手动选择 site 验证显示框架：</div>
-      <div class="row" id="demo-row"></div>
-    </div>
-
     <main id="view">
       <section id="view-form-assist">
         <h2>伴行填表</h2>
@@ -259,8 +159,8 @@
       </section>
       <section id="view-material-audit" hidden>
         <h2>材料审核</h2>
-        <div class="placeholder">
-          上传材料清单 / PDF，调用 /audit 端点（Phase 2+）。
+        <div class="placeholder" id="material-audit-body">
+          站点尚未匹配…
         </div>
       </section>
       <section id="view-settings" hidden>
