@@ -8,6 +8,7 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "typecheck": "tsc --noEmit",
+    "check:boundaries": "node scripts/check-module-boundaries.mjs",
     "preview": "vite preview"
   },
   "dependencies": {

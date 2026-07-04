@@ -1,26 +1,16 @@
-"""
-POST /extract
+"""form-assist 的 extract 服务：从 PDF 路径抽 ApplicantContext。
 
-从给定的 PDF 路径列表里抽申请人上下文（KYC）：
-- 对每个 PDF 用 pdfplumber 抽前 2 页文本（与 audit/audit.py 一致）
-- 拼成 prompt 让 LLM 输出结构化 JSON
-- LLM 不可用时，返回空 applicants + warnings，提示手动录入
-
-注意：本端点直接接收绝对路径，运行后端时要确保调用方的机器路径与
-服务端能读到的是同一份（localhost 后端 ↔ 用户机器 = OK）。
+本模块原位于 form/backend/extract.py，Phase A3 搬过来。
 """
 from __future__ import annotations
 
 import logging
 from pathlib import Path
 
-from fastapi import APIRouter, HTTPException
-
-from .llm import call_json, llm_available
+from ...shared.llm import call_json, llm_available
 from .schemas import ApplicantContext, ExtractRequest, ExtractResponse
 
-router = APIRouter()
-log = logging.getLogger("visa-helper.extract")
+log = logging.getLogger("form_assist.extract")
 
 
 _SYSTEM = """\
@@ -52,10 +42,9 @@ _SYSTEM = """\
 """
 
 
-@router.post("/extract", response_model=ExtractResponse)
 def extract(req: ExtractRequest) -> ExtractResponse:
     if not req.pdf_paths:
-        raise HTTPException(400, "pdf_paths 不能为空")
+        return ExtractResponse(applicants={}, warnings=["pdf_paths 不能为空"])
 
     # 读每个 PDF 的前 2 页
     chunks: list[tuple[str, str]] = []
@@ -75,7 +64,6 @@ def extract(req: ExtractRequest) -> ExtractResponse:
         return ExtractResponse(applicants={}, warnings=warnings)
 
     if not llm_available():
-        # 没有 LLM，直接返回空，让用户手动输入 KYC
         return ExtractResponse(
             applicants={},
             warnings=warnings + ["LLM 未配置，无法自动抽取。请手动录入。"],

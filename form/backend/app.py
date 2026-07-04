@@ -2,10 +2,10 @@
 """
 visa-helper FastAPI 后端
 
-薄代理：
-- /healthz — 状态 + LLM 是否配置
-- /suggest — 表单字段推荐 / LLM 内容核对
-- /extract — 从指定 PDF 路径里抽取申请人上下文
+薄代理，按业务模块拆：
+- /form-assist/*   → form_assist module（字段推荐、PDF 上下文抽取）
+- /material-audit/* → material_audit module（材料审核、内容核对）
+- /healthz         → shared infra（liveness + LLM 是否配置）
 
 设计原则：
 - 不持久化任何 PII（无 DB）
@@ -19,8 +19,8 @@ import logging
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from .suggest import router as suggest_router
-from .extract import router as extract_router
+from .modules.form_assist import router as form_assist_router
+from .modules.material_audit import router as material_audit_router
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 log = logging.getLogger("visa-helper.backend")
@@ -44,14 +44,15 @@ app.add_middleware(
     allow_headers=["Content-Type"],
 )
 
-app.include_router(suggest_router)
-app.include_router(extract_router)
+# 业务路由 — 每个 module 一个 prefix；module 内部自己写 endpoint。
+app.include_router(form_assist_router, prefix="/form-assist")
+app.include_router(material_audit_router, prefix="/material-audit")
 
 
 @app.get("/healthz")
 def healthz() -> dict:
     """Liveness probe. 不调用 LLM。"""
-    from .llm import llm_available
+    from .shared.llm import llm_available
     return {
         "status": "ok",
         "llm_available": llm_available(),
@@ -62,7 +63,14 @@ def healthz() -> dict:
 def root() -> dict:
     return {
         "service": "visa-helper backend",
-        "endpoints": ["GET /healthz", "POST /suggest", "POST /extract"],
+        "endpoints": [
+            "GET  /healthz",
+            "POST /form-assist/suggest",
+            "POST /form-assist/extract",
+            "POST /material-audit/verify",
+            "POST /material-audit/run",
+            "GET  /material-audit/checklist?country=<IS|NO|...>",
+        ],
     }
 
 

@@ -24,6 +24,18 @@ form/backend/.venv/bin/uvicorn form.backend.app:app --reload --host 127.0.0.1 --
 
 ## Endpoints
 
+按业务模块拆 namespace（Phase A2 起）：
+
+| 模块 | 端点 | 说明 |
+|---|---|---|
+| shared infra | `GET /healthz` | liveness + LLM 配置状态 |
+| shared infra | `GET /` | 服务信息 + endpoint 列表 |
+| form-assist | `POST /form-assist/suggest` | 字段推荐（form-fill） |
+| form-assist | `POST /form-assist/extract` | 从 PDF 路径抽 ApplicantContext |
+| material-audit | `POST /material-audit/verify` | 单条 LLM 内容核对（YES/NO/UNCERTAIN） |
+| material-audit | `GET /material-audit/checklist?country=<IS>` | 拉某国要求清单 |
+| material-audit | `POST /material-audit/run` | 跑全量材料审核（Phase A2 stub,Phase D 实装） |
+
 ### `GET /healthz`
 
 ```bash
@@ -31,51 +43,71 @@ curl localhost:8000/healthz
 # {"status":"ok","llm_available":true|false}
 ```
 
-### `POST /suggest`
+### `POST /form-assist/suggest`
 
-字段填表 + 材料校验两种模式。
-
-**form-fill 模式** — 给字段标签 + 申请人上下文 → 拿到建议值：
+form-fill 模式 — 给字段标签 + 申请人上下文 → 拿到建议值：
 
 ```bash
-curl -X POST localhost:8000/suggest \
+curl -X POST localhost:8000/form-assist/suggest \
   -H 'Content-Type: application/json' \
   -d '{
-    "mode": "form-fill",
     "field_label": "Surname (姓)",
     "applicant_context": {"surname_romanized": "<SURNAME>", "passport_no": "<PASSPORT>"}
   }'
 # → {"value": "<SURNAME>", "rationale": "上下文有全名 <SURNAME>", "confidence": 0.95}
 ```
 
-**audit-verify 模式** — 给 requirement 描述 + PDF 文本片段 → 拿到 YES/NO/UNCERTAIN：
+### `POST /form-assist/extract`
+
+从 PDF 路径列表抽取申请人结构化字段：
 
 ```bash
-curl -X POST localhost:8000/suggest \
+curl -X POST localhost:8000/form-assist/extract \
   -H 'Content-Type: application/json' \
   -d '{
-    "mode": "audit-verify",
+    "pdf_paths": [
+      "/Users/youngsure/Code/visa-helper/iceland/<applicant-b>/passport.pdf",
+      "/Users/youngsure/Code/visa-helper/iceland/<applicant-b>/id-card.pdf"
+    ],
+    "applicant_hint": "<applicant-b>"
+  }'
+```
+
+### `POST /material-audit/verify`
+
+单项内容核对 — 给 requirement 描述 + PDF 文本片段 → 拿到 YES/NO/UNCERTAIN：
+
+```bash
+curl -X POST localhost:8000/material-audit/verify \
+  -H 'Content-Type: application/json' \
+  -d '{
     "requirement": "Bank statement (近 3 个月银行流水)",
     "pdf_text_snippet": "<银行名称> 客户姓名: <姓名> ..."
   }'
 # → {"value": "YES", "rationale": "抬头 & 姓名匹配", "confidence": 0.92}
 ```
 
-### `POST /extract`
-
-从 PDF 路径列表抽取申请人结构化字段：
+### `GET /material-audit/checklist`
 
 ```bash
-curl -X POST localhost:8000/extract \
+curl 'localhost:8000/material-audit/checklist?country=IS'
+# → {"country":"Iceland","items":[{...}], "source":"audit/checklist.json"}
+```
+
+### `POST /material-audit/run`
+
+```bash
+curl -X POST localhost:8000/material-audit/run \
   -H 'Content-Type: application/json' \
   -d '{
-    "pdf_paths": [
-      "/home/youngsure/Code/visa-helper/iceland/<applicant-b>/passport.pdf",
-      "/home/youngsure/Code/visa-helper/iceland/<applicant-b>/id-card.pdf"
-    ],
-    "applicant_hint": "<applicant-b>"
+    "country": "IS",
+    "materials_dir": "/Users/youngsure/Code/visa-helper/iceland",
+    "use_llm": false
   }'
+# → {"country":"IS", "results":[], "summary":{"total":0, "warnings":["Phase A2 stub..."]}}
 ```
+
+> ⚠️ Phase A2 阶段 `/run` 只返回 stub（空 results + warning）。前端真要接 RPC 时实装 runner.py。
 
 ## 设计要点
 
