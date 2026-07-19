@@ -27,6 +27,7 @@ from typing import Awaitable, Callable
 
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from .modules.form_assist import router as form_assist_router
 from .modules.material_audit import router as material_audit_router
@@ -86,6 +87,11 @@ app.add_middleware(
 app.include_router(form_assist_router, prefix="/form-assist")
 app.include_router(material_audit_router, prefix="/material-audit")
 
+# 静态前端 — 材料审核页面，同源挂在 /ui（html=True 使 /ui 直接返回 index.html）。
+# 用户浏览器访问 http://localhost:8000/ui 即可用，无需单独前端 server / 无 CORS。
+_STATIC_DIR = os.path.join(os.path.dirname(__file__), "static")
+app.mount("/ui", StaticFiles(directory=_STATIC_DIR, html=True), name="ui")
+
 
 # ---------- 请求日志中间件 ----------
 @app.middleware("http")
@@ -136,8 +142,10 @@ def healthz() -> dict:
 def root() -> dict:
     return {
         "service": "visa-helper backend",
+        "ui": "GET  /ui  (材料审核前端页面)",
         "endpoints": [
             "GET  /healthz",
+            "GET  /ui  (静态前端)",
             "POST /form-assist/suggest",
             "POST /form-assist/extract",
             "POST /material-audit/verify",

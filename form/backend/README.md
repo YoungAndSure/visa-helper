@@ -22,6 +22,21 @@ export ANTHROPIC_SMALL_FAST_MODEL=MiniMax-M3
 form/backend/.venv/bin/uvicorn form.backend.app:app --reload --host 127.0.0.1 --port 8000
 ```
 
+## 材料审核前端页面
+
+后端同源挂了一个纯 HTML+JS 的材料审核页面（`form/backend/static/`），起服务后浏览器直接开：
+
+```
+http://localhost:8000/ui
+```
+
+- 选国家 → 自动拉 `/material-audit/checklist` 预览要求清单
+- 选材料文件夹（**仅浏览器本地读取，不上传文件**，只发目录名等元信息给后端）
+- 点「运行审核」→ 调 `/material-audit/run` 展示逐项结果
+
+> ⚠️ 目前 `/material-audit/run` 返回的是 **示例（FAKE）数据**，真实审核逻辑后续实装。
+> 页面会显式标注「示例数据」。
+
 ## Endpoints
 
 按业务模块拆 namespace（Phase A2 起）：
@@ -30,11 +45,12 @@ form/backend/.venv/bin/uvicorn form.backend.app:app --reload --host 127.0.0.1 --
 |---|---|---|
 | shared infra | `GET /healthz` | liveness + LLM 配置状态 |
 | shared infra | `GET /` | 服务信息 + endpoint 列表 |
+| shared infra | `GET /ui` | 材料审核前端静态页面 |
 | form-assist | `POST /form-assist/suggest` | 字段推荐（form-fill） |
 | form-assist | `POST /form-assist/extract` | 从 PDF 路径抽 ApplicantContext |
 | material-audit | `POST /material-audit/verify` | 单条 LLM 内容核对（YES/NO/UNCERTAIN） |
 | material-audit | `GET /material-audit/checklist?country=<IS>` | 拉某国要求清单 |
-| material-audit | `POST /material-audit/run` | 跑全量材料审核（Phase A2 stub,Phase D 实装） |
+| material-audit | `POST /material-audit/run` | 跑全量材料审核（当前返回 FAKE 示例结果，真实逻辑待实装） |
 
 ### `GET /healthz`
 
