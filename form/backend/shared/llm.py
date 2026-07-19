@@ -19,7 +19,13 @@ from typing import Any
 
 
 def llm_available() -> bool:
-    """是否配置了 API key。"""
+    """是否配置了 API key。
+
+    LOG_ONLY=1 → 强制返回 False,所有 endpoint 走 mock 分支,不调 LLM。
+    适用于: 本地联调前端(避免烧 token)/ CI 跑测试。
+    """
+    if os.environ.get("LOG_ONLY", "0") == "1":
+        return False
     try:
         import anthropic  # noqa: F401
     except ImportError:
