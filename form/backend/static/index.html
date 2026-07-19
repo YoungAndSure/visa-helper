@@ -8,33 +8,46 @@
 </head>
 <body>
   <header class="topbar">
-    <div class="brand">
-      <span class="logo">🛂</span>
-      <div>
-        <h1>材料审核</h1>
-        <p class="tagline">选择签证材料，交给后端逐项核对</p>
+    <div class="topbar__inner">
+      <div class="brand">
+        <div class="mark">🛂</div>
+        <div>
+          <h1>visa-helper <span class="tag">材料审核</span></h1>
+          <p class="tagline">为申根 / 北欧签证材料做清单核对 · 本地运行 · 不外传文件</p>
+        </div>
       </div>
     </div>
-    <div id="health" class="health health--unknown" title="后端状态">后端：检测中…</div>
+    <div class="subnav">
+      <div class="subnav__inner">
+        <span>本页面与后端同源部署 · 文件仅在本地读取</span>
+        <span id="health" class="health health--unknown" title="后端状态">
+          <span class="dot"></span><span class="health__text">检测中…</span>
+        </span>
+      </div>
+    </div>
   </header>
 
   <main class="layout">
     <!-- 左栏：选择 & 运行 -->
     <section class="panel" aria-label="选择材料">
-      <h2 class="panel__title">1 · 选择国家</h2>
+      <h2 class="panel__title">
+        <span class="step">1</span> 选择国家 <small>自动拉清单</small>
+      </h2>
       <select id="country" class="control">
-        <option value="IS">冰岛 (IS)</option>
-        <option value="NO">挪威 (NO)</option>
+        <option value="IS">🇮🇸 冰岛 (IS)</option>
+        <option value="NO">🇳🇴 挪威 (NO)</option>
       </select>
 
-      <h2 class="panel__title">2 · 选择材料</h2>
+      <h2 class="panel__title">
+        <span class="step">2</span> 选择材料 <small>本地读取</small>
+      </h2>
       <p class="hint">
-        📁 选一个材料文件夹。文件<strong>仅在浏览器本地读取</strong>，不会上传；
+        📁 选一个材料文件夹。<strong>文件仅在浏览器本地读取</strong>，不会上传；
         后端只收到国家、目录名等元信息，真实审核逻辑后续实装。
       </p>
       <label class="filepick">
         <input id="picker" type="file" webkitdirectory multiple hidden />
-        <span class="btn btn--ghost">选择材料文件夹…</span>
+        <span class="btn btn--ghost">📂 选择材料文件夹…</span>
       </label>
       <ul id="filelist" class="filelist" aria-live="polite"></ul>
 
@@ -73,7 +86,10 @@
           <summary>查看 Markdown 报告原文</summary>
           <pre id="reportRaw"></pre>
         </details>
-        <p id="resultsEmpty" class="empty">还没有结果，点击左侧「运行审核」。</p>
+        <div id="resultsEmpty" class="empty">
+          <span class="icon">📭</span>
+          还没有结果，点击左侧「运行审核」。
+        </div>
       </div>
     </section>
   </main>

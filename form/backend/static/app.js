@@ -15,6 +15,7 @@ const $ = (sel) => document.querySelector(sel);
 
 const el = {
   health: $("#health"),
+  healthText: $("#health .health__text"),
   country: $("#country"),
   picker: $("#picker"),
   filelist: $("#filelist"),
@@ -68,10 +69,10 @@ async function checkHealth() {
   try {
     const h = await api("/healthz");
     const llm = h.llm_available ? "LLM 已配置" : "LLM 未配置(走 mock)";
-    el.health.textContent = `后端在线 · ${llm}`;
+    el.healthText.textContent = `后端在线 · ${llm}`;
     el.health.className = "health health--ok";
   } catch {
-    el.health.textContent = "后端离线";
+    el.healthText.textContent = "后端离线";
     el.health.className = "health health--down";
   }
 }
@@ -152,6 +153,7 @@ async function runAudit() {
     el.runStatus.textContent = `完成 · 共 ${data.summary.total} 项`;
   } catch (e) {
     el.runStatus.textContent = `审核失败：${e.message}`;
+    el.runStatus.classList.add("runstatus--err");
   } finally {
     el.runBtn.disabled = false;
   }
@@ -159,7 +161,7 @@ async function runAudit() {
 
 function renderResults(data) {
   const s = data.summary;
-  el.resultsEmpty.hidden = true;
+  el.resultsEmpty.style.display = "none";
 
   el.summary.innerHTML = [
     `<span class="chip">合计 <b>${s.total}</b></span>`,
@@ -197,6 +199,11 @@ function renderResults(data) {
     el.reportRaw.textContent = data.markdown_report;
   } else {
     el.reportWrap.hidden = true;
+  }
+
+  // 切到 results tab 后，如果之前没结果，留个空态
+  if ((data.results || []).length === 0 && !(s.warnings || []).length) {
+    el.resultsEmpty.style.display = "";
   }
 }
 
