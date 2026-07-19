@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>visa-helper · 材料审核</title>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo">🛂</span>
+      <div>
+        <h1>材料审核</h1>
+        <p class="tagline">选择签证材料，交给后端逐项核对</p>
+      </div>
+    </div>
+    <div id="health" class="health health--unknown" title="后端状态">后端：检测中…</div>
+  </header>
+
+  <main class="layout">
+    <!-- 左栏：选择 & 运行 -->
+    <section class="panel" aria-label="选择材料">
+      <h2 class="panel__title">1 · 选择国家</h2>
+      <select id="country" class="control">
+        <option value="IS">冰岛 (IS)</option>
+        <option value="NO">挪威 (NO)</option>
+      </select>
+
+      <h2 class="panel__title">2 · 选择材料</h2>
+      <p class="hint">
+        📁 选一个材料文件夹。文件<strong>仅在浏览器本地读取</strong>，不会上传；
+        后端只收到国家、目录名等元信息，真实审核逻辑后续实装。
+      </p>
+      <label class="filepick">
+        <input id="picker" type="file" webkitdirectory multiple hidden />
+        <span class="btn btn--ghost">选择材料文件夹…</span>
+      </label>
+      <ul id="filelist" class="filelist" aria-live="polite"></ul>
+
+      <label class="field">
+        <span class="field__label">材料目录（发给后端）</span>
+        <input id="materialsDir" class="control" type="text"
+               placeholder="/Users/you/Code/visa-helper/iceland" />
+      </label>
+
+      <label class="checkbox">
+        <input id="useLlm" type="checkbox" />
+        <span>用 LLM 二次核对每项内容（较慢）</span>
+      </label>
+
+      <button id="runBtn" class="btn btn--primary">▶ 运行审核</button>
+      <p id="runStatus" class="runstatus" aria-live="polite"></p>
+    </section>
+
+    <!-- 右栏：清单预览 + 结果 -->
+    <section class="panel panel--wide" aria-label="清单与结果">
+      <div class="tabs">
+        <button class="tab tab--active" data-tab="checklist">📋 要求清单</button>
+        <button class="tab" data-tab="results">✅ 审核结果</button>
+      </div>
+
+      <div id="tab-checklist" class="tabpane tabpane--active">
+        <div id="checklistMeta" class="meta"></div>
+        <ol id="checklist" class="checklist"></ol>
+      </div>
+
+      <div id="tab-results" class="tabpane">
+        <div id="summary" class="summary"></div>
+        <div id="warnings" class="warnings"></div>
+        <div id="results" class="results"></div>
+        <details id="reportWrap" class="report" hidden>
+          <summary>查看 Markdown 报告原文</summary>
+          <pre id="reportRaw"></pre>
+        </details>
+        <p id="resultsEmpty" class="empty">还没有结果，点击左侧「运行审核」。</p>
+      </div>
+    </section>
+  </main>
+
+  <script src="./app.js" type="module"></script>
+</body>
+</html>
