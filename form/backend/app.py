@@ -10,6 +10,9 @@ visa-helper FastAPI 后端
 请求日志中间件（access_log）：每个进来的请求打日志（方法、路径、body 摘要、耗时、
 响应状态），便于跟前端联调。生产环境可以关掉（设 LOG_BODIES=0 或直接注释）。
 
+日志落盘：所有日志（本服务 + uvicorn）统一写到 LOG_FILE（默认 form/backend/logs/backend.log），
+同时保留控制台输出。设 LOG_FILE="" 可只输出到控制台。
+
 设计原则：
 - 不持久化任何 PII（无 DB）
 - API key 仅从 env 读，绝不进 storage
@@ -29,9 +32,32 @@ from .modules.form_assist import router as form_assist_router
 from .modules.material_audit import router as material_audit_router
 
 # 日志格式: 人类可读 + 时间戳。Level: INFO 看 access log，DEBUG 看细节。
-logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+# 所有日志（本服务 + uvicorn）统一写到一个文件 LOG_FILE（默认 form/backend/logs/backend.log），
+# 同时保留控制台输出。LOG_FILE 为空串则只输出到控制台。
+_LOG_FORMAT = "%(asctime)s %(levelname)s %(name)s: %(message)s"
+LOG_FILE = os.environ.get(
+    "LOG_FILE",
+    os.path.join(os.path.dirname(__file__), "logs", "backend.log"),
+)
+
+_handlers: list[logging.Handler] = [logging.StreamHandler()]
+if LOG_FILE:
+    os.makedirs(os.path.dirname(os.path.abspath(LOG_FILE)), exist_ok=True)
+    _handlers.append(logging.FileHandler(LOG_FILE, encoding="utf-8"))
+
+logging.basicConfig(level=logging.INFO, format=_LOG_FORMAT, handlers=_handlers)
+
+# 让 uvicorn 自己的 logger（uvicorn / uvicorn.access / uvicorn.error）也落到同一文件：
+# 关掉它们的独立 handler、打开 propagate，交给 root 统一处理。
+for _name in ("uvicorn", "uvicorn.access", "uvicorn.error"):
+    _uv = logging.getLogger(_name)
+    _uv.handlers.clear()
+    _uv.propagate = True
+
 log = logging.getLogger("visa-helper.backend")
 access_log = logging.getLogger("visa-helper.access")
+if LOG_FILE:
+    log.info("logging to file: %s", os.path.abspath(LOG_FILE))
 
 # 是否打印请求 body — 默认开(dev 用);生产可设 LOG_BODIES=0 关掉。
 LOG_BODIES = os.environ.get("LOG_BODIES", "1") == "1"
