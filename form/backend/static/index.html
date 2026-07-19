@@ -7,6 +7,7 @@
   <link rel="stylesheet" href="./styles.css" />
 </head>
 <body>
+  <!-- ===== 顶部（始终显示） ===== -->
   <header class="topbar">
     <div class="topbar__inner">
       <div class="brand">
@@ -16,79 +17,137 @@
           <p class="tagline">为申根 / 北欧签证材料做清单核对 · 本地运行 · 不外传文件</p>
         </div>
       </div>
-    </div>
-    <div class="subnav">
-      <div class="subnav__inner">
-        <span>本页面与后端同源部署 · 文件仅在本地读取</span>
-        <span id="health" class="health health--unknown" title="后端状态">
-          <span class="dot"></span><span class="health__text">检测中…</span>
-        </span>
+      <div id="health" class="health health--unknown" title="后端状态">
+        <span class="dot"></span><span class="health__text">检测中…</span>
       </div>
     </div>
   </header>
 
-  <main class="layout">
-    <!-- 左栏：选择 & 运行 -->
-    <section class="panel" aria-label="选择材料">
-      <h2 class="panel__title">
-        <span class="step">1</span> 选择国家 <small>自动拉清单</small>
-      </h2>
-      <select id="country" class="control">
-        <option value="IS">🇮🇸 冰岛 (IS)</option>
-        <option value="NO">🇳🇴 挪威 (NO)</option>
-      </select>
-
-      <h2 class="panel__title">
-        <span class="step">2</span> 选择材料 <small>本地读取</small>
-      </h2>
-      <p class="hint">
-        📁 选一个材料文件夹。<strong>文件仅在浏览器本地读取</strong>，不会上传；
-        后端只收到国家、目录名等元信息，真实审核逻辑后续实装。
-      </p>
-      <label class="filepick">
-        <input id="picker" type="file" webkitdirectory multiple hidden />
-        <span class="btn btn--ghost">📂 选择材料文件夹…</span>
-      </label>
-      <ul id="filelist" class="filelist" aria-live="polite"></ul>
-
-      <label class="field">
-        <span class="field__label">材料目录（发给后端）</span>
-        <input id="materialsDir" class="control" type="text"
-               placeholder="/Users/you/Code/visa-helper/iceland" />
-      </label>
-
-      <label class="checkbox">
-        <input id="useLlm" type="checkbox" />
-        <span>用 LLM 二次核对每项内容（较慢）</span>
-      </label>
-
-      <button id="runBtn" class="btn btn--primary">▶ 运行审核</button>
-      <p id="runStatus" class="runstatus" aria-live="polite"></p>
+  <main class="stage-root">
+    <!-- ===== 第一屏：产品介绍 hero ===== -->
+    <section class="stage stage--intro is-active" data-stage="intro">
+      <div class="hero">
+        <div class="hero__copy">
+          <span class="hero__eyebrow">申根 / 北欧签证 · 材料自查</span>
+          <h2 class="hero__title">把你的签证材料交给我们<br/>逐项告诉你还差什么</h2>
+          <p class="hero__lead">
+            visa-helper 会按签证官要求清单 <b>逐条</b> 核对你的材料文件夹，
+            告诉你哪一项还没凑齐、有没有过期、是不是同一份文件重复提交。
+          </p>
+          <ul class="hero__bullets">
+            <li>📋 <b>官方清单驱动</b> —— 永远是最新版的申根要求，不靠过时模板</li>
+            <li>🔒 <b>文件不出本机</b> —— 仅在浏览器读取，发给后端的只是元信息</li>
+            <li>⚡ <b>秒级反馈</b> —— 选完文件夹几秒内拿到完整审核报告</li>
+          </ul>
+          <button class="btn btn--primary btn--lg" data-action="go-country">
+            开始 → 选择国家
+          </button>
+          <p class="hero__note">本地运行 · 无需注册 · 你的材料只属于你</p>
+        </div>
+        <div class="hero__visual" aria-hidden="true">
+          <div class="hero__card hero__card--pass">
+            <span class="hero__card__tag">第 1 项</span>
+            <span class="hero__card__title">签证申请表</span>
+            <span class="badge badge--PASS">通过</span>
+          </div>
+          <div class="hero__card hero__card--warn">
+            <span class="hero__card__tag">第 4 项</span>
+            <span class="hero__card__title">旅行医疗保险</span>
+            <span class="badge badge--WARNING">警告</span>
+          </div>
+          <div class="hero__card hero__card--fail">
+            <span class="hero__card__tag">第 11 项</span>
+            <span class="hero__card__title">在职证明</span>
+            <span class="badge badge--FAIL">缺失</span>
+          </div>
+        </div>
+      </div>
     </section>
 
-    <!-- 右栏：清单预览 + 结果 -->
-    <section class="panel panel--wide" aria-label="清单与结果">
-      <div class="tabs">
-        <button class="tab tab--active" data-tab="checklist">📋 要求清单</button>
-        <button class="tab" data-tab="results">✅ 审核结果</button>
+    <!-- ===== 第二屏：只一个国家选择框 ===== -->
+    <section class="stage stage--country" data-stage="country">
+      <div class="country">
+        <h2 class="country__title">你要申请哪个国家的签证？</h2>
+        <p class="country__lead">选好之后，我们给你展示该国的官方材料要求清单。</p>
+        <div class="country__pick">
+          <select id="country" class="control control--big">
+            <option value="IS">🇮🇸  冰岛 · Iceland</option>
+            <option value="NO">🇳🇴  挪威 · Norway</option>
+          </select>
+          <button class="btn btn--primary btn--lg" data-action="start">开始审核</button>
+        </div>
+        <button class="link-back" data-action="go-intro">← 返回介绍</button>
       </div>
+    </section>
 
-      <div id="tab-checklist" class="tabpane tabpane--active">
-        <div id="checklistMeta" class="meta"></div>
-        <ol id="checklist" class="checklist"></ol>
-      </div>
+    <!-- ===== 第三屏：工作区（左选文件 / 右动态） ===== -->
+    <section class="stage stage--work" data-stage="work">
+      <div class="workspace">
+        <!-- 头部：国家 + 返回 -->
+        <div class="ws__header">
+          <div class="ws__crumb">
+            <span class="ws__country" id="wsCountry">冰岛</span>
+            <span class="ws__sep">·</span>
+            <span class="ws__hint">选择材料文件夹</span>
+          </div>
+          <button class="link-back" data-action="back-country">← 换一个国家</button>
+        </div>
 
-      <div id="tab-results" class="tabpane">
-        <div id="summary" class="summary"></div>
-        <div id="warnings" class="warnings"></div>
-        <div id="results" class="results"></div>
-        <details id="reportWrap" class="report" hidden>
-          <summary>查看 Markdown 报告原文</summary>
-          <pre id="reportRaw"></pre>
-        </details>
-        <div id="resultsEmpty" class="empty">
-          <span class="icon">📭</span>
-          还没有结果，点击左侧「运行审核」。
+        <div class="ws__grid">
+          <!-- 左：文件选择 + 列表 -->
+          <aside class="ws__left">
+            <label class="filepick">
+              <input id="picker" type="file" webkitdirectory multiple hidden />
+              <span class="btn btn--ghost btn--block">📂 选择材料文件夹…</span>
+            </label>
+            <label class="field">
+              <span class="field__label">材料目录</span>
+              <input id="materialsDir" class="control" type="text"
+                     placeholder="/Users/you/Code/visa-helper/iceland" />
+            </label>
+            <label class="checkbox">
+              <input id="useLlm" type="checkbox" />
+              <span>用 LLM 二次核对每项内容</span>
+            </label>
+            <ul id="filelist" class="filelist" aria-live="polite"></ul>
+            <button id="runBtn" class="btn btn--primary" disabled>▶ 运行审核</button>
+            <p id="runStatus" class="runstatus"></p>
+          </aside>
+
+          <!-- 右：动态区 -->
+          <section class="ws__right">
+            <div class="tabs">
+              <button class="tab tab--active" data-tab="checklist">📋 要求清单</button>
+              <button class="tab" data-tab="preview">👁 文件预览</button>
+              <button class="tab" data-tab="results">✅ 审核结果</button>
+            </div>
+
+            <div id="tab-checklist" class="tabpane tabpane--active">
+              <div id="checklistMeta" class="meta"></div>
+              <ol id="checklist" class="checklist"></ol>
+            </div>
+
+            <div id="tab-preview" class="tabpane">
+              <div id="previewArea" class="preview"></div>
+              <p id="previewEmpty" class="empty">
+                <span class="icon">👁</span> 选一个文件预览
+              </p>
+            </div>
+
+            <div id="tab-results" class="tabpane">
+              <div id="summary" class="summary"></div>
+              <div id="warnings" class="warnings"></div>
+              <div id="results" class="results"></div>
+              <details id="reportWrap" class="report" hidden>
+                <summary>查看 Markdown 报告原文</summary>
+                <pre id="reportRaw"></pre>
+              </details>
+              <div id="resultsEmpty" class="empty">
+                <span class="icon">📭</span>
+                还没有结果，点击左侧「运行审核」。
+              </div>
+            </div>
+          </section>
         </div>
       </div>
     </section>
