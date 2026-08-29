@@ -36,7 +36,7 @@
           </p>
           <ul class="hero__bullets">
             <li>📋 <b>官方清单驱动</b> —— 永远是最新版的申根要求，不靠过时模板</li>
-            <li>🔒 <b>原始文件不出本机</b> —— 本地提取、擦除隐私，确认后只发送安全 JSON</li>
+            <li>🔒 <b>原始文件不出本机</b> —— 本地提取、擦除隐私，确认后只发送安全材料</li>
             <li>⚡ <b>秒级反馈</b> —— 选完文件夹几秒内拿到完整审核报告</li>
           </ul>
           <button class="btn btn--primary btn--lg" data-action="go-country">
@@ -112,7 +112,7 @@
             <ul id="filelist" class="filelist" aria-live="polite"></ul>
             <button id="privacyBtn" class="btn btn--privacy" disabled>🔒 擦除隐私并生成安全材料</button>
             <p id="privacyStatus" class="runstatus"></p>
-            <button id="runBtn" class="btn btn--primary" disabled>▶ 发送安全 JSON 并审核</button>
+            <button id="runBtn" class="btn btn--primary" disabled>▶ 发送安全材料并审核</button>
             <p id="runStatus" class="runstatus"></p>
           </aside>
 
@@ -141,7 +141,7 @@
               <div class="privacy-head">
                 <div>
                   <h3>发送给后端的安全材料</h3>
-                  <p>这里不包含原始文件名、路径或二进制文件。提交前请检查并编辑 JSON。</p>
+                  <p>每个原文件对应一个安全材料对象。这里不包含原始文件名、路径或二进制文件，请逐项检查。</p>
                 </div>
                 <span id="privacyBadge" class="privacy-badge privacy-badge--idle">尚未处理</span>
               </div>
@@ -154,13 +154,54 @@
                 <span class="icon">🔐</span>
                 选择文件后，点击左侧「擦除隐私并生成安全材料」。
               </div>
-              <div id="privacyEditorWrap" class="privacy-editor" hidden>
-                <div class="privacy-editor__toolbar">
-                  <span>可编辑 JSON · 修改后需要保存并确认</span>
-                  <button id="savePrivacyBtn" class="btn btn--small btn--ghost">保存修改并确认</button>
+              <div id="privacyMaterial" class="privacy-material" hidden>
+                <div class="privacy-material__header">
+                  <div>
+                    <span id="privacyMaterialRef" class="privacy-material__ref"></span>
+                    <h4 id="privacyMaterialTitle"></h4>
+                  </div>
+                  <span id="privacyReviewState" class="privacy-badge privacy-badge--review">待确认</span>
                 </div>
-                <textarea id="privacyEditor" spellcheck="false" aria-label="安全材料 JSON"></textarea>
+                <div class="privacy-fields">
+                  <label class="field">
+                    <span class="field__label">材料类型</span>
+                    <input id="privacyMaterialType" class="control" value="unknown" />
+                  </label>
+                  <label class="field">
+                    <span class="field__label">文件类型</span>
+                    <input id="privacyKind" class="control" readonly />
+                  </label>
+                  <label class="field">
+                    <span class="field__label">媒体类型</span>
+                    <input id="privacyMediaType" class="control" readonly />
+                  </label>
+                  <label class="field">
+                    <span class="field__label">处理状态</span>
+                    <select id="privacyReviewStatus" class="control">
+                      <option value="needs_review">需要人工复核</option>
+                      <option value="ready">可以审核</option>
+                      <option value="blocked">暂时阻塞</option>
+                    </select>
+                  </label>
+                </div>
+                <section class="privacy-section">
+                  <h5>检测到的隐私替换</h5>
+                  <div id="privacyRedactions" class="redaction-list"></div>
+                </section>
+                <label class="privacy-section">
+                  <h5>脱敏后的文本</h5>
+                  <textarea id="privacyText" class="privacy-text" spellcheck="false"></textarea>
+                </label>
+                <section class="privacy-section">
+                  <h5>图片对象</h5>
+                  <div id="privacyImages" class="privacy-images"></div>
+                </section>
+                <label class="privacy-section">
+                  <h5>处理备注</h5>
+                  <textarea id="privacyNotes" class="privacy-notes"></textarea>
+                </label>
                 <div id="privacyValidation" class="privacy-validation"></div>
+                <button id="confirmMaterialBtn" class="btn btn--primary">确认当前材料</button>
               </div>
             </div>
 
@@ -184,6 +225,6 @@
     </section>
   </main>
 
-  <script src="./app.js" type="module"></script>
+  <script src="./app.js?v=privacy-per-file-v2" type="module"></script>
 </body>
 </html>

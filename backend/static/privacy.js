@@ -73,6 +73,64 @@ async function extractPdfText(file) {
   return pages.join("\n\n");
 }
 
+/** Render PDF pages to canvas without browser PDF viewer controls or editing affordances. */
+export async function renderPdfReadOnly(
+  file,
+  container,
+  { maxPages = 30, isCurrent = () => true } = {},
+) {
+  const pdfjs = await loadPdfJs();
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  const pdf = await pdfjs.getDocument({ data: bytes }).promise;
+  const pageCount = Math.min(pdf.numPages, maxPages);
+  const root = document.createElement("div");
+  root.className = "pdf-readonly";
+  const notice = document.createElement("div");
+  notice.className = "pdf-readonly__notice";
+  notice.textContent = `只读预览 · 共 ${pdf.numPages} 页 · 不会修改原文件`;
+  root.appendChild(notice);
+  container.replaceChildren(root);
+
+  try {
+    for (let pageNo = 1; pageNo <= pageCount; pageNo += 1) {
+      if (!isCurrent()) return;
+      const page = await pdf.getPage(pageNo);
+      const baseViewport = page.getViewport({ scale: 1 });
+      const availableWidth = Math.max(320, (container.clientWidth || 800) - 36);
+      const cssScale = Math.min(1.5, availableWidth / baseViewport.width);
+      const viewport = page.getViewport({ scale: cssScale });
+      const outputScale = Math.min(window.devicePixelRatio || 1, 2);
+      const canvas = document.createElement("canvas");
+      const context = canvas.getContext("2d", { alpha: false });
+      canvas.width = Math.floor(viewport.width * outputScale);
+      canvas.height = Math.floor(viewport.height * outputScale);
+      canvas.style.width = `${Math.floor(viewport.width)}px`;
+      canvas.style.height = `${Math.floor(viewport.height)}px`;
+
+      const pageWrap = document.createElement("section");
+      pageWrap.className = "pdf-readonly__page";
+      pageWrap.setAttribute("aria-label", `PDF 第 ${pageNo} 页`);
+      pageWrap.appendChild(canvas);
+      root.appendChild(pageWrap);
+
+      await page.render({
+        canvasContext: context,
+        viewport,
+        transform: outputScale === 1 ? null : [outputScale, 0, 0, outputScale, 0, 0],
+      }).promise;
+      page.cleanup();
+    }
+    if (pdf.numPages > maxPages && isCurrent()) {
+      const truncated = document.createElement("div");
+      truncated.className = "pdf-readonly__notice";
+      truncated.textContent = `为控制浏览器内存，仅预览前 ${maxPages} 页。`;
+      root.appendChild(truncated);
+    }
+  } finally {
+    await pdf.destroy();
+  }
+}
+
 function replaceAndCount(text, regex, replacement, counter, type) {
   return text.replace(regex, (...args) => {
     counter[type] = (counter[type] || 0) + 1;
