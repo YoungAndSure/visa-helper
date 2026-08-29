@@ -237,14 +237,6 @@ function selectFile(index) {
   el.previewEmpty.style.display = "none";
   el.previewArea.innerHTML = "";
 
-  const metadata = document.createElement("div");
-  metadata.className = "preview__meta";
-  metadata.innerHTML =
-    `<span>${fileIcon(file.name)}</span><b>${escapeHtml(file.webkitRelativePath || file.name)}</b>` +
-    `<span style="margin-left:auto;color:var(--muted)">${humanSize(file.size)} · ` +
-    `${escapeHtml(file.type || "未知类型")}</span>`;
-  el.previewArea.appendChild(metadata);
-
   const body = document.createElement("div");
   body.className = "preview__body";
   if (kind === "image") {
