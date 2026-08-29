@@ -5,7 +5,8 @@
 - POST /material-audit/run      — 跑全量材料审核
 - GET  /material-audit/checklist — 拉某国的 checklist
 
-实现位于 router.py / service.py / prompts.py / schemas.py / checklist_store.py / runner.py。
+实现位于 router.py / service.py / prompts.py / schemas.py / checklist_store.py /
+audit_agent.py / runner.py。
 """
 from .router import router
 

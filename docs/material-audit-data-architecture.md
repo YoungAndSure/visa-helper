@@ -119,10 +119,15 @@ Content-Type: application/json
 - 选择本地文件夹；
 - 列出文件；
 - 本地预览图片和 PDF；
+- 在浏览器内提取 PDF/文本并执行第一版规则隐私擦除；
+- 生成、展示和编辑 `privacy-materials/v1alpha1` 安全 JSON；
+- 图片默认只生成不含原图内容的待人工处理对象；
+- 用户保存确认安全 JSON 后才允许调用后端；
 - 调用 `/material-audit/run` 并展示结果。
 
-当前并未把文件内容上传到后端；`/material-audit/run` 只接收国家、目录名称和 LLM 开关，
-且返回 FAKE 示例结果。本地隐私处理、结构化事实协议和真实审核尚待下一步设计与实现。
+后端已经接收安全材料 Schema，并搭建 Audit Agent 的 intake、Checklist、知识库、模型和报告
+步骤骨架；当前审核状态仍为 FAKE，知识库和模型步骤尚未实装。第一版隐私擦除仅覆盖规则
+可识别文本，扫描 PDF、图片 OCR/打码、姓名地址 NER 和人工画框能力仍待优化。
 
 ---
 

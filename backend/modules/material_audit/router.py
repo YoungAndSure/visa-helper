@@ -1,7 +1,7 @@
 """material-audit 路由: /material-audit/*
 
 - POST /material-audit/verify    — 单条 LLM 内容核对
-- POST /material-audit/run       — 跑全量材料审核（Phase A2 stub,Phase D 实装）
+- POST /material-audit/run       — 接收安全材料 JSON，交给 Audit Agent 编排
 - GET  /material-audit/checklist — 拉某国要求清单
 
 挂载时使用 prefix='/material-audit'。

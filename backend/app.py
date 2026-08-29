@@ -8,7 +8,7 @@ visa-helper FastAPI 后端
 - /healthz         → shared infra（liveness + LLM 是否配置）
 
 请求日志中间件（access_log）：每个进来的请求打日志（方法、路径、body 摘要、耗时、
-响应状态），便于跟前端联调。生产环境可以关掉（设 LOG_BODIES=0 或直接注释）。
+响应状态），便于跟前端联调。请求正文默认不记录；敏感接口即使显式开启也不记录。
 
 日志落盘：所有日志（本服务 + uvicorn）统一写到 LOG_FILE（默认 backend/logs/backend.log），
 同时保留控制台输出。设 LOG_FILE="" 可只输出到控制台。
@@ -60,9 +60,16 @@ access_log = logging.getLogger("visa-helper.access")
 if LOG_FILE:
     log.info("logging to file: %s", os.path.abspath(LOG_FILE))
 
-# 是否打印请求 body — 默认开(dev 用);生产可设 LOG_BODIES=0 关掉。
-LOG_BODIES = os.environ.get("LOG_BODIES", "1") == "1"
+# 是否打印普通请求 body — 默认关闭；仅显式设 LOG_BODIES=1 时开启。
+# 涉及材料和申请人信息的接口始终不打印 body，避免安全 JSON/PII 进入日志。
+LOG_BODIES = os.environ.get("LOG_BODIES", "0") == "1"
 LOG_BODY_MAX = int(os.environ.get("LOG_BODY_MAX", "500"))
+SENSITIVE_BODY_PATHS = {
+    "/material-audit/run",
+    "/material-audit/verify",
+    "/form-assist/extract",
+    "/form-assist/suggest",
+}
 
 app = FastAPI(title="visa-helper backend", version="0.1.0")
 
@@ -107,7 +114,11 @@ async def access_log_middleware(
     """
     t0 = time.perf_counter()
     body_preview = ""
-    if LOG_BODIES and request.method in {"POST", "PUT", "PATCH"}:
+    if (
+        LOG_BODIES
+        and request.url.path not in SENSITIVE_BODY_PATHS
+        and request.method in {"POST", "PUT", "PATCH"}
+    ):
         try:
             raw = await request.body()
             if raw:

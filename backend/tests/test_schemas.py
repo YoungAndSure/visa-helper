@@ -4,6 +4,8 @@ Phase A2 拆分后：
 - /form-assist/suggest    ← 原 /suggest?mode=form-fill
 - /material-audit/verify  ← 原 /suggest?mode=audit-verify
 """
+import importlib
+import logging
 from unittest.mock import patch
 
 import pytest
@@ -150,3 +152,131 @@ def test_material_audit_run_returns_fake_results(client):
     assert all(item["status"] in {"PASS", "FAIL", "WARNING", "N/A"} for item in body["results"])
     # 明确标注为示例数据
     assert any("FAKE" in w or "示例" in w for w in summary["warnings"])
+
+
+def test_material_audit_run_accepts_reviewed_privacy_safe_materials(client):
+    response = client.post("/material-audit/run", json={
+        "country": "IS",
+        "visa_type": "schengen-tourism",
+        "materials": [{
+            "material_id": "material-001",
+            "source_ref": "local-file-001",
+            "material_type": "bank-statement",
+            "media_type": "application/pdf",
+            "kind": "pdf",
+            "text": "Name: [REDACTED_NAME]",
+            "redactions": [{"type": "name", "count": 1}],
+            "review_status": "needs_review",
+        }],
+        "privacy": {
+            "processed_locally": True,
+            "raw_files_uploaded": False,
+            "user_reviewed": True,
+            "redaction_engine": "browser-regex-v1",
+        },
+        "review_scopes": ["checklist", "risk"],
+        "use_llm": False,
+    })
+    assert response.status_code == 200
+    body = response.json()
+    assert body["results"][0]["matched"] == ["local-file-001"]
+    assert [step["name"] for step in body["agent_trace"]] == [
+        "privacy_intake",
+        "checklist_review",
+        "knowledge_retrieval",
+        "model_review",
+        "report",
+    ]
+    assert body["agent_trace"][0]["status"] == "completed"
+    assert body["agent_trace"][2]["status"] == "pending"
+
+
+def test_material_audit_rejects_unreviewed_materials(client):
+    response = client.post("/material-audit/run", json={
+        "country": "IS",
+        "materials": [{
+            "material_id": "material-001",
+            "source_ref": "local-file-001",
+            "kind": "text",
+            "text": "already redacted",
+        }],
+        "privacy": {
+            "processed_locally": True,
+            "raw_files_uploaded": False,
+            "user_reviewed": False,
+        },
+    })
+    assert response.status_code == 422
+
+
+def test_material_audit_rejects_original_filename_field(client):
+    response = client.post("/material-audit/run", json={
+        "country": "IS",
+        "materials": [{
+            "material_id": "material-001",
+            "source_ref": "local-file-001",
+            "kind": "text",
+            "name": "真实姓名-bank-statement.pdf",
+            "text": "redacted",
+        }],
+        "privacy": {
+            "processed_locally": True,
+            "raw_files_uploaded": False,
+            "user_reviewed": True,
+        },
+    })
+    assert response.status_code == 422
+
+
+def test_material_audit_rejects_obvious_pii_reintroduced_in_text(client):
+    response = client.post("/material-audit/run", json={
+        "country": "IS",
+        "materials": [{
+            "material_id": "material-001",
+            "source_ref": "local-file-001",
+            "kind": "text",
+            "text": "Phone: 13800000000",
+        }],
+        "privacy": {
+            "processed_locally": True,
+            "raw_files_uploaded": False,
+            "user_reviewed": True,
+        },
+    })
+    assert response.status_code == 422
+
+
+def test_material_audit_rejects_content_on_excluded_image(client):
+    response = client.post("/material-audit/run", json={
+        "country": "IS",
+        "materials": [{
+            "material_id": "material-001",
+            "source_ref": "local-file-001",
+            "kind": "image",
+            "images": [{
+                "image_id": "material-001-image-001",
+                "media_type": "image/png",
+                "included": False,
+                "content": "data:image/png;base64,raw-content-must-not-pass",
+            }],
+        }],
+        "privacy": {
+            "processed_locally": True,
+            "raw_files_uploaded": False,
+            "user_reviewed": True,
+        },
+    })
+    assert response.status_code == 422
+
+
+def test_sensitive_material_body_never_enters_access_log(client, monkeypatch, caplog):
+    app_module = importlib.import_module("backend.app")
+    monkeypatch.setattr(app_module, "LOG_BODIES", True)
+    secret = "RAW-SECRET-MUST-NOT-BE-LOGGED"
+    with caplog.at_level(logging.INFO, logger="visa-helper.access"):
+        response = client.post("/material-audit/run", json={
+            "country": "IS",
+            "unexpected_raw_content": secret,
+        })
+    assert response.status_code == 422
+    assert secret not in caplog.text

@@ -31,8 +31,10 @@ http://localhost:8000/ui
 ```
 
 - 选国家 → 自动拉 `/material-audit/checklist` 预览要求清单
-- 选材料文件夹（**仅浏览器本地读取，不上传文件**，只发目录名等元信息给后端）
-- 点「运行审核」→ 调 `/material-audit/run` 展示逐项结果
+- 选材料文件夹 → 本地预览原文件
+- 点「擦除隐私」→ 浏览器本地提取 PDF/文本、规则擦除隐私并生成可编辑安全 JSON
+- 用户保存确认后，才允许把安全 JSON 发给 `/material-audit/run`
+- 图片默认不进入 JSON 内容，只生成 `pending_manual_redaction` 对象
 
 > ⚠️ 目前 `/material-audit/run` 返回的是 **示例（FAKE）数据**，真实审核逻辑后续实装。
 > 页面会显式标注「示例数据」。
@@ -118,22 +120,42 @@ curl -X POST localhost:8000/material-audit/run \
   -H 'Content-Type: application/json' \
   -d '{
     "country": "IS",
-    "materials_dir": "/Users/youngsure/Code/visa-helper/iceland",
+    "visa_type": "schengen-tourism",
+    "materials": [{
+      "material_id": "material-001",
+      "source_ref": "local-file-001",
+      "material_type": "bank-statement",
+      "media_type": "application/pdf",
+      "kind": "pdf",
+      "text": "Name: [REDACTED_NAME]",
+      "review_status": "needs_review"
+    }],
+    "privacy": {
+      "processed_locally": true,
+      "raw_files_uploaded": false,
+      "user_reviewed": true,
+      "redaction_engine": "browser-regex-v1"
+    },
+    "review_scopes": ["checklist", "risk"],
     "use_llm": false
   }'
-# → {"country":"IS", "results":[], "summary":{"total":0, "warnings":["Phase A2 stub..."]}}
+# → 当前返回 FAKE results + agent_trace；真实审核步骤待实现
 ```
 
-> ⚠️ Phase A2 阶段 `/run` 只返回 stub（空 results + warning）。前端真要接 RPC 时实装 runner.py。
+> ⚠️ 当前 Audit Agent 已有 intake/checklist/knowledge/model/report 编排骨架，但后三项仍是
+> stub/FAKE。请求 Schema 已强制执行隐私标记并拒绝原始文件名、路径及明显未擦除 PII。
 
 ## 设计要点
 
-- **不持久化 PII**：无 DB，无 file-based state，仅做代理
+- **原始材料不上传**：浏览器本地处理，后端只接收用户确认后的安全 JSON
+- **敏感正文不落日志**：材料审核和表单接口即使开启 `LOG_BODIES=1` 也不记录 body
 - **PII 脱敏**：`backend/redact.py` 的 `redact_applicant_context()`
   在送 prompt 前过滤 passport / ID / 卡号 / 手机 / email；Chrome 扩展仍持有
   真实值用于 fill-back，LLM 看不到
 - **CORS allowlist**：`http://localhost:5173/3000`（dev）+ `chrome-extension://<id>`
 - **错误策略**：LLM 失败降级为 mock/unknown 而不是 500，前端能继续跑
+
+安全 JSON 契约详见 [`../docs/privacy-safe-materials.md`](../docs/privacy-safe-materials.md)。
 
 ## 与后台工具及 Checklist 数据的关系
 
