@@ -101,7 +101,7 @@ def extract(req: ExtractRequest) -> ExtractResponse:
 
 
 def _pdf_snippet(p: Path, max_chars: int = 2000) -> str:
-    """抽 PDF 前 2 页文本，截断到 max_chars。与 audit/audit.py 同口径。"""
+    """抽 PDF 前 2 页文本，截断到 max_chars。与旧版材料审核 CLI 同口径。"""
     if not p.exists():
         return ""
     try:

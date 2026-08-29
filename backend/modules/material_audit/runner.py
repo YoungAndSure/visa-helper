@@ -56,7 +56,7 @@ def run_audit(req: RunRequest) -> RunResponse:
                 total=0,
                 warnings=[
                     f"未找到 country={req.country!r} 的 checklist；"
-                    "先跑 audit/extract_checklist.py 生成。",
+                    "先跑 tools/checklist/import_checklist.py 生成。",
                 ],
             ),
             markdown_report=None,

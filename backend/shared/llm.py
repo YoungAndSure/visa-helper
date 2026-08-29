@@ -1,7 +1,7 @@
 """
 LLM 客户端封装。
 
-环境变量（与 audit/audit.py 保持一致）：
+环境变量（与旧版 tools/material_audit/audit.py 保持一致）：
 - ANTHROPIC_BASE_URL          e.g. https://api.minimaxi.com/anthropic
 - ANTHROPIC_AUTH_TOKEN / ANTHROPIC_API_KEY
 - ANTHROPIC_MODEL              大模型

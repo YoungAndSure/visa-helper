@@ -186,7 +186,7 @@ data/checklists/
 建议命令：
 
 ```bash
-python3 audit/import_checklist.py \
+backend/.venv/bin/python tools/checklist/import_checklist.py \
   --country IS \
   --visa-type schengen-tourism \
   --input data/checklists/sources/IS/schengen-tourism.pdf
@@ -262,13 +262,17 @@ country=IS + visa_type=schengen-tourism
 
 ### 4.6 当前项目状态
 
-现有 `audit/extract_checklist.py` 可以把冰岛官方 PDF 转为 `audit/checklist.json`，后端通过 `checklist_store.py` 加载：
+现有 `tools/checklist/import_checklist.py` 可以把冰岛官方 PDF 转为
+`data/checklists/parsed/checklist-IS-schengen-tourism.json`，后端通过
+`checklist_store.py` 加载：
 
-- 优先加载 `audit/checklist-<COUNTRY>.json`；
-- 冰岛 `IS` 在没有独立文件时兼容加载 `audit/checklist.json`；
+- 官方源文件约定放在 `data/checklists/sources/<COUNTRY>/`；
+- 解析结果使用 `checklist-<COUNTRY>-<VISA_TYPE>.json` 命名；
+- 当前前端只选择国家，后端通过显式映射选择该国默认签证类型；
 - 清单使用内存缓存，文件更新后需要清缓存或重启后端。
 
-现有解析器仍是冰岛专用：国家、签证类型、前两页、1 至 13 项以及匹配关键词均带硬编码。后续应改造成接收国家、签证类型和输入文件的通用导入工具。
+现有导入命令已经接收国家、签证类型和输入文件，但解析适配器仍是冰岛专用：前两页、
+1 至 13 项以及匹配关键词均带硬编码。工具会拒绝其他国家，后续为各国增加独立版式规则。
 
 ---
 

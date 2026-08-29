@@ -1,8 +1,8 @@
 iceland/
 .claude/
 
-# audit/ — 每次运行的产物（可能含真实文件名/扫描结果）
-audit/report.md
+# 材料审核运行产物（可能含真实文件名/扫描结果）
+data/reports/
 
 # backend
 backend/.venv/

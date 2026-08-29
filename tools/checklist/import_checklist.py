@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
-"""
-extract_checklist.py
-====================
-从签证材料清单 PDF 中提取要求项，生成结构化 checklist.json。
+"""后台 Checklist 导入工具。
+
+从官方签证材料清单 PDF 中提取要求项，生成按国家和签证类型命名的结构化 JSON。
 
 策略：用 pdfplumber 抽文本，按编号 (1. 2. ... 13.) 切分条目。
 对每一条：保留中英文标题、详细要求、适用人群。
 只解析前两页（材料清单），忽略第 3-4 页的「申请人须知」和签字栏。
+
+当前解析适配器仍只支持冰岛申根旅游签清单版式；其他国家必须先增加解析规则，
+工具会拒绝直接套用冰岛规则，避免生成内容错误但格式合法的 Checklist。
 """
 from __future__ import annotations
 
@@ -116,7 +118,13 @@ def split_items(text: str) -> dict[int, dict[str, str]]:
     return items
 
 
-def extract(pdf_path: Path) -> dict:
+def extract(
+    pdf_path: Path,
+    *,
+    country: str,
+    country_name: str,
+    visa_type: str,
+) -> dict:
     """主函数：从 PDF 提取所有要求项，组装成 checklist dict。"""
     with pdfplumber.open(pdf_path) as pdf:
         # 材料清单在第 1-2 页（"Page 1 of 4" / "Page 2 of 4"）
@@ -141,35 +149,67 @@ def extract(pdf_path: Path) -> dict:
 
     return {
         "source_pdf": str(pdf_path),
-        "country": "Iceland",
-        "visa_type": "Schengen Short-Stay (Tourism)",
+        "country_code": country,
+        "country": country_name,
+        "visa_type": visa_type,
+        "parser_version": "is-v1",
         "items": items_out,
     }
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="从签证清单 PDF 提取要求项")
+    parser = argparse.ArgumentParser(description="导入官方签证 Checklist PDF")
     parser.add_argument(
-        "pdf",
-        nargs="?",
-        default="iceland/visa-document-checklist.pdf",
-        help="签证清单 PDF 路径（默认 iceland/visa-document-checklist.pdf）",
+        "--input",
+        default="data/checklists/sources/IS/schengen-tourism.pdf",
+        help="官方清单 PDF 路径",
+    )
+    parser.add_argument(
+        "--country",
+        default="IS",
+        help="ISO 两位国家码（当前解析器仅支持 IS）",
+    )
+    parser.add_argument(
+        "--country-name",
+        default="Iceland",
+        help="清单中展示的国家名称",
+    )
+    parser.add_argument(
+        "--visa-type",
+        default="schengen-tourism",
+        help="签证类型 slug",
     )
     parser.add_argument(
         "-o", "--output",
-        default="audit/checklist.json",
-        help="输出 JSON 路径（默认 audit/checklist.json）",
+        default=None,
+        help="输出 JSON 路径；默认按国家和签证类型写入 data/checklists/parsed/",
     )
     args = parser.parse_args()
 
-    pdf_path = Path(args.pdf)
+    country = args.country.upper()
+    if country != "IS":
+        print(
+            f"[ERROR] country={country} 尚无解析适配器；当前只支持 IS，"
+            "请先为该国实现版式规则。",
+            file=sys.stderr,
+        )
+        return 2
+
+    pdf_path = Path(args.input)
     if not pdf_path.exists():
         print(f"[ERROR] PDF not found: {pdf_path}", file=sys.stderr)
         return 1
 
-    checklist = extract(pdf_path)
+    checklist = extract(
+        pdf_path,
+        country=country,
+        country_name=args.country_name,
+        visa_type=args.visa_type,
+    )
 
-    out_path = Path(args.output)
+    out_path = Path(args.output) if args.output else Path(
+        f"data/checklists/parsed/checklist-{country}-{args.visa_type}.json"
+    )
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(
         json.dumps(checklist, ensure_ascii=False, indent=2),

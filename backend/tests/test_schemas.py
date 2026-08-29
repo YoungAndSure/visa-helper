@@ -115,6 +115,9 @@ def test_material_audit_checklist_known_country(client):
     body = r.json()
     assert body["country"] == "Iceland"
     assert len(body["items"]) > 0
+    assert body["source"] == (
+        "data/checklists/parsed/checklist-IS-schengen-tourism.json"
+    )
 
 
 def test_material_audit_checklist_unknown_country_404(client):

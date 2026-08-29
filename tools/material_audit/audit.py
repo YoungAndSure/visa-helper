@@ -1,22 +1,22 @@
 #!/usr/bin/env python3
 """
-audit.py
-========
-根据 extract_checklist.py 生成的 checklist.json，按要求逐条核验
+旧版只读材料审核 CLI。
+
+根据 import_checklist.py 生成的 Checklist JSON，按要求逐条核验
 iceland/ 目录下的签证材料，输出审核报告。
 
 设计原则：
-- 严格只读用户材料 (iceland/)，只在 audit/ 目录内写输出
-- 关键字匹配为主（基于 extract_checklist 的 match_keywords）
+- 严格只读用户材料 (iceland/)，只在 data/reports/ 目录内写输出
+- 关键字匹配为主（基于 import_checklist 的 match_keywords）
 - --llm 开启后，对匹配到的 PDF 抽文本送 LLM 二次确认内容
-- 报告输出 audit/report.md
+- 报告输出 data/reports/material-audit-report.md
 
 用法:
-    python3 audit/audit.py                              # 仅文件名匹配
-    python3 audit/audit.py --llm                        # 加 LLM 内容验证
-    python3 audit/audit.py --materials iceland/ \
-        --checklist audit/checklist.json \
-        --output audit/report.md
+    python3 tools/material_audit/audit.py
+    python3 tools/material_audit/audit.py --llm
+    python3 tools/material_audit/audit.py --materials iceland/ \
+        --checklist data/checklists/parsed/checklist-IS-schengen-tourism.json \
+        --output data/reports/material-audit-report.md
 """
 from __future__ import annotations
 
@@ -448,12 +448,13 @@ def main() -> int:
         help="材料根目录（默认 iceland/）",
     )
     parser.add_argument(
-        "--checklist", default="audit/checklist.json",
-        help="checklist JSON 路径（默认 audit/checklist.json）",
+        "--checklist",
+        default="data/checklists/parsed/checklist-IS-schengen-tourism.json",
+        help="Checklist JSON 路径",
     )
     parser.add_argument(
-        "--output", default="audit/report.md",
-        help="报告输出路径（默认 audit/report.md）",
+        "--output", default="data/reports/material-audit-report.md",
+        help="报告输出路径",
     )
     parser.add_argument(
         "--applicants", default=None,
@@ -479,7 +480,7 @@ def main() -> int:
         return 1
     if not checklist_path.is_file():
         print(f"[ERROR] checklist JSON not found: {checklist_path}", file=sys.stderr)
-        print(f"  请先运行: python3 audit/extract_checklist.py", file=sys.stderr)
+        print(f"  请先运行: python3 tools/checklist/import_checklist.py", file=sys.stderr)
         return 1
 
     checklist = json.loads(checklist_path.read_text(encoding="utf-8"))

@@ -1,8 +1,4 @@
-"""material-audit 的 checklist 数据访问。
-
-Phase A2 阶段：仅从 audit/checklist.json 读 IS 清单（schema 已知）。
-后续 Phase：多国清单各自 JSON 文件。
-"""
+"""material-audit 的 Checklist 数据访问。"""
 from __future__ import annotations
 
 import json
@@ -17,26 +13,30 @@ log = logging.getLogger("material_audit.checklist_store")
 # 项目根 = backend/modules/material_audit/checklist_store.py → 上溯 3 层
 _PROJECT_ROOT = Path(__file__).resolve().parents[3]
 
+# 前端当前只选择国家，尚未选择签证类型；这里显式指定各国当前默认类型。
+# 增加多签证类型后，应由 API 请求传入 visa_type，而不是猜测。
+_DEFAULT_VISA_TYPES = {
+    "IS": "schengen-tourism",
+}
+
 
 @lru_cache(maxsize=8)
 def load_checklist(country: str) -> ChecklistResponse | None:
-    """读 audit/checklist-<country>.json（或单文件 checklist.json）。
-
-    返回 None 表示该国家尚无清单。
-    """
+    """读取该国家当前默认签证类型的已解析 Checklist。"""
     country = country.upper()
 
-    # 优先按国家拆分的文件，否则落到通用 audit/checklist.json
-    by_country = _PROJECT_ROOT / "audit" / f"checklist-{country}.json"
-    common = _PROJECT_ROOT / "audit" / "checklist.json"
+    visa_type = _DEFAULT_VISA_TYPES.get(country)
+    if visa_type is None:
+        return None
 
-    path: Path | None = None
-    if by_country.exists():
-        path = by_country
-    elif common.exists() and country == "IS":
-        # 现状：checklist.json 是冰岛的；其他国家暂未拆出
-        path = common
-    if path is None:
+    path = (
+        _PROJECT_ROOT
+        / "data"
+        / "checklists"
+        / "parsed"
+        / f"checklist-{country}-{visa_type}.json"
+    )
+    if not path.exists():
         return None
 
     try:

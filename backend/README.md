@@ -12,7 +12,7 @@
 python3 -m venv backend/.venv
 backend/.venv/bin/python -m pip install fastapi 'uvicorn[standard]' pydantic anthropic pdfplumber
 
-# 配置 LLM（与 audit/audit.py 风格一致）
+# 配置 LLM（与旧版 tools/material_audit/audit.py 风格一致）
 export ANTHROPIC_BASE_URL=https://api.minimaxi.com/anthropic
 export ANTHROPIC_AUTH_TOKEN=...
 export ANTHROPIC_MODEL=MiniMax-M3
@@ -107,7 +107,8 @@ curl -X POST localhost:8000/material-audit/verify \
 
 ```bash
 curl 'localhost:8000/material-audit/checklist?country=IS'
-# → {"country":"Iceland","items":[{...}], "source":"audit/checklist.json"}
+# → {"country":"Iceland","items":[{...}],
+#    "source":"data/checklists/parsed/checklist-IS-schengen-tourism.json"}
 ```
 
 ### `POST /material-audit/run`
@@ -134,12 +135,13 @@ curl -X POST localhost:8000/material-audit/run \
 - **CORS allowlist**：`http://localhost:5173/3000`（dev）+ `chrome-extension://<id>`
 - **错误策略**：LLM 失败降级为 mock/unknown 而不是 500，前端能继续跑
 
-## 与 audit/ 的关系
+## 与后台工具及 Checklist 数据的关系
 
-- LLM env-var 风格完全复用 `audit/audit.py`
-- PDF 抽取口径（`pdfplumber` 前 2 页 + 截断）与 `audit/audit.py` 一致
-- `audit/checklist.json` 在 audit 阶段生成；extension 这边再 port 一份到 TS
-  （见 `extension/src/shared/audit-rules.ts`）
+- Checklist 官方源文件放在 `data/checklists/sources/<COUNTRY>/`。
+- `tools/checklist/import_checklist.py` 生成 `data/checklists/parsed/` 下的 JSON。
+- 后端 `checklist_store.py` 按国家到默认签证类型的显式映射加载 JSON。
+- 旧版 `tools/material_audit/audit.py` 仅作为离线参考工具，真实在线审核后续在
+  `modules/material_audit/` 内实现。
 
 ## 测试
 

@@ -1,7 +1,9 @@
 {
-  "source_pdf": "iceland/visa-document-checklist.pdf",
+  "source_pdf": "data/checklists/sources/IS/schengen-tourism.pdf",
+  "country_code": "IS",
   "country": "Iceland",
-  "visa_type": "Schengen Short-Stay (Tourism)",
+  "visa_type": "schengen-tourism",
+  "parser_version": "is-v1",
   "items": [
     {
       "id": 1,

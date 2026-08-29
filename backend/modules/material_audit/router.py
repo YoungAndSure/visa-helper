@@ -40,7 +40,10 @@ def get_checklist(country: str) -> ChecklistResponse | None:
     if resp is None:
         raise HTTPException(
             status_code=404,
-            detail=f"no checklist for country={country!r}; run audit/extract_checklist.py first",
+            detail=(
+                f"no checklist for country={country!r}; "
+                "run tools/checklist/import_checklist.py first"
+            ),
         )
     return resp
 
