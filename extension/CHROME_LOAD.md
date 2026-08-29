@@ -9,7 +9,7 @@
 
 ```bash
 cd /home/youngsure/Code/visa-helper
-form/backend/.venv/bin/uvicorn form.backend.app:app --host 127.0.0.1 --port 8000
+backend/.venv/bin/python -m uvicorn backend.app:app --host 127.0.0.1 --port 8000
 ```
 
 终端应看到 `Application startup complete.` 和 `Uvicorn running on http://127.0.0.1:8000`。

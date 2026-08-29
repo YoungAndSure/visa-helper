@@ -4,11 +4,11 @@ iceland/
 # audit/ — 每次运行的产物（可能含真实文件名/扫描结果）
 audit/report.md
 
-# form/ backend
-form/backend/.venv/
-form/backend/__pycache__/
-form/backend/**/__pycache__/
-form/backend/.pytest_cache/
+# backend
+backend/.venv/
+backend/__pycache__/
+backend/**/__pycache__/
+backend/.pytest_cache/
 *.pyc
 
 # extension/ — Vite output and node_modules

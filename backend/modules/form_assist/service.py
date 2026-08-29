@@ -17,7 +17,7 @@ def suggest_form_fill(req: FormSuggestRequest) -> FormSuggestResponse:
     if not llm_available():
         return FormSuggestResponse(
             value=None,
-            rationale="LLM 未配置（缺 ANTHROPIC_AUTH_TOKEN）。请在 form/backend 启动前 source .env。",
+            rationale="LLM 未配置（缺 ANTHROPIC_AUTH_TOKEN）。请在 backend 启动前 source .env。",
             confidence=0.0,
         )
     redacted = redact_applicant_context(req.applicant_context)

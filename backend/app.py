@@ -10,7 +10,7 @@ visa-helper FastAPI 后端
 请求日志中间件（access_log）：每个进来的请求打日志（方法、路径、body 摘要、耗时、
 响应状态），便于跟前端联调。生产环境可以关掉（设 LOG_BODIES=0 或直接注释）。
 
-日志落盘：所有日志（本服务 + uvicorn）统一写到 LOG_FILE（默认 form/backend/logs/backend.log），
+日志落盘：所有日志（本服务 + uvicorn）统一写到 LOG_FILE（默认 backend/logs/backend.log），
 同时保留控制台输出。设 LOG_FILE="" 可只输出到控制台。
 
 设计原则：
@@ -33,7 +33,7 @@ from .modules.form_assist import router as form_assist_router
 from .modules.material_audit import router as material_audit_router
 
 # 日志格式: 人类可读 + 时间戳。Level: INFO 看 access log，DEBUG 看细节。
-# 所有日志（本服务 + uvicorn）统一写到一个文件 LOG_FILE（默认 form/backend/logs/backend.log），
+# 所有日志（本服务 + uvicorn）统一写到一个文件 LOG_FILE（默认 backend/logs/backend.log），
 # 同时保留控制台输出。LOG_FILE 为空串则只输出到控制台。
 _LOG_FORMAT = "%(asctime)s %(levelname)s %(name)s: %(message)s"
 LOG_FILE = os.environ.get(
@@ -156,9 +156,9 @@ def root() -> dict:
 
 
 def main() -> None:
-    """uvicorn form.backend.app:app --reload 也能跑，这里给一个直接运行的入口。"""
+    """uvicorn backend.app:app --reload 也能跑，这里给一个直接运行的入口。"""
     import uvicorn
-    uvicorn.run("form.backend.app:app", host="127.0.0.1", port=8000, reload=False)
+    uvicorn.run("backend.app:app", host="127.0.0.1", port=8000, reload=False)
 
 
 if __name__ == "__main__":

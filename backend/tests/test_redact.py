@@ -3,7 +3,7 @@
 ⚠️  本文件仅含合成 PII。严禁用真实证件号 / 姓名 / 手机 / 身份证号。
     提交前请确保："ID 1234… / Passport XX1234567 / 13800000000 / DOE" 等都是 fake。
 """
-from form.backend.shared.redact import redact_pii, redact_applicant_context
+from backend.shared.redact import redact_pii, redact_applicant_context
 
 
 def test_redact_pii_passes_through_normal_text():

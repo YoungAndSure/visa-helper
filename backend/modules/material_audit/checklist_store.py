@@ -14,8 +14,8 @@ from .schemas import ChecklistItem, ChecklistResponse
 
 log = logging.getLogger("material_audit.checklist_store")
 
-# 项目根 = form/backend/modules/material_audit/checklist_store.py → 上溯 4 层
-_PROJECT_ROOT = Path(__file__).resolve().parents[4]
+# 项目根 = backend/modules/material_audit/checklist_store.py → 上溯 3 层
+_PROJECT_ROOT = Path(__file__).resolve().parents[3]
 
 
 @lru_cache(maxsize=8)

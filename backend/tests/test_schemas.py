@@ -9,7 +9,7 @@ from unittest.mock import patch
 import pytest
 from fastapi.testclient import TestClient
 
-from form.backend.app import app
+from backend.app import app
 
 
 @pytest.fixture
@@ -37,14 +37,14 @@ def test_root_lists_endpoints(client):
 
 
 # ---------- form-assist ----------
-@patch("form.backend.modules.form_assist.service.call_json")
+@patch("backend.modules.form_assist.service.call_json")
 def test_form_assist_suggest_returns_value(mock_call_json, client):
     mock_call_json.return_value = {
         "value": "DOE",
         "rationale": "上下文已有罗马拼音姓氏",
         "confidence": 0.95,
     }
-    with patch("form.backend.modules.form_assist.service.llm_available", return_value=True):
+    with patch("backend.modules.form_assist.service.llm_available", return_value=True):
         r = client.post("/form-assist/suggest", json={
             "field_label": "Surname (姓)",
             "applicant_context": {"surname_romanized": "DOE"},
@@ -57,7 +57,7 @@ def test_form_assist_suggest_returns_value(mock_call_json, client):
 
 def test_form_assist_suggest_without_llm_returns_explanation(client, monkeypatch):
     monkeypatch.setenv("ANTHROPIC_AUTH_TOKEN", "")
-    with patch("form.backend.modules.form_assist.service.llm_available", return_value=False):
+    with patch("backend.modules.form_assist.service.llm_available", return_value=False):
         r = client.post("/form-assist/suggest", json={
             "field_label": "Surname",
             "applicant_context": {},
@@ -81,14 +81,14 @@ def test_form_assist_extract_empty_paths_returns_warning(client):
 
 
 # ---------- material-audit ----------
-@patch("form.backend.modules.material_audit.service.call_json")
+@patch("backend.modules.material_audit.service.call_json")
 def test_material_audit_verify_yields_yes(mock_call_json, client):
     mock_call_json.return_value = {
         "value": "YES",
         "rationale": "段落标题包含银行流水",
         "confidence": 0.9,
     }
-    with patch("form.backend.modules.material_audit.service.llm_available", return_value=True):
+    with patch("backend.modules.material_audit.service.llm_available", return_value=True):
         r = client.post("/material-audit/verify", json={
             "requirement": "近 3 个月银行流水",
             "pdf_text_snippet": "<BANK> 客户姓名 <NAME> ...",
@@ -99,7 +99,7 @@ def test_material_audit_verify_yields_yes(mock_call_json, client):
 
 
 def test_material_audit_verify_without_llm_returns_uncertain(client):
-    with patch("form.backend.modules.material_audit.service.llm_available", return_value=False):
+    with patch("backend.modules.material_audit.service.llm_available", return_value=False):
         r = client.post("/material-audit/verify", json={
             "requirement": "保险",
             "pdf_text_snippet": "<INSURANCE> ...",

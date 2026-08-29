@@ -9,8 +9,8 @@
 
 ```bash
 # 一次性装依赖（已完成）
-python3 -m venv form/backend/.venv
-form/backend/.venv/bin/pip install fastapi 'uvicorn[standard]' pydantic anthropic pdfplumber
+python3 -m venv backend/.venv
+backend/.venv/bin/python -m pip install fastapi 'uvicorn[standard]' pydantic anthropic pdfplumber
 
 # 配置 LLM（与 audit/audit.py 风格一致）
 export ANTHROPIC_BASE_URL=https://api.minimaxi.com/anthropic
@@ -19,12 +19,12 @@ export ANTHROPIC_MODEL=MiniMax-M3
 export ANTHROPIC_SMALL_FAST_MODEL=MiniMax-M3
 
 # 起后端
-form/backend/.venv/bin/uvicorn form.backend.app:app --reload --host 127.0.0.1 --port 8000
+backend/.venv/bin/python -m uvicorn backend.app:app --reload --host 127.0.0.1 --port 8000
 ```
 
 ## 材料审核前端页面
 
-后端同源挂了一个纯 HTML+JS 的材料审核页面（`form/backend/static/`），起服务后浏览器直接开：
+后端同源挂了一个纯 HTML+JS 的材料审核页面（`backend/static/`），起服务后浏览器直接开：
 
 ```
 http://localhost:8000/ui
@@ -128,7 +128,7 @@ curl -X POST localhost:8000/material-audit/run \
 ## 设计要点
 
 - **不持久化 PII**：无 DB，无 file-based state，仅做代理
-- **PII 脱敏**：`form/backend/redact.py` 的 `redact_applicant_context()`
+- **PII 脱敏**：`backend/redact.py` 的 `redact_applicant_context()`
   在送 prompt 前过滤 passport / ID / 卡号 / 手机 / email；Chrome 扩展仍持有
   真实值用于 fill-back，LLM 看不到
 - **CORS allowlist**：`http://localhost:5173/3000`（dev）+ `chrome-extension://<id>`
@@ -144,7 +144,7 @@ curl -X POST localhost:8000/material-audit/run \
 ## 测试
 
 ```bash
-form/backend/.venv/bin/python -m pytest form/backend/tests -v
+backend/.venv/bin/python -m pytest backend/tests -v
 ```
 
 Phase 0 覆盖：

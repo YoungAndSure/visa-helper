@@ -1,6 +1,6 @@
 """form-assist 的 extract 服务：从 PDF 路径抽 ApplicantContext。
 
-本模块原位于 form/backend/extract.py，Phase A3 搬过来。
+本模块原位于 backend/extract.py，Phase A3 搬过来。
 """
 from __future__ import annotations
 

@@ -64,7 +64,7 @@ git push
 
 ## 与后端通信
 
-`form/backend/` 在 `localhost:8000` 跑着；扩展通过 `host_permissions` 白名单访问 `http://localhost:8000/*`。
+`backend/` 在 `localhost:8000` 跑着；扩展通过 `host_permissions` 白名单访问 `http://localhost:8000/*`。
 Phase 0 不需要后端，Phase 1+ 会用 `fetch('/suggest')` 等调用。
 
 ## Phase 0 范围
