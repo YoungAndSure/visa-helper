@@ -165,6 +165,18 @@ def test_material_audit_run_accepts_reviewed_privacy_safe_materials(client):
             "media_type": "application/pdf",
             "kind": "pdf",
             "text": "Name: [REDACTED_NAME]",
+            "content_blocks": [
+                {"type": "text", "text": "Name: [REDACTED_NAME]"},
+                {
+                    "type": "image",
+                    "image": {
+                        "image_id": "material-001-image-001",
+                        "media_type": "image/png",
+                        "included": False,
+                    },
+                },
+                {"type": "text", "text": "Account: [REDACTED_ACCOUNT]"},
+            ],
             "redactions": [{"type": "name", "count": 1}],
             "review_status": "needs_review",
         }],
@@ -236,6 +248,24 @@ def test_material_audit_rejects_obvious_pii_reintroduced_in_text(client):
             "source_ref": "local-file-001",
             "kind": "text",
             "text": "Phone: 13800000000",
+        }],
+        "privacy": {
+            "processed_locally": True,
+            "raw_files_uploaded": False,
+            "user_reviewed": True,
+        },
+    })
+    assert response.status_code == 422
+
+
+def test_material_audit_rejects_obvious_pii_in_ordered_text_block(client):
+    response = client.post("/material-audit/run", json={
+        "country": "IS",
+        "materials": [{
+            "material_id": "material-001",
+            "source_ref": "local-file-001",
+            "kind": "text",
+            "content_blocks": [{"type": "text", "text": "Phone: 13800000000"}],
         }],
         "privacy": {
             "processed_locally": True,

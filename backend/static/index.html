@@ -162,44 +162,11 @@
                   </div>
                   <span id="privacyReviewState" class="privacy-badge privacy-badge--review">待确认</span>
                 </div>
-                <div class="privacy-fields">
-                  <label class="field">
-                    <span class="field__label">材料类型</span>
-                    <input id="privacyMaterialType" class="control" value="unknown" />
-                  </label>
-                  <label class="field">
-                    <span class="field__label">文件类型</span>
-                    <input id="privacyKind" class="control" readonly />
-                  </label>
-                  <label class="field">
-                    <span class="field__label">媒体类型</span>
-                    <input id="privacyMediaType" class="control" readonly />
-                  </label>
-                  <label class="field">
-                    <span class="field__label">处理状态</span>
-                    <select id="privacyReviewStatus" class="control">
-                      <option value="needs_review">需要人工复核</option>
-                      <option value="ready">可以审核</option>
-                      <option value="blocked">暂时阻塞</option>
-                    </select>
-                  </label>
-                </div>
                 <section class="privacy-section">
                   <h5>检测到的隐私替换</h5>
                   <div id="privacyRedactions" class="redaction-list"></div>
                 </section>
-                <label class="privacy-section">
-                  <h5>脱敏后的文本</h5>
-                  <textarea id="privacyText" class="privacy-text" spellcheck="false"></textarea>
-                </label>
-                <section class="privacy-section">
-                  <h5>图片对象</h5>
-                  <div id="privacyImages" class="privacy-images"></div>
-                </section>
-                <label class="privacy-section">
-                  <h5>处理备注</h5>
-                  <textarea id="privacyNotes" class="privacy-notes"></textarea>
-                </label>
+                <div id="privacyContent" class="privacy-content" aria-label="脱敏后的材料内容"></div>
                 <div id="privacyValidation" class="privacy-validation"></div>
                 <button id="confirmMaterialBtn" class="btn btn--primary">确认当前材料</button>
               </div>
@@ -225,6 +192,6 @@
     </section>
   </main>
 
-  <script src="./app.js?v=privacy-per-file-v2" type="module"></script>
+  <script src="./app.js?v=privacy-content-flow-v3" type="module"></script>
 </body>
 </html>

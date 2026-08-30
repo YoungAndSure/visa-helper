@@ -77,6 +77,28 @@ class SafeImageObject(BaseModel):
         return self
 
 
+class SafeContentBlock(BaseModel):
+    """安全材料中的有序内容块，顺序与原文件阅读顺序一致。"""
+
+    model_config = ConfigDict(extra="forbid")
+
+    type: Literal["text", "image"]
+    text: str | None = Field(default=None, max_length=250_000)
+    image: SafeImageObject | None = None
+
+    @model_validator(mode="after")
+    def validate_block_payload(self) -> "SafeContentBlock":
+        if self.type == "text" and self.text is None:
+            raise ValueError("text block must contain text")
+        if self.type == "text" and self.image is not None:
+            raise ValueError("text block must not contain image")
+        if self.type == "image" and self.image is None:
+            raise ValueError("image block must contain image")
+        if self.type == "image" and self.text is not None:
+            raise ValueError("image block must not contain text")
+        return self
+
+
 class SafeMaterial(BaseModel):
     """浏览器本地脱敏后允许发送的材料对象，不包含原始文件名或路径。"""
 
@@ -92,6 +114,7 @@ class SafeMaterial(BaseModel):
     kind: Literal["pdf", "text", "image", "unsupported"]
     text: str = Field(default="", max_length=250_000)
     images: list[SafeImageObject] = Field(default_factory=list, max_length=50)
+    content_blocks: list[SafeContentBlock] = Field(default_factory=list, max_length=200)
     redactions: list[PrivacyRedaction] = Field(default_factory=list, max_length=100)
     review_status: Literal["needs_review", "blocked", "ready"] = "needs_review"
     user_notes: str = Field(default="", max_length=4000)
@@ -108,6 +131,16 @@ class SafeMaterial(BaseModel):
         )
         if any(re.search(pattern, value, flags=re.IGNORECASE) for pattern in patterns):
             raise ValueError("text contains obvious unredacted PII")
+        return value
+
+    @field_validator("content_blocks")
+    @classmethod
+    def reject_obvious_raw_pii_in_blocks(
+        cls, value: list[SafeContentBlock]
+    ) -> list[SafeContentBlock]:
+        for block in value:
+            if block.type == "text" and block.text is not None:
+                cls.reject_obvious_raw_pii(block.text)
         return value
 
 

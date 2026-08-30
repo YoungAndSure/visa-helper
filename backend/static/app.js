@@ -32,14 +32,8 @@ const el = {
   privacyMaterialRef: $("#privacyMaterialRef"),
   privacyMaterialTitle: $("#privacyMaterialTitle"),
   privacyReviewState: $("#privacyReviewState"),
-  privacyMaterialType: $("#privacyMaterialType"),
-  privacyKind: $("#privacyKind"),
-  privacyMediaType: $("#privacyMediaType"),
-  privacyReviewStatus: $("#privacyReviewStatus"),
   privacyRedactions: $("#privacyRedactions"),
-  privacyText: $("#privacyText"),
-  privacyImages: $("#privacyImages"),
-  privacyNotes: $("#privacyNotes"),
+  privacyContent: $("#privacyContent"),
   privacyValidation: $("#privacyValidation"),
   confirmMaterialBtn: $("#confirmMaterialBtn"),
   agentTrace: $("#agentTrace"),
@@ -58,7 +52,6 @@ let activeFileIdx = -1;
 let previewObjectUrl = null;
 let safePackage = null;
 let privacyProcessing = false;
-let currentTab = "checklist";
 let previewGeneration = 0;
 const reviewedMaterialIds = new Set();
 
@@ -120,7 +113,6 @@ function goto(stageName) {
 }
 
 function switchTab(name) {
-  currentTab = name;
   document.querySelectorAll(".tab").forEach((tab) => {
     tab.classList.toggle("tab--active", tab.dataset.tab === name);
   });
@@ -242,15 +234,8 @@ function renderFileList() {
       `<button class="file-main" type="button" title="${escapeHtml(file.webkitRelativePath || file.name)}">` +
       `<span class="file-icon">${fileIcon(file.name)}</span>` +
       `<span class="file-name">${escapeHtml(file.webkitRelativePath || file.name)}</span>` +
-      `<span class="file-size">${humanSize(file.size)}</span></button>` +
-      `<span class="file-actions">` +
-      `<button class="file-action ${currentTab === "preview" && index === activeFileIdx ? "is-active" : ""}" data-view="preview" type="button">原文件</button>` +
-      `<button class="file-action file-action--safe ${currentTab === "privacy" && index === activeFileIdx ? "is-active" : ""} ${confirmed ? "is-confirmed" : ""}" data-view="privacy" type="button" ${material ? "" : "disabled"}>` +
-      `${confirmed ? "安全材料 ✓" : "安全材料"}</button></span>`;
+      `<span class="file-size">${confirmed ? "已确认 ✓" : humanSize(file.size)}</span></button>`;
     row.querySelector(".file-main").addEventListener("click", () => selectFile(index, "preview"));
-    row.querySelectorAll("[data-view]").forEach((button) => {
-      button.addEventListener("click", () => selectFile(index, button.dataset.view));
-    });
     el.filelist.appendChild(row);
   });
 }
@@ -298,15 +283,53 @@ function renderPrivacySummary(packageValue) {
     (total, material) => total + (material.redactions || []).reduce((sum, item) => sum + item.count, 0),
     0,
   );
-  const blocked = materials.filter((material) => material.review_status === "blocked").length;
-  const images = materials.reduce((total, material) => total + (material.images || []).length, 0);
   el.privacySummary.innerHTML = [
     ["材料对象", materials.length],
     ["已确认", reviewedMaterialIds.size],
     ["隐私替换", redactions],
-    ["待处理图片", images],
-    ["阻塞项", blocked],
   ].map(([label, value]) => `<div class="privacy-stat">${label}<b>${value}</b></div>`).join("");
+}
+
+function renderPrivacyContent(material) {
+  el.privacyContent.innerHTML = "";
+  const blocks = material.content_blocks?.length
+    ? material.content_blocks
+    : [
+      ...(material.text ? [{ type: "text", text: material.text }] : []),
+      ...(material.images || []).map((image) => ({ type: "image", image })),
+    ];
+
+  if (!blocks.length) {
+    el.privacyContent.innerHTML = `<div class="privacy-content__empty">当前没有可安全发送的内容。扫描件与未擦除图片暂不会发送。</div>`;
+    return;
+  }
+
+  blocks.forEach((block, blockIndex) => {
+    if (block.type === "text") {
+      const textarea = document.createElement("textarea");
+      textarea.className = "privacy-content__text";
+      textarea.spellcheck = false;
+      textarea.value = block.text;
+      textarea.dataset.blockIndex = String(blockIndex);
+      textarea.setAttribute("aria-label", "脱敏后的文本内容");
+      textarea.addEventListener("input", markCurrentMaterialDirty);
+      el.privacyContent.appendChild(textarea);
+      return;
+    }
+
+    const image = block.image;
+    const imageBlock = document.createElement("div");
+    imageBlock.className = "privacy-content__image";
+    if (image.included && typeof image.content === "string" && image.content.startsWith("data:image/")) {
+      const preview = document.createElement("img");
+      preview.src = image.content;
+      preview.alt = "脱敏后的材料图片";
+      imageBlock.appendChild(preview);
+    } else {
+      imageBlock.innerHTML = `<span class="icon">🖼</span><b>图片暂未发送</b><span>等待后续接入图片隐私擦除能力</span>`;
+    }
+    el.privacyContent.appendChild(imageBlock);
+  });
 }
 
 function renderPrivacyMaterial(index) {
@@ -325,25 +348,12 @@ function renderPrivacyMaterial(index) {
   el.privacyMaterialTitle.textContent = file?.webkitRelativePath || file?.name || `材料 ${index + 1}`;
   el.privacyReviewState.textContent = confirmed ? "已确认" : "待确认";
   el.privacyReviewState.className = `privacy-badge ${confirmed ? "privacy-badge--ready" : "privacy-badge--review"}`;
-  el.privacyMaterialType.value = material.material_type || "other";
-  el.privacyKind.value = material.kind || "unknown";
-  el.privacyMediaType.value = material.media_type || "application/octet-stream";
-  el.privacyReviewStatus.value = material.review_status || "needs_review";
-  el.privacyText.value = material.text || "";
-  el.privacyNotes.value = material.user_notes || "";
   el.privacyRedactions.innerHTML = (material.redactions || []).length
     ? material.redactions.map((item) =>
       `<span class="redaction-chip">${escapeHtml(item.type)} <b>${item.count}</b></span>`
     ).join("")
     : `<span class="muted">未发现可自动识别的文本隐私</span>`;
-  el.privacyImages.innerHTML = (material.images || []).length
-    ? material.images.map((item) =>
-      `<article class="privacy-image-card"><b>${escapeHtml(item.image_id || "图片")}</b>` +
-      `<span>${escapeHtml(item.media_type || "未知格式")}</span>` +
-      `<span>${item.width || "?"} × ${item.height || "?"}</span>` +
-      `<span>${item.redaction_status === "redacted" ? "已擦除" : "未发送 / 待处理"}</span></article>`
-    ).join("")
-    : `<span class="muted">此材料没有需要传给后端理解的图片对象</span>`;
+  renderPrivacyContent(material);
   el.privacyValidation.textContent = confirmed
     ? "✓ 此文件对应的安全材料对象已确认。原文件未被修改。"
     : "请逐块核对内容；确认后，后端只会收到这个安全材料对象。";
@@ -353,10 +363,12 @@ function renderPrivacyMaterial(index) {
 function markCurrentMaterialDirty() {
   const material = safePackage?.materials?.[activeFileIdx];
   if (!material) return;
-  material.material_type = el.privacyMaterialType.value.trim();
-  material.review_status = el.privacyReviewStatus.value;
-  material.text = el.privacyText.value;
-  material.user_notes = el.privacyNotes.value;
+  const textBlocks = [...el.privacyContent.querySelectorAll(".privacy-content__text")];
+  for (const textarea of textBlocks) {
+    const block = material.content_blocks?.[Number(textarea.dataset.blockIndex)];
+    if (block?.type === "text") block.text = textarea.value;
+  }
+  if (textBlocks.length) material.text = textBlocks.map((textarea) => textarea.value).join("\n\n");
   reviewedMaterialIds.delete(material.material_id);
   safePackage.privacy.user_reviewed = false;
   el.runBtn.disabled = true;
@@ -372,17 +384,7 @@ function markCurrentMaterialDirty() {
 function confirmCurrentMaterial() {
   const material = safePackage?.materials?.[activeFileIdx];
   if (!material) return;
-  const materialType = el.privacyMaterialType.value.trim();
-  if (!/^[a-z0-9_-]{1,64}$/.test(materialType)) {
-    el.privacyValidation.textContent = "材料类型只能使用小写字母、数字、下划线或短横线。";
-    el.privacyValidation.className = "privacy-validation is-error";
-    return;
-  }
-
-  material.material_type = materialType;
-  material.review_status = el.privacyReviewStatus.value;
-  material.text = el.privacyText.value;
-  material.user_notes = el.privacyNotes.value;
+  markCurrentMaterialDirty();
   reviewedMaterialIds.add(material.material_id);
   safePackage.country = el.countrySelect.value;
   safePackage.privacy.user_reviewed = reviewedMaterialIds.size === safePackage.materials.length;
@@ -536,12 +538,6 @@ document.querySelectorAll("[data-action]").forEach((button) => {
 
 el.picker.addEventListener("change", onPick);
 el.privacyBtn.addEventListener("click", processPrivacy);
-[
-  el.privacyMaterialType,
-  el.privacyReviewStatus,
-  el.privacyText,
-  el.privacyNotes,
-].forEach((field) => field.addEventListener("input", markCurrentMaterialDirty));
 el.confirmMaterialBtn.addEventListener("click", confirmCurrentMaterial);
 el.runBtn.addEventListener("click", runAudit);
 document.querySelectorAll(".tab").forEach((tab) => {

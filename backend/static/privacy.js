@@ -194,6 +194,7 @@ async function processFile(file, index) {
     kind,
     text: "",
     images: [],
+    content_blocks: [],
     redactions: [],
     review_status: "needs_review",
     user_notes: "",
@@ -206,6 +207,7 @@ async function processFile(file, index) {
       return {
         ...base,
         text: redacted.text,
+        content_blocks: redacted.text.trim() ? [{ type: "text", text: redacted.text }] : [],
         redactions: redacted.redactions,
         review_status: redacted.text.trim() ? "needs_review" : "blocked",
         user_notes: redacted.text.trim()
@@ -219,6 +221,7 @@ async function processFile(file, index) {
       return {
         ...base,
         text: redacted.text,
+        content_blocks: redacted.text.trim() ? [{ type: "text", text: redacted.text }] : [],
         redactions: redacted.redactions,
         user_notes: "文本已在本地执行规则擦除，请人工复核。",
       };
@@ -226,18 +229,20 @@ async function processFile(file, index) {
 
     if (kind === "image") {
       const dimensions = await imageDimensions(file);
+      const safeImage = {
+        image_id: `${materialId}-image-001`,
+        media_type: file.type || `image/${extensionOf(file.name) || "unknown"}`,
+        width: dimensions.width,
+        height: dimensions.height,
+        included: false,
+        redaction_status: "pending_manual_redaction",
+        content: null,
+        description: "",
+      };
       return {
         ...base,
-        images: [{
-          image_id: `${materialId}-image-001`,
-          media_type: file.type || `image/${extensionOf(file.name) || "unknown"}`,
-          width: dimensions.width,
-          height: dimensions.height,
-          included: false,
-          redaction_status: "pending_manual_redaction",
-          content: null,
-          description: "",
-        }],
+        images: [safeImage],
+        content_blocks: [{ type: "image", image: safeImage }],
         review_status: "blocked",
         user_notes: "原图未写入 JSON。后续接入 OCR/画框打码后，才能把脱敏图片内容设为 included。",
       };
@@ -304,6 +309,14 @@ export function validateSafePackage(value) {
       }
       if (!image.included && image.content) {
         errors.push(`${material.material_id} 的图片未启用，但仍包含 content。`);
+      }
+    }
+    for (const [blockIndex, block] of (material.content_blocks || []).entries()) {
+      if (block.type === "text" && typeof block.text !== "string") {
+        errors.push(`${material.material_id} 的第 ${blockIndex + 1} 个文本块无效。`);
+      }
+      if (block.type === "image" && !block.image) {
+        errors.push(`${material.material_id} 的第 ${blockIndex + 1} 个图片块无效。`);
       }
     }
   }

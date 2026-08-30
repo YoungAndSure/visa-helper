@@ -33,7 +33,7 @@ http://localhost:8000/ui
 - 选国家 → 自动拉 `/material-audit/checklist` 预览要求清单
 - 选材料文件夹 → 本地只读预览原文件（PDF 用 Canvas 渲染，不显示编辑工具栏）
 - 点「擦除隐私」→ 浏览器本地提取 PDF/文本、规则擦除隐私，并为每个原文件生成一个安全材料对象
-- 用户在结构化页面中逐个检查、编辑并确认后，才允许把安全材料包发给 `/material-audit/run`
+- 用户在与原文件顺序一致的文本/图片区块流中逐个检查、编辑并确认后，才允许把安全材料包发给 `/material-audit/run`
 - 图片默认不进入 JSON 内容，只生成 `pending_manual_redaction` 对象
 
 > ⚠️ 目前 `/material-audit/run` 返回的是 **示例（FAKE）数据**，真实审核逻辑后续实装。
