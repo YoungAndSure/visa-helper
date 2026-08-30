@@ -421,21 +421,72 @@ body {
   box-shadow: 0 1px 2px rgba(30, 95, 191, 0.25);
 }
 .btn--primary:hover { background: var(--brand-2); border-color: var(--brand-2); color: var(--brand-ink); }
-.btn--privacy {
-  width: 100%;
-  margin-top: 4px;
-  color: #694f00;
-  background: #fff8dc;
-  border-color: #e9cf74;
-  font-weight: 600;
-}
-.btn--privacy:hover { color: #4f3b00; background: #fff3bf; border-color: #d8b94e; }
 .btn--block { width: 100%; }
 .btn--lg { padding: 14px 22px; font-size: 15px; border-radius: 10px; }
 .btn--small { padding: 7px 11px; font-size: 12px; }
 .btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
-.filepick { display: block; margin-bottom: 10px; }
+.workflow-step {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 42px;
+  padding: 8px 10px;
+  border: 1px solid var(--border-2);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text-2);
+  font: 500 13px/1.3 var(--font);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s, color 0.15s;
+}
+.workflow-step:hover:not(:disabled) { border-color: var(--brand); color: var(--brand); }
+.workflow-step:disabled { cursor: not-allowed; opacity: 0.48; }
+.workflow-step.is-current { border-color: var(--brand); background: var(--brand); color: #fff; opacity: 1; }
+.workflow-step.is-complete { border-color: #a8d7bb; background: var(--pass-bg); color: var(--pass); opacity: 1; }
+.workflow-step__number {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+  font-size: 11px;
+  font-weight: 700;
+}
+.workflow-step__label { flex: 1; }
+.material-path {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  min-width: 0;
+  padding: 6px 2px 2px;
+  color: var(--muted);
+  font-size: 10.5px;
+}
+.material-path code {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-2);
+  font: 11px ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+.confirm-all {
+  width: 100%;
+  margin: 2px 0 7px;
+  padding: 5px 8px;
+  border: 0;
+  background: transparent;
+  color: var(--brand);
+  font: 500 11.5px var(--font);
+  cursor: pointer;
+}
+.confirm-all:hover:not(:disabled) { text-decoration: underline; }
+.confirm-all:disabled { color: var(--muted); cursor: not-allowed; opacity: 0.5; }
 
 .filelist {
   list-style: none;
@@ -570,8 +621,12 @@ body {
   padding: 15px;
   background: #fbfcfe;
   height: 100%;
-  overflow-y: auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
+.privacy-material[hidden] { display: none; }
 .privacy-material__header {
   display: flex;
   align-items: center;
@@ -589,8 +644,11 @@ body {
 .privacy-content {
   display: flex;
   flex-direction: column;
+  flex: 1;
+  min-height: 0;
   gap: 12px;
   margin-top: 16px;
+  overflow-y: auto;
 }
 .privacy-content__text {
   display: block;
@@ -605,6 +663,7 @@ body {
   color: var(--text);
   font: 12px/1.6 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
 }
+.privacy-content__text:only-child { flex: 1; height: 100%; min-height: 174px; }
 .privacy-content__image {
   display: grid;
   place-items: center;

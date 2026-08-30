@@ -14,12 +14,13 @@ const el = {
   healthText: $("#health .health__text"),
   wsCountry: $("#wsCountry"),
   picker: $("#picker"),
+  pickerStep: $("#pickerStep"),
   filelist: $("#filelist"),
   materialsDir: $("#materialsDir"),
-  useLlm: $("#useLlm"),
   privacyBtn: $("#privacyBtn"),
   privacyStatus: $("#privacyStatus"),
   privacyStatusBar: $("#privacyStatusBar"),
+  confirmAllBtn: $("#confirmAllBtn"),
   runBtn: $("#runBtn"),
   runStatus: $("#runStatus"),
   checklistMeta: $("#checklistMeta"),
@@ -165,6 +166,21 @@ function setPrivacyBadge(mode, text) {
   el.privacyBadge.textContent = text;
 }
 
+function updateWorkflowSteps() {
+  const hasFiles = currentFiles.length > 0;
+  const hasSafePackage = Boolean(safePackage);
+  const allConfirmed = Boolean(safePackage?.privacy?.user_reviewed);
+  el.pickerStep.classList.toggle("is-current", !hasFiles);
+  el.pickerStep.classList.toggle("is-complete", hasFiles);
+  el.privacyBtn.classList.toggle("is-current", hasFiles && !hasSafePackage && !privacyProcessing);
+  el.privacyBtn.classList.toggle("is-complete", hasSafePackage);
+  el.runBtn.classList.toggle("is-current", allConfirmed);
+  el.runBtn.classList.toggle("is-complete", Boolean(el.results.innerHTML));
+  el.privacyBtn.disabled = !hasFiles || privacyProcessing || hasSafePackage;
+  el.confirmAllBtn.disabled = !hasSafePackage || allConfirmed;
+  el.runBtn.disabled = !allConfirmed;
+}
+
 function revokePreviewUrl() {
   if (previewObjectUrl) {
     URL.revokeObjectURL(previewObjectUrl);
@@ -182,7 +198,7 @@ function resetPrivacyState() {
   el.privacyValidation.className = "privacy-validation";
   el.privacyStatus.textContent = "";
   setPrivacyBadge("idle", "尚未处理");
-  el.runBtn.disabled = true;
+  updateWorkflowSteps();
   renderFileList();
 }
 
@@ -193,7 +209,7 @@ function resetWorkspace() {
   activeFileIdx = -1;
   el.picker.value = "";
   el.filelist.innerHTML = "";
-  el.materialsDir.value = "";
+  el.materialsDir.textContent = "尚未选择";
   el.previewArea.innerHTML = "";
   el.previewEmpty.style.display = "";
   el.results.innerHTML = "";
@@ -202,7 +218,6 @@ function resetWorkspace() {
   el.summary.innerHTML = "";
   el.reportWrap.hidden = true;
   el.resultsEmpty.style.display = "";
-  el.privacyBtn.disabled = true;
   el.runStatus.textContent = "";
   resetPrivacyState();
 }
@@ -214,15 +229,16 @@ function onPick() {
   el.previewEmpty.style.display = "";
   activeFileIdx = -1;
   resetPrivacyState();
-  el.privacyBtn.disabled = currentFiles.length === 0;
+  updateWorkflowSteps();
 
   if (!currentFiles.length) return;
 
   const relativePath = currentFiles[0].webkitRelativePath || "";
-  el.materialsDir.value = relativePath.split("/")[0] || "已选择本地文件";
+  el.materialsDir.textContent = relativePath.split("/")[0] || "已选择本地文件";
 
   renderFileList();
   selectFile(0, "preview");
+  updateWorkflowSteps();
 }
 
 function renderFileList() {
@@ -383,6 +399,7 @@ function markCurrentMaterialDirty() {
   el.privacyValidation.className = "privacy-validation";
   renderPrivacySummary(safePackage);
   renderFileList();
+  updateWorkflowSteps();
 }
 
 function confirmCurrentMaterial() {
@@ -408,6 +425,27 @@ function confirmCurrentMaterial() {
   renderPrivacySummary(safePackage);
   renderPrivacyMaterial(activeFileIdx);
   renderFileList();
+  updateWorkflowSteps();
+}
+
+function confirmAllMaterials() {
+  if (!safePackage?.materials?.length) return;
+  markCurrentMaterialDirty();
+  const errors = validateSafePackage(safePackage);
+  if (errors.length) {
+    el.privacyValidation.innerHTML = errors.map((error) => `• ${escapeHtml(error)}`).join("<br>");
+    el.privacyValidation.className = "privacy-validation is-error";
+    setPrivacyBadge("error", "需要修正");
+    return;
+  }
+  reviewedMaterialIds.clear();
+  safePackage.materials.forEach((material) => reviewedMaterialIds.add(material.material_id));
+  safePackage.privacy.user_reviewed = true;
+  setPrivacyBadge("ready", "全部确认，可发送");
+  renderPrivacySummary(safePackage);
+  renderPrivacyMaterial(activeFileIdx);
+  renderFileList();
+  updateWorkflowSteps();
 }
 
 async function processPrivacy() {
@@ -441,7 +479,7 @@ async function processPrivacy() {
     el.privacyStatus.classList.add("runstatus--err");
   } finally {
     privacyProcessing = false;
-    el.privacyBtn.disabled = currentFiles.length === 0;
+    updateWorkflowSteps();
   }
 }
 
@@ -467,7 +505,7 @@ async function runAudit() {
         materials: safePackage.materials,
         privacy: safePackage.privacy,
         review_scopes: ["checklist", "risk"],
-        use_llm: el.useLlm.checked,
+        use_llm: false,
       }),
     });
     renderResults(data);
@@ -477,6 +515,7 @@ async function runAudit() {
     el.runStatus.classList.add("runstatus--err");
   } finally {
     el.runBtn.disabled = !safePackage?.privacy?.user_reviewed;
+    updateWorkflowSteps();
   }
 }
 
@@ -542,6 +581,7 @@ document.querySelectorAll("[data-action]").forEach((button) => {
 
 el.picker.addEventListener("change", onPick);
 el.privacyBtn.addEventListener("click", processPrivacy);
+el.confirmAllBtn.addEventListener("click", confirmAllMaterials);
 el.confirmMaterialBtn.addEventListener("click", confirmCurrentMaterial);
 el.runBtn.addEventListener("click", runAudit);
 document.querySelectorAll(".tab").forEach((tab) => {

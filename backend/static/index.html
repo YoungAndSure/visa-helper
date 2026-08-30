@@ -96,23 +96,26 @@
         <div class="ws__grid">
           <!-- 左：文件选择 + 列表 -->
           <aside class="ws__left">
-            <label class="filepick">
+            <label id="pickerStep" class="workflow-step is-current">
               <input id="picker" type="file" webkitdirectory multiple hidden />
-              <span class="btn btn--ghost btn--block">📂 选择材料文件夹…</span>
+              <span class="workflow-step__number">1</span>
+              <span class="workflow-step__label">选择材料文件夹</span>
             </label>
-            <label class="field">
-              <span class="field__label">本地材料目录（不会发送）</span>
-              <input id="materialsDir" class="control" type="text"
-                     placeholder="选择文件夹后自动显示" readonly />
-            </label>
-            <label class="checkbox">
-              <input id="useLlm" type="checkbox" />
-              <span>用 LLM 二次核对每项内容</span>
-            </label>
+            <div class="material-path" title="浏览器不会向网页提供本地绝对路径">
+              <span>本地目录</span>
+              <code id="materialsDir">尚未选择</code>
+            </div>
             <ul id="filelist" class="filelist" aria-live="polite"></ul>
-            <button id="privacyBtn" class="btn btn--privacy" disabled>🔒 擦除隐私并生成安全材料</button>
+            <button id="privacyBtn" class="workflow-step" disabled>
+              <span class="workflow-step__number">2</span>
+              <span class="workflow-step__label">擦除隐私并生成安全材料</span>
+            </button>
             <p id="privacyStatus" class="runstatus"></p>
-            <button id="runBtn" class="btn btn--primary" disabled>▶ 发送安全材料并审核</button>
+            <button id="confirmAllBtn" class="confirm-all" disabled>✓ 一键确认全部材料</button>
+            <button id="runBtn" class="workflow-step" disabled>
+              <span class="workflow-step__number">3</span>
+              <span class="workflow-step__label">发送安全材料并审核</span>
+            </button>
             <p id="runStatus" class="runstatus"></p>
           </aside>
 
@@ -185,6 +188,6 @@
     </section>
   </main>
 
-  <script src="./app.js?v=viewport-lock-v5" type="module"></script>
+  <script src="./app.js?v=workflow-steps-v6" type="module"></script>
 </body>
 </html>
