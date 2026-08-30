@@ -9,6 +9,7 @@
 */
 
 :root {
+  --topbar-height: 57px;
   /* surface */
   --bg:           #f4f6fb;
   --surface:      #ffffff;
@@ -50,6 +51,7 @@
 
 * { box-sizing: border-box; }
 
+html, body { height: 100%; }
 body {
   margin: 0;
   background: var(--bg);
@@ -74,7 +76,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  height: 64px;
+  height: 56px;
 }
 .brand { display: flex; align-items: center; gap: 12px; }
 .brand .mark {
@@ -122,9 +124,14 @@ body {
 /* ============================================================
    阶段切换：intro / country / work 三屏
    ============================================================ */
-.stage-root { min-height: calc(100vh - 64px); }
+.stage-root { min-height: calc(100vh - var(--topbar-height)); }
 .is-workspace { overflow: hidden; }
-.is-workspace .stage-root { height: calc(100vh - 65px); min-height: 0; overflow: hidden; }
+.is-workspace .stage-root {
+  height: calc(100vh - var(--topbar-height));
+  height: calc(100dvh - var(--topbar-height));
+  min-height: 0;
+  overflow: hidden;
+}
 .stage { display: none; padding: 48px 24px; }
 .stage.is-active { display: block; animation: stage-in 0.35s ease-out; }
 @keyframes stage-in {
@@ -286,7 +293,7 @@ body {
 }
 .stage--work {
   height: 100%;
-  padding: 18px 24px;
+  padding: 6px 16px;
   overflow: hidden;
 }
 .stage--work .workspace {
@@ -299,7 +306,8 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 18px;
+  min-height: 30px;
+  margin-bottom: 4px;
 }
 .ws__crumb {
   display: flex;
@@ -316,19 +324,11 @@ body {
 
 .ws__grid {
   display: grid;
-  grid-template-columns: 340px 1fr;
-  gap: 18px;
+  grid-template-columns: clamp(260px, 28vw, 340px) minmax(0, 1fr);
+  gap: 10px;
   flex: 1;
   min-height: 0;
 }
-@media (max-width: 880px) {
-  .is-workspace { overflow: auto; }
-  .is-workspace .stage-root { height: auto; min-height: calc(100vh - 65px); overflow: visible; }
-  .stage--work { height: auto; min-height: calc(100vh - 64px); overflow: visible; }
-  .ws__grid { grid-template-columns: 1fr; }
-  .ws__right { min-height: 70vh; }
-}
-
 .ws__left,
 .ws__right {
   background: var(--surface);
@@ -540,19 +540,29 @@ body {
 .privacy-stat b { color: var(--text); margin-left: 4px; font-size: 12px; }
 .privacy-statusbar {
   flex: none;
-  min-height: 30px;
-  margin-top: 8px;
-  padding: 3px 8px;
+  height: 20px;
+  min-height: 20px;
+  margin-top: 2px;
+  padding: 0 6px;
   display: flex;
   align-items: center;
   gap: 14px;
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: 3px;
   background: var(--surface);
   box-shadow: var(--shadow-1);
 }
+.privacy-statusbar .privacy-badge {
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+  font-size: 10px;
+}
+.privacy-statusbar .privacy-summary { gap: 10px; }
+.privacy-statusbar .privacy-stat { font-size: 10px; line-height: 1; }
+.privacy-statusbar .privacy-stat b { font-size: 10px; }
 .privacy-statusbar[hidden] { display: none; }
-.privacy-statusbar__hint { margin-left: auto; color: var(--muted); font-size: 11px; }
+.privacy-statusbar__hint { margin-left: auto; color: var(--muted); font-size: 9.5px; line-height: 1; }
 
 .privacy-material {
   border: 1px solid var(--border);
