@@ -488,6 +488,21 @@ body {
 .confirm-all:hover:not(:disabled) { text-decoration: underline; }
 .confirm-all:disabled { color: var(--muted); cursor: not-allowed; opacity: 0.5; }
 
+.level-one-results { display: flex; flex-direction: column; gap: 8px; }
+.level-one-card {
+  padding: 11px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+}
+.level-one-card header { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 7px; }
+.level-one-card header b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12.5px; }
+.level-one-card header span { flex: none; color: var(--muted); font-size: 10.5px; }
+.level-one-finding { padding: 6px 8px; border-radius: 5px; font-size: 11.5px; }
+.level-one-finding--pass { color: var(--pass); background: var(--pass-bg); }
+.level-one-finding--warning { color: var(--warn); background: var(--warn-bg); }
+.level-one-finding--fail { color: var(--fail); background: var(--fail-bg); }
+
 .filelist {
   list-style: none;
   margin: 8px 0 10px;

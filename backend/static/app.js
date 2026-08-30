@@ -4,7 +4,7 @@
  * Raw File objects stay in browser memory. Only user-reviewed safe material objects
  * can be sent to /material-audit/run.
  */
-import { processFilesLocally, renderPdfReadOnly, validateSafePackage } from "./privacy.js?v=privacy-per-file-v2";
+import { analyzeFilesLocally, buildSafePackageFromAnalysis, renderPdfReadOnly, validateSafePackage } from "./privacy.js?v=two-level-audit-v7";
 
 const API = "";
 const $ = (selector) => document.querySelector(selector);
@@ -17,6 +17,8 @@ const el = {
   pickerStep: $("#pickerStep"),
   filelist: $("#filelist"),
   materialsDir: $("#materialsDir"),
+  levelOneBtn: $("#levelOneBtn"),
+  levelOneStatus: $("#levelOneStatus"),
   privacyBtn: $("#privacyBtn"),
   privacyStatus: $("#privacyStatus"),
   privacyStatusBar: $("#privacyStatusBar"),
@@ -27,6 +29,9 @@ const el = {
   checklist: $("#checklist"),
   previewArea: $("#previewArea"),
   previewEmpty: $("#previewEmpty"),
+  levelOneSummary: $("#levelOneSummary"),
+  levelOneResults: $("#levelOneResults"),
+  levelOneEmpty: $("#levelOneEmpty"),
   privacyBadge: $("#privacyBadge"),
   privacySummary: $("#privacySummary"),
   privacyEmpty: $("#privacyEmpty"),
@@ -52,7 +57,9 @@ let checklistIndex = new Map();
 let currentFiles = [];
 let activeFileIdx = -1;
 let previewObjectUrl = null;
+let localAudit = null;
 let safePackage = null;
+let levelOneProcessing = false;
 let privacyProcessing = false;
 let previewGeneration = 0;
 const reviewedMaterialIds = new Set();
@@ -168,15 +175,19 @@ function setPrivacyBadge(mode, text) {
 
 function updateWorkflowSteps() {
   const hasFiles = currentFiles.length > 0;
+  const hasLevelOneAudit = Boolean(localAudit);
   const hasSafePackage = Boolean(safePackage);
   const allConfirmed = Boolean(safePackage?.privacy?.user_reviewed);
   el.pickerStep.classList.toggle("is-current", !hasFiles);
   el.pickerStep.classList.toggle("is-complete", hasFiles);
-  el.privacyBtn.classList.toggle("is-current", hasFiles && !hasSafePackage && !privacyProcessing);
+  el.levelOneBtn.classList.toggle("is-current", hasFiles && !hasLevelOneAudit && !levelOneProcessing);
+  el.levelOneBtn.classList.toggle("is-complete", hasLevelOneAudit);
+  el.privacyBtn.classList.toggle("is-current", hasLevelOneAudit && !hasSafePackage && !privacyProcessing);
   el.privacyBtn.classList.toggle("is-complete", hasSafePackage);
   el.runBtn.classList.toggle("is-current", allConfirmed);
   el.runBtn.classList.toggle("is-complete", Boolean(el.results.innerHTML));
-  el.privacyBtn.disabled = !hasFiles || privacyProcessing || hasSafePackage;
+  el.levelOneBtn.disabled = !hasFiles || levelOneProcessing || hasLevelOneAudit;
+  el.privacyBtn.disabled = !hasLevelOneAudit || privacyProcessing || hasSafePackage;
   el.confirmAllBtn.disabled = !hasSafePackage || allConfirmed;
   el.runBtn.disabled = !allConfirmed;
 }
@@ -189,6 +200,7 @@ function revokePreviewUrl() {
 }
 
 function resetPrivacyState() {
+  localAudit = null;
   safePackage = null;
   reviewedMaterialIds.clear();
   el.privacyMaterial.hidden = true;
@@ -197,6 +209,11 @@ function resetPrivacyState() {
   el.privacyValidation.textContent = "";
   el.privacyValidation.className = "privacy-validation";
   el.privacyStatus.textContent = "";
+  el.levelOneStatus.textContent = "";
+  el.levelOneStatus.classList.remove("runstatus--err");
+  el.levelOneSummary.innerHTML = "";
+  el.levelOneResults.innerHTML = "";
+  el.levelOneEmpty.style.display = "";
   setPrivacyBadge("idle", "尚未处理");
   updateWorkflowSteps();
   renderFileList();
@@ -257,6 +274,56 @@ function renderFileList() {
     row.querySelector(".file-main").addEventListener("click", () => selectFile(index, "preview"));
     el.filelist.appendChild(row);
   });
+}
+
+function renderLevelOneAudit(audit) {
+  const analyses = audit?.analyses || [];
+  const findings = analyses.flatMap((item) => item.findings || []);
+  const warnings = findings.filter((item) => item.status === "warning").length;
+  const failures = findings.filter((item) => item.status === "fail").length;
+  el.levelOneEmpty.style.display = "none";
+  el.levelOneSummary.innerHTML = [
+    `<span class="chip">文件 <b>${analyses.length}</b></span>`,
+    `<span class="chip">提示 <b>${warnings}</b></span>`,
+    `<span class="chip">问题 <b>${failures}</b></span>`,
+    `<span class="chip">原始材料上传 <b>0</b></span>`,
+  ].join("");
+  el.levelOneResults.innerHTML = analyses.map((analysis, index) => {
+    const file = currentFiles[index];
+    const textLength = analysis.text?.length || 0;
+    const items = (analysis.findings || []).map((finding) =>
+      `<div class="level-one-finding level-one-finding--${escapeHtml(finding.status)}">${escapeHtml(finding.message)}</div>`
+    ).join("");
+    return `<article class="level-one-card"><header><b>${escapeHtml(file?.webkitRelativePath || file?.name || `文件 ${index + 1}`)}</b>` +
+      `<span>${textLength ? `提取 ${textLength} 个字符` : "未提取到文本"}</span></header>${items}</article>`;
+  }).join("");
+}
+
+async function runLevelOneAudit() {
+  if (!currentFiles.length || levelOneProcessing) return;
+  levelOneProcessing = true;
+  updateWorkflowSteps();
+  el.levelOneStatus.textContent = "本地识别中…";
+  el.levelOneStatus.classList.remove("runstatus--err");
+  switchTab("level-one");
+  try {
+    localAudit = await analyzeFilesLocally(
+      currentFiles,
+      el.countrySelect.value,
+      ({ current, total, label }) => {
+        el.levelOneStatus.textContent = `${label} · ${current}/${total}`;
+      },
+    );
+    renderLevelOneAudit(localAudit);
+    el.levelOneStatus.textContent = "一级审核完成，原始内容未离开本机。";
+  } catch (error) {
+    localAudit = null;
+    el.levelOneStatus.textContent = `一级审核失败：${error.message}`;
+    el.levelOneStatus.classList.add("runstatus--err");
+  } finally {
+    levelOneProcessing = false;
+    updateWorkflowSteps();
+  }
 }
 
 async function selectFile(index, targetTab = "preview") {
@@ -449,7 +516,7 @@ function confirmAllMaterials() {
 }
 
 async function processPrivacy() {
-  if (!currentFiles.length || privacyProcessing) return;
+  if (!localAudit || privacyProcessing) return;
   privacyProcessing = true;
   el.privacyBtn.disabled = true;
   el.runBtn.disabled = true;
@@ -458,20 +525,15 @@ async function processPrivacy() {
   switchTab("privacy");
 
   try {
-    const draft = await processFilesLocally(
-      currentFiles,
-      el.countrySelect.value,
-      ({ current, total, label }) => {
-        el.privacyStatus.textContent = `${label} · ${current}/${total}`;
-      },
-    );
+    el.privacyStatus.textContent = "正在擦除一级审核文本中的隐私…";
+    const draft = buildSafePackageFromAnalysis(localAudit);
     safePackage = draft;
     reviewedMaterialIds.clear();
     renderPrivacySummary(draft);
     renderPrivacyMaterial(activeFileIdx < 0 ? 0 : activeFileIdx);
     renderFileList();
     setPrivacyBadge("review", `0/${draft.materials.length} 已确认`);
-    el.privacyStatus.textContent = "本地处理完成，请逐个文件核对并确认。";
+    el.privacyStatus.textContent = "安全材料已生成，请逐个核对或一键确认。";
   } catch (error) {
     safePackage = null;
     setPrivacyBadge("error", "处理失败");
@@ -580,6 +642,7 @@ document.querySelectorAll("[data-action]").forEach((button) => {
 });
 
 el.picker.addEventListener("change", onPick);
+el.levelOneBtn.addEventListener("click", runLevelOneAudit);
 el.privacyBtn.addEventListener("click", processPrivacy);
 el.confirmAllBtn.addEventListener("click", confirmAllMaterials);
 el.confirmMaterialBtn.addEventListener("click", confirmCurrentMaterial);

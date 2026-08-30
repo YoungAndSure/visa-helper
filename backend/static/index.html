@@ -106,15 +106,20 @@
               <code id="materialsDir">尚未选择</code>
             </div>
             <ul id="filelist" class="filelist" aria-live="polite"></ul>
-            <button id="privacyBtn" class="workflow-step" disabled>
+            <button id="levelOneBtn" class="workflow-step" disabled>
               <span class="workflow-step__number">2</span>
+              <span class="workflow-step__label">本地识别并进行一级审核</span>
+            </button>
+            <p id="levelOneStatus" class="runstatus"></p>
+            <button id="privacyBtn" class="workflow-step" disabled>
+              <span class="workflow-step__number">3</span>
               <span class="workflow-step__label">擦除隐私并生成安全材料</span>
             </button>
             <p id="privacyStatus" class="runstatus"></p>
             <button id="confirmAllBtn" class="confirm-all" disabled>✓ 一键确认全部材料</button>
             <button id="runBtn" class="workflow-step" disabled>
-              <span class="workflow-step__number">3</span>
-              <span class="workflow-step__label">发送安全材料并审核</span>
+              <span class="workflow-step__number">4</span>
+              <span class="workflow-step__label">发送安全材料并进行二级审核</span>
             </button>
             <p id="runStatus" class="runstatus"></p>
           </aside>
@@ -124,8 +129,9 @@
             <div class="tabs">
               <button class="tab tab--active" data-tab="checklist">📋 要求清单</button>
               <button class="tab" data-tab="preview">👁 文件预览</button>
+              <button class="tab" data-tab="level-one">① 一级审核结果</button>
               <button class="tab" data-tab="privacy">🔒 隐私材料</button>
-              <button class="tab" data-tab="results">✅ 审核结果</button>
+              <button class="tab" data-tab="results">✅ 最终报告</button>
             </div>
 
             <div id="tab-checklist" class="tabpane tabpane--active">
@@ -138,6 +144,14 @@
               <p id="previewEmpty" class="empty">
                 <span class="icon">👁</span> 选一个文件预览
               </p>
+            </div>
+
+            <div id="tab-level-one" class="tabpane">
+              <div id="levelOneSummary" class="summary"></div>
+              <div id="levelOneResults" class="level-one-results"></div>
+              <div id="levelOneEmpty" class="empty">
+                <span class="icon">①</span> 选择文件后，运行本地一级审核。
+              </div>
             </div>
 
             <div id="tab-privacy" class="tabpane">
@@ -174,7 +188,7 @@
               </details>
               <div id="resultsEmpty" class="empty">
                 <span class="icon">📭</span>
-                还没有结果，点击左侧「运行审核」。
+                还没有最终报告，请先完成四个步骤。
               </div>
             </div>
           </section>
@@ -188,6 +202,6 @@
     </section>
   </main>
 
-  <script src="./app.js?v=workflow-steps-v6" type="module"></script>
+  <script src="./app.js?v=two-level-audit-v7" type="module"></script>
 </body>
 </html>

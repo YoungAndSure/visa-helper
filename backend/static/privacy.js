@@ -183,97 +183,113 @@ async function imageDimensions(file) {
   }
 }
 
-async function processFile(file, index) {
+async function analyzeFileLocally(file, index) {
   const materialId = `material-${String(index + 1).padStart(3, "0")}`;
   const kind = materialKind(file);
   const base = {
     material_id: materialId,
     source_ref: `local-file-${String(index + 1).padStart(3, "0")}`,
-    material_type: "unknown",
+    local_name: file.webkitRelativePath || file.name,
     media_type: file.type || "application/octet-stream",
     kind,
     text: "",
-    images: [],
-    content_blocks: [],
-    redactions: [],
-    review_status: "needs_review",
-    user_notes: "",
+    image_info: null,
+    findings: [],
   };
 
   try {
     if (kind === "pdf") {
       const extracted = await extractPdfText(file);
-      const redacted = redactText(extracted);
       return {
         ...base,
-        text: redacted.text,
-        content_blocks: redacted.text.trim() ? [{ type: "text", text: redacted.text }] : [],
-        redactions: redacted.redactions,
-        review_status: redacted.text.trim() ? "needs_review" : "blocked",
-        user_notes: redacted.text.trim()
-          ? "PDF 文本已在本地提取并执行规则擦除；请人工复核姓名、地址和版面信息。"
-          : "PDF 没有可提取文本，可能是扫描件；当前版本不会上传或 OCR 原图。",
+        text: extracted,
+        findings: extracted.trim()
+          ? [{ status: "pass", message: "已读取 PDF 文字层。" }]
+          : [{ status: "warning", message: "没有可提取文字，可能是扫描件；本地 OCR 尚未接入。" }],
       };
     }
 
     if (kind === "text") {
-      const redacted = redactText(await file.text());
+      const text = await file.text();
       return {
         ...base,
-        text: redacted.text,
-        content_blocks: redacted.text.trim() ? [{ type: "text", text: redacted.text }] : [],
-        redactions: redacted.redactions,
-        user_notes: "文本已在本地执行规则擦除，请人工复核。",
+        text,
+        findings: [{ status: "pass", message: "已在本地读取文本。" }],
       };
     }
 
     if (kind === "image") {
       const dimensions = await imageDimensions(file);
-      const safeImage = {
-        image_id: `${materialId}-image-001`,
-        media_type: file.type || `image/${extensionOf(file.name) || "unknown"}`,
-        width: dimensions.width,
-        height: dimensions.height,
-        included: false,
-        redaction_status: "pending_manual_redaction",
-        content: null,
-        description: "",
-      };
       return {
         ...base,
-        images: [safeImage],
-        content_blocks: [{ type: "image", image: safeImage }],
-        review_status: "blocked",
-        user_notes: "原图未写入 JSON。后续接入 OCR/画框打码后，才能把脱敏图片内容设为 included。",
+        image_info: dimensions,
+        findings: [{ status: "warning", message: "图片已在本机读取；本地 OCR 和图像规则尚未接入。" }],
       };
     }
 
     return {
       ...base,
-      review_status: "blocked",
-      user_notes: "当前版本不支持该文件类型，未读取正文或二进制内容。",
+      findings: [{ status: "warning", message: "当前版本暂不支持此文件类型。" }],
     };
   } catch (error) {
     return {
       ...base,
-      review_status: "blocked",
-      user_notes: `本地处理失败：${error instanceof Error ? error.message : String(error)}`,
+      findings: [{ status: "fail", message: `本地识别失败：${error instanceof Error ? error.message : String(error)}` }],
     };
   }
 }
 
-export async function processFilesLocally(files, country, onProgress = () => {}) {
-  const materials = [];
+export async function analyzeFilesLocally(files, country, onProgress = () => {}) {
+  const analyses = [];
   for (let index = 0; index < files.length; index += 1) {
-    onProgress({ current: index, total: files.length, label: `处理第 ${index + 1} 个文件` });
-    materials.push(await processFile(files[index], index));
+    onProgress({ current: index, total: files.length, label: `识别第 ${index + 1} 个文件` });
+    analyses.push(await analyzeFileLocally(files[index], index));
   }
-  onProgress({ current: files.length, total: files.length, label: "本地隐私处理完成" });
+  onProgress({ current: files.length, total: files.length, label: "本地一级审核完成" });
+  return {
+    country,
+    created_at: new Date().toISOString(),
+    raw_files_uploaded: false,
+    analyses,
+  };
+}
+
+export function buildSafePackageFromAnalysis(localAudit) {
+  const materials = localAudit.analyses.map((analysis) => {
+    const redacted = redactText(analysis.text);
+    const safeImages = analysis.kind === "image" ? [{
+      image_id: `${analysis.material_id}-image-001`,
+      media_type: analysis.media_type,
+      width: analysis.image_info?.width ?? null,
+      height: analysis.image_info?.height ?? null,
+      included: false,
+      redaction_status: "pending_manual_redaction",
+      content: null,
+      description: "",
+    }] : [];
+    return {
+      material_id: analysis.material_id,
+      source_ref: analysis.source_ref,
+      material_type: "unknown",
+      media_type: analysis.media_type,
+      kind: analysis.kind,
+      text: redacted.text,
+      images: safeImages,
+      content_blocks: [
+        ...(redacted.text.trim() ? [{ type: "text", text: redacted.text }] : []),
+        ...safeImages.map((image) => ({ type: "image", image })),
+      ],
+      redactions: redacted.redactions,
+      review_status: analysis.kind === "unsupported" || (!redacted.text.trim() && !safeImages.length)
+        ? "blocked" : "needs_review",
+      user_notes: "由本地一级审核结果生成；图片隐私打码能力尚未接入。",
+    };
+  });
 
   return {
     schema_version: "privacy-materials/v1alpha1",
-    country,
-    visa_type: country === "IS" ? "schengen-tourism" : "unknown",
+    country: localAudit.country,
+    visa_type: localAudit.country === "IS" ? "schengen-tourism" : "unknown",
     privacy: {
       processed_locally: true,
       raw_files_uploaded: false,
