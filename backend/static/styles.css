@@ -123,6 +123,8 @@ body {
    阶段切换：intro / country / work 三屏
    ============================================================ */
 .stage-root { min-height: calc(100vh - 64px); }
+.is-workspace { overflow: hidden; }
+.is-workspace .stage-root { height: calc(100vh - 65px); min-height: 0; overflow: hidden; }
 .stage { display: none; padding: 48px 24px; }
 .stage.is-active { display: block; animation: stage-in 0.35s ease-out; }
 @keyframes stage-in {
@@ -282,6 +284,17 @@ body {
   max-width: 1200px;
   margin: 0 auto;
 }
+.stage--work {
+  height: 100%;
+  padding: 18px 24px;
+  overflow: hidden;
+}
+.stage--work .workspace {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
 .ws__header {
   display: flex;
   align-items: center;
@@ -305,9 +318,15 @@ body {
   display: grid;
   grid-template-columns: 340px 1fr;
   gap: 18px;
+  flex: 1;
+  min-height: 0;
 }
 @media (max-width: 880px) {
+  .is-workspace { overflow: auto; }
+  .is-workspace .stage-root { height: auto; min-height: calc(100vh - 65px); overflow: visible; }
+  .stage--work { height: auto; min-height: calc(100vh - 64px); overflow: visible; }
   .ws__grid { grid-template-columns: 1fr; }
+  .ws__right { min-height: 70vh; }
 }
 
 .ws__left,
@@ -317,6 +336,13 @@ body {
   border-radius: var(--radius);
   padding: 18px;
   box-shadow: var(--shadow-1);
+}
+.ws__left { overflow: auto; }
+.ws__right {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
 }
 
 /* ---------- 通用 controls ---------- */
@@ -489,30 +515,6 @@ body {
 .tab--active { color: var(--brand); border-bottom-color: var(--brand); }
 
 /* ---------- privacy-safe material review ---------- */
-.privacy-head {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 18px;
-  margin-bottom: 14px;
-}
-.privacy-head h3 { margin: 0 0 5px; font-size: 17px; }
-.privacy-head p { margin: 0; color: var(--text-2); font-size: 12.5px; line-height: 1.6; }
-.privacy-capabilities {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 7px;
-  margin-bottom: 14px;
-  font-size: 11.5px;
-}
-.privacy-capabilities span {
-  padding: 5px 8px;
-  border-radius: 6px;
-  background: var(--surface-2);
-  color: var(--text-2);
-  border: 1px solid var(--border);
-}
-.privacy-capabilities span:last-child { background: var(--warn-bg); color: var(--warn); border-color: #ead08d; }
 .privacy-badge {
   flex: none;
   padding: 5px 9px;
@@ -527,26 +529,38 @@ body {
 .privacy-badge--error { background: var(--fail-bg); color: var(--fail); }
 
 .privacy-summary {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(105px, 1fr));
-  gap: 8px;
-  margin-bottom: 14px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
 }
 .privacy-stat {
-  padding: 10px 11px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  background: var(--surface-2);
   font-size: 11.5px;
   color: var(--text-2);
 }
-.privacy-stat b { display: block; color: var(--text); font-size: 18px; margin-top: 3px; }
+.privacy-stat b { color: var(--text); margin-left: 4px; font-size: 12px; }
+.privacy-statusbar {
+  flex: none;
+  min-height: 30px;
+  margin-top: 8px;
+  padding: 3px 8px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  box-shadow: var(--shadow-1);
+}
+.privacy-statusbar[hidden] { display: none; }
+.privacy-statusbar__hint { margin-left: auto; color: var(--muted); font-size: 11px; }
 
 .privacy-material {
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   padding: 15px;
   background: #fbfcfe;
+  height: 100%;
+  overflow-y: auto;
 }
 .privacy-material__header {
   display: flex;
@@ -569,15 +583,17 @@ body {
   margin-top: 16px;
 }
 .privacy-content__text {
+  display: block;
   width: 100%;
-  resize: vertical;
+  max-width: 100%;
+  height: 174px;
+  resize: none;
   padding: 11px;
   border: 1px solid var(--border-2);
   border-radius: var(--radius-sm);
   background: var(--surface);
   color: var(--text);
   font: 12px/1.6 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
-  min-height: 360px;
 }
 .privacy-content__image {
   display: grid;
@@ -629,13 +645,14 @@ body {
 .agent-step--failed b { color: var(--fail); }
 
 @media (max-width: 720px) {
-  .privacy-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .privacy-head, .privacy-material__header { flex-direction: column; align-items: stretch; }
+  .privacy-material__header { flex-direction: column; align-items: stretch; }
+  .privacy-statusbar__hint { display: none; }
   .tab { padding-inline: 10px; white-space: nowrap; }
 }
 
-.tabpane { display: none; }
-.tabpane--active { display: block; }
+.tabpane { display: none; min-height: 0; }
+.tabpane--active { display: block; flex: 1; overflow: auto; }
+#tab-privacy.tabpane--active { overflow: hidden; }
 
 /* ---------- checklist ---------- */
 .meta { font-size: 13px; color: var(--text-2); margin-bottom: 12px; }

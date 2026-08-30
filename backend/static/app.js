@@ -19,6 +19,7 @@ const el = {
   useLlm: $("#useLlm"),
   privacyBtn: $("#privacyBtn"),
   privacyStatus: $("#privacyStatus"),
+  privacyStatusBar: $("#privacyStatusBar"),
   runBtn: $("#runBtn"),
   runStatus: $("#runStatus"),
   checklistMeta: $("#checklistMeta"),
@@ -106,6 +107,7 @@ const stages = {
 };
 
 function goto(stageName) {
+  document.body.classList.toggle("is-workspace", stageName === "work");
   Object.entries(stages).forEach(([name, stage]) => {
     stage.classList.toggle("is-active", name === stageName);
   });
@@ -119,6 +121,7 @@ function switchTab(name) {
   document.querySelectorAll(".tabpane").forEach((pane) => {
     pane.classList.toggle("tabpane--active", pane.id === `tab-${name}`);
   });
+  el.privacyStatusBar.hidden = name !== "privacy";
   if (name === "privacy") renderPrivacyMaterial(activeFileIdx);
   renderFileList();
 }
@@ -308,6 +311,7 @@ function renderPrivacyContent(material) {
     if (block.type === "text") {
       const textarea = document.createElement("textarea");
       textarea.className = "privacy-content__text";
+      textarea.rows = 8;
       textarea.spellcheck = false;
       textarea.value = block.text;
       textarea.dataset.blockIndex = String(blockIndex);

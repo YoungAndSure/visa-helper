@@ -138,18 +138,6 @@
             </div>
 
             <div id="tab-privacy" class="tabpane">
-              <div class="privacy-head">
-                <div>
-                  <h3>发送给后端的安全材料</h3>
-                  <p>每个原文件对应一个安全材料对象。这里不包含原始文件名、路径或二进制文件，请逐项检查。</p>
-                </div>
-                <span id="privacyBadge" class="privacy-badge privacy-badge--idle">尚未处理</span>
-              </div>
-              <div class="privacy-capabilities">
-                <span>已支持：PDF/文本提取、规则隐私替换</span>
-                <span>尚未支持：扫描件 OCR、图片识别与画框打码</span>
-              </div>
-              <div id="privacySummary" class="privacy-summary"></div>
               <div id="privacyEmpty" class="empty">
                 <span class="icon">🔐</span>
                 选择文件后，点击左侧「擦除隐私并生成安全材料」。
@@ -188,10 +176,15 @@
             </div>
           </section>
         </div>
+        <div id="privacyStatusBar" class="privacy-statusbar" hidden>
+          <span id="privacyBadge" class="privacy-badge privacy-badge--idle">尚未处理</span>
+          <div id="privacySummary" class="privacy-summary"></div>
+          <span class="privacy-statusbar__hint">原文件保留在本机，仅发送人工确认后的内容</span>
+        </div>
       </div>
     </section>
   </main>
 
-  <script src="./app.js?v=privacy-content-flow-v3" type="module"></script>
+  <script src="./app.js?v=fixed-workspace-v4" type="module"></script>
 </body>
 </html>
