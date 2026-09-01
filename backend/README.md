@@ -22,6 +22,16 @@ export ANTHROPIC_SMALL_FAST_MODEL=MiniMax-M3
 backend/.venv/bin/python -m uvicorn backend.app:app --reload --host 127.0.0.1 --port 8000
 ```
 
+### macOS 登录后自动启动
+
+仓库提供 `ops/macos/com.visa-helper.backend.plist`。将它安装到
+`~/Library/LaunchAgents/` 并用 `launchctl bootstrap` 加载后，后端会在用户登录时启动，
+异常退出时自动拉起。LaunchAgent 使用项目内的 Python 虚拟环境，所有输出统一写入
+`backend/logs/backend.log`。
+
+当前配置设置了 `LOG_ONLY=1`，因此开发阶段不会调用远端模型；需要联调真实模型时，
+应删除该环境变量并在安全的本机环境中配置模型凭据。
+
 ## 材料审核前端页面
 
 后端同源挂了一个纯 HTML+JS 的材料审核页面（`backend/static/`），起服务后浏览器直接开：
