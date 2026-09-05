@@ -1,135 +1,9 @@
 /**
- * Browser-only privacy processing pipeline.
+ * Browser-only privacy redaction and safe-package pipeline.
  *
- * Raw File objects never leave this module. The exported package deliberately omits original
- * filenames, paths and binary content. Parsers/redactors are adapters so OCR and image redaction
- * can replace the current rough implementation without changing the page or backend contract.
+ * This module accepts normalized local recognition output, never raw File objects. The exported
+ * package deliberately omits original filenames, paths and binary content.
  */
-
-const PDFJS_URL = "./vendor/pdfjs/pdf.min.mjs";
-const PDFJS_WORKER_URL = new URL("./vendor/pdfjs/pdf.worker.min.mjs", import.meta.url).href;
-
-const TEXT_EXTENSIONS = new Set(["txt", "md", "csv", "json", "xml", "html"]);
-const IMAGE_EXTENSIONS = new Set(["jpg", "jpeg", "png", "gif", "webp", "bmp"]);
-
-let pdfjsPromise;
-
-function extensionOf(name) {
-  const parts = String(name).toLowerCase().split(".");
-  return parts.length > 1 ? parts.pop() : "";
-}
-
-function materialKind(file) {
-  const ext = extensionOf(file.name);
-  if (file.type === "application/pdf" || ext === "pdf") return "pdf";
-  if (file.type.startsWith("image/") || IMAGE_EXTENSIONS.has(ext)) return "image";
-  if (file.type.startsWith("text/") || TEXT_EXTENSIONS.has(ext)) return "text";
-  return "unsupported";
-}
-
-async function loadPdfJs() {
-  if (!pdfjsPromise) {
-    pdfjsPromise = import(PDFJS_URL).then((pdfjs) => {
-      pdfjs.GlobalWorkerOptions.workerSrc = PDFJS_WORKER_URL;
-      return pdfjs;
-    });
-  }
-  return pdfjsPromise;
-}
-
-async function extractPdfText(file) {
-  const pdfjs = await loadPdfJs();
-  const bytes = new Uint8Array(await file.arrayBuffer());
-  const task = pdfjs.getDocument({ data: bytes });
-  const pdf = await task.promise;
-  const pages = [];
-
-  try {
-    for (let pageNo = 1; pageNo <= pdf.numPages; pageNo += 1) {
-      const page = await pdf.getPage(pageNo);
-      const content = await page.getTextContent();
-      const lines = [];
-      let current = [];
-      let lastY = null;
-
-      for (const item of content.items) {
-        if (!("str" in item)) continue;
-        const y = item.transform?.[5] ?? null;
-        if (lastY !== null && y !== null && Math.abs(y - lastY) > 3 && current.length) {
-          lines.push(current.join(" "));
-          current = [];
-        }
-        current.push(item.str);
-        lastY = y;
-      }
-      if (current.length) lines.push(current.join(" "));
-      pages.push(`[PAGE ${pageNo}]\n${lines.join("\n")}`);
-      page.cleanup();
-    }
-  } finally {
-    await pdf.destroy();
-  }
-
-  return pages.join("\n\n");
-}
-
-/** Render PDF pages to canvas without browser PDF viewer controls or editing affordances. */
-export async function renderPdfReadOnly(
-  file,
-  container,
-  { maxPages = 30, isCurrent = () => true } = {},
-) {
-  const pdfjs = await loadPdfJs();
-  const bytes = new Uint8Array(await file.arrayBuffer());
-  const pdf = await pdfjs.getDocument({ data: bytes }).promise;
-  const pageCount = Math.min(pdf.numPages, maxPages);
-  const root = document.createElement("div");
-  root.className = "pdf-readonly";
-  const notice = document.createElement("div");
-  notice.className = "pdf-readonly__notice";
-  notice.textContent = `只读预览 · 共 ${pdf.numPages} 页 · 不会修改原文件`;
-  root.appendChild(notice);
-  container.replaceChildren(root);
-
-  try {
-    for (let pageNo = 1; pageNo <= pageCount; pageNo += 1) {
-      if (!isCurrent()) return;
-      const page = await pdf.getPage(pageNo);
-      const baseViewport = page.getViewport({ scale: 1 });
-      const availableWidth = Math.max(320, (container.clientWidth || 800) - 36);
-      const cssScale = Math.min(1.5, availableWidth / baseViewport.width);
-      const viewport = page.getViewport({ scale: cssScale });
-      const outputScale = Math.min(window.devicePixelRatio || 1, 2);
-      const canvas = document.createElement("canvas");
-      const context = canvas.getContext("2d", { alpha: false });
-      canvas.width = Math.floor(viewport.width * outputScale);
-      canvas.height = Math.floor(viewport.height * outputScale);
-      canvas.style.width = `${Math.floor(viewport.width)}px`;
-      canvas.style.height = `${Math.floor(viewport.height)}px`;
-
-      const pageWrap = document.createElement("section");
-      pageWrap.className = "pdf-readonly__page";
-      pageWrap.setAttribute("aria-label", `PDF 第 ${pageNo} 页`);
-      pageWrap.appendChild(canvas);
-      root.appendChild(pageWrap);
-
-      await page.render({
-        canvasContext: context,
-        viewport,
-        transform: outputScale === 1 ? null : [outputScale, 0, 0, outputScale, 0, 0],
-      }).promise;
-      page.cleanup();
-    }
-    if (pdf.numPages > maxPages && isCurrent()) {
-      const truncated = document.createElement("div");
-      truncated.className = "pdf-readonly__notice";
-      truncated.textContent = `为控制浏览器内存，仅预览前 ${maxPages} 页。`;
-      root.appendChild(truncated);
-    }
-  } finally {
-    await pdf.destroy();
-  }
-}
 
 function replaceAndCount(text, regex, replacement, counter, type) {
   return text.replace(regex, (...args) => {
@@ -156,7 +30,7 @@ export function redactText(input) {
   }
 
   const labeledRules = [
-    ["name", /((?:姓名|申请人姓名|full\s*name|surname|given\s*name)\s*[:：]\s*)([^\n\r,，;；]{2,80})/gi, "[REDACTED_NAME]"],
+    ["name", /((?:姓名|申请人姓名|full\s*name|name|surname|given\s*name)\s*[:：]\s*)([^\n\r,，;；]{2,80})/gi, "[REDACTED_NAME]"],
     ["address", /((?:住址|地址|家庭地址|address)\s*[:：]\s*)([^\n\r]{4,160})/gi, "[REDACTED_ADDRESS]"],
     ["birth_date", /((?:出生日期|生日|date\s*of\s*birth|dob)\s*[:：]\s*)([^\n\r,，;；]{4,40})/gi, "[REDACTED_DATE]"],
   ];
@@ -171,108 +45,29 @@ export function redactText(input) {
   };
 }
 
-async function imageDimensions(file) {
-  if (!("createImageBitmap" in window)) return { width: null, height: null };
-  try {
-    const bitmap = await createImageBitmap(file);
-    const dimensions = { width: bitmap.width, height: bitmap.height };
-    bitmap.close();
-    return dimensions;
-  } catch {
-    return { width: null, height: null };
-  }
-}
-
-async function analyzeFileLocally(file, index) {
-  const materialId = `material-${String(index + 1).padStart(3, "0")}`;
-  const kind = materialKind(file);
-  const base = {
-    material_id: materialId,
-    source_ref: `local-file-${String(index + 1).padStart(3, "0")}`,
-    local_name: file.webkitRelativePath || file.name,
-    media_type: file.type || "application/octet-stream",
-    kind,
-    text: "",
-    image_info: null,
-    findings: [],
-  };
-
-  try {
-    if (kind === "pdf") {
-      const extracted = await extractPdfText(file);
-      return {
-        ...base,
-        text: extracted,
-        findings: extracted.trim()
-          ? [{ status: "pass", message: "已读取 PDF 文字层。" }]
-          : [{ status: "warning", message: "没有可提取文字，可能是扫描件；本地 OCR 尚未接入。" }],
-      };
-    }
-
-    if (kind === "text") {
-      const text = await file.text();
-      return {
-        ...base,
-        text,
-        findings: [{ status: "pass", message: "已在本地读取文本。" }],
-      };
-    }
-
-    if (kind === "image") {
-      const dimensions = await imageDimensions(file);
-      return {
-        ...base,
-        image_info: dimensions,
-        findings: [{ status: "warning", message: "图片已在本机读取；本地 OCR 和图像规则尚未接入。" }],
-      };
-    }
-
-    return {
-      ...base,
-      findings: [{ status: "warning", message: "当前版本暂不支持此文件类型。" }],
-    };
-  } catch (error) {
-    return {
-      ...base,
-      findings: [{ status: "fail", message: `本地识别失败：${error instanceof Error ? error.message : String(error)}` }],
-    };
-  }
-}
-
-export async function analyzeFilesLocally(files, country, onProgress = () => {}) {
-  const analyses = [];
-  for (let index = 0; index < files.length; index += 1) {
-    onProgress({ current: index, total: files.length, label: `识别第 ${index + 1} 个文件` });
-    analyses.push(await analyzeFileLocally(files[index], index));
-  }
-  onProgress({ current: files.length, total: files.length, label: "本地一级审核完成" });
-  return {
-    country,
-    created_at: new Date().toISOString(),
-    raw_files_uploaded: false,
-    analyses,
-  };
-}
-
 export function buildSafePackageFromAnalysis(localAudit) {
-  const materials = localAudit.analyses.map((analysis) => {
-    const redacted = redactText(analysis.text);
-    const safeImages = analysis.kind === "image" ? [{
-      image_id: `${analysis.material_id}-image-001`,
-      media_type: analysis.media_type,
-      width: analysis.image_info?.width ?? null,
-      height: analysis.image_info?.height ?? null,
+  const documents = localAudit.context?.documents || localAudit.analyses || [];
+  const materials = documents.map((document) => {
+    const text = document.full_text ?? document.text ?? "";
+    const redacted = redactText(text);
+    const sourceImages = document.images || [];
+    const imagesToProtect = sourceImages.length ? sourceImages : (document.kind === "image" ? [{}] : []);
+    const safeImages = imagesToProtect.map((image, index) => ({
+      image_id: `${document.material_id}-image-${String(index + 1).padStart(3, "0")}`,
+      media_type: image.media_type || document.media_type,
+      width: image.width ?? null,
+      height: image.height ?? null,
       included: false,
       redaction_status: "pending_manual_redaction",
       content: null,
       description: "",
-    }] : [];
+    }));
     return {
-      material_id: analysis.material_id,
-      source_ref: analysis.source_ref,
+      material_id: document.material_id,
+      source_ref: document.source_ref,
       material_type: "unknown",
-      media_type: analysis.media_type,
-      kind: analysis.kind,
+      media_type: document.media_type,
+      kind: document.kind,
       text: redacted.text,
       images: safeImages,
       content_blocks: [
@@ -280,7 +75,7 @@ export function buildSafePackageFromAnalysis(localAudit) {
         ...safeImages.map((image) => ({ type: "image", image })),
       ],
       redactions: redacted.redactions,
-      review_status: analysis.kind === "unsupported" || (!redacted.text.trim() && !safeImages.length)
+      review_status: document.kind === "unsupported" || (!redacted.text.trim() && !safeImages.length)
         ? "blocked" : "needs_review",
       user_notes: "由本地一级审核结果生成；图片隐私打码能力尚未接入。",
     };
@@ -288,8 +83,8 @@ export function buildSafePackageFromAnalysis(localAudit) {
 
   return {
     schema_version: "privacy-materials/v1alpha1",
-    country: localAudit.country,
-    visa_type: localAudit.country === "IS" ? "schengen-tourism" : "unknown",
+    country: localAudit.context?.country || localAudit.country,
+    visa_type: localAudit.context?.visa_type || (localAudit.country === "IS" ? "schengen-tourism" : "unknown"),
     privacy: {
       processed_locally: true,
       raw_files_uploaded: false,

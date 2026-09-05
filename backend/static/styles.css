@@ -502,6 +502,11 @@ body {
 .level-one-finding--pass { color: var(--pass); background: var(--pass-bg); }
 .level-one-finding--warning { color: var(--warn); background: var(--warn-bg); }
 .level-one-finding--fail { color: var(--fail); background: var(--fail-bg); }
+.level-one-finding--error { color: var(--fail); background: var(--fail-bg); }
+.level-one-finding--unavailable { color: #75530a; background: #fff5d6; }
+.level-one-finding--skipped { color: var(--muted); background: var(--surface-2); }
+.level-one-checked,
+.level-one-matched { margin-top: 6px; color: var(--muted); font-size: 10.5px; line-height: 1.45; }
 
 .filelist {
   list-style: none;

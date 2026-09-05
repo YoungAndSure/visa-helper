@@ -42,7 +42,7 @@ http://localhost:8000/ui
 
 - 选国家 → 自动拉 `/material-audit/checklist` 预览要求清单
 - 选材料文件夹 → 本地只读预览原文件（PDF 用 Canvas 渲染，不显示编辑工具栏）
-- 点「一级审核」→ 浏览器本地提取 PDF/文本并运行本地规则；原始文字不会发送到后端
+- 点「一级审核」→ 独立预处理模块生成统一 Document Context，再由插件式规则引擎执行本地规则；原始文字不会发送到后端
 - 点「擦除隐私」→ 基于一级审核结果替换文字隐私、生成图片打码占位，并为每个原文件生成安全材料对象
 - 用户在与原文件顺序一致的文本/图片区块流中逐个检查、编辑并确认后，才允许把安全材料包发给 `/material-audit/run`
 - 桌面工作区固定在一屏内，材料内容在右侧卡片内部滚动；隐私处理汇总仅在底部状态条展示
@@ -50,7 +50,8 @@ http://localhost:8000/ui
 - 审核中的页面刷新后会恢复当前国家、文件、页卡和审核进度；恢复数据仅存放在当前
   浏览器的本地会话中，点击「更换国家 / 重新开始」时清除，新会话打开时也会清理旧副本
 
-> ⚠️ 目前一级审核规则和 `/material-audit/run` 二级审核均为框架/示例结果，OCR 与真实规则后续实装。
+> ⚠️ 一级审核插件框架已经接入，目前只有材料可用性、可读性、OCR 能力缺口和护照候选定位等基础规则；
+> OCR、完整签证规则和 `/material-audit/run` 真实二级审核后续实装。
 > 页面会显式标注「示例数据」。
 
 ## Endpoints
@@ -183,6 +184,7 @@ curl -X POST localhost:8000/material-audit/run \
 
 ```bash
 backend/.venv/bin/python -m pytest backend/tests -v
+node --experimental-default-type=module --test backend/tests/js/test_local_audit.mjs
 ```
 
 Phase 0 覆盖：

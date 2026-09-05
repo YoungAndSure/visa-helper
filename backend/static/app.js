@@ -4,7 +4,9 @@
  * Raw File objects stay in browser memory. Only user-reviewed safe material objects
  * can be sent to /material-audit/run.
  */
-import { analyzeFilesLocally, buildSafePackageFromAnalysis, renderPdfReadOnly, validateSafePackage } from "./privacy.js?v=two-level-audit-v7";
+import { createLocalAuditContext, runLocalAuditRules } from "./local-audit-engine.js?v=plugin-audit-v1";
+import { preprocessFilesLocally, renderPdfReadOnly } from "./local-recognition.js?v=document-context-v1";
+import { buildSafePackageFromAnalysis, validateSafePackage } from "./privacy.js?v=privacy-pipeline-v8";
 import { filterSelectedFiles } from "./file-filter.js?v=ignored-files-v1";
 import { clearWorkspaceSession, restoreWorkspaceSession, saveWorkspaceFiles, saveWorkspaceState } from "./workspace-session.js?v=workspace-resume-v1";
 
@@ -56,6 +58,8 @@ const el = {
 };
 
 let checklistIndex = new Map();
+let checklistItems = [];
+let checklistLoadPromise = Promise.resolve();
 let currentFiles = [];
 let activeFileIdx = -1;
 let previewObjectUrl = null;
@@ -182,8 +186,10 @@ async function loadChecklist(country) {
   el.checklist.innerHTML = "";
   el.checklistMeta.textContent = "加载中…";
   checklistIndex = new Map();
+  checklistItems = [];
   try {
     const data = await api(`/material-audit/checklist?country=${encodeURIComponent(country)}`);
+    checklistItems = data.items || [];
     el.checklistMeta.innerHTML =
       `<b>${escapeHtml(data.country)}</b> · 共 ${data.items.length} 项要求` +
       (data.source ? ` · <span class="muted">来源 ${escapeHtml(data.source)}</span>` : "");
@@ -331,25 +337,30 @@ function renderFileList() {
 }
 
 function renderLevelOneAudit(audit) {
-  const analyses = audit?.analyses || [];
-  const findings = analyses.flatMap((item) => item.findings || []);
-  const warnings = findings.filter((item) => item.status === "warning").length;
-  const failures = findings.filter((item) => item.status === "fail").length;
+  const documents = audit?.context?.documents || [];
+  const results = audit?.rule_results || [];
+  const summary = audit?.summary || {};
+  const documentNames = new Map(documents.map((document) => [document.document_id, document.local_name]));
   el.levelOneEmpty.style.display = "none";
   el.levelOneSummary.innerHTML = [
-    `<span class="chip">文件 <b>${analyses.length}</b></span>`,
-    `<span class="chip">提示 <b>${warnings}</b></span>`,
-    `<span class="chip">问题 <b>${failures}</b></span>`,
+    `<span class="chip">文件 <b>${documents.length}</b></span>`,
+    `<span class="chip">规则 <b>${results.length}</b></span>`,
+    `<span class="chip">通过 <b>${summary.pass || 0}</b></span>`,
+    `<span class="chip">问题 <b>${(summary.fail || 0) + (summary.error || 0)}</b></span>`,
+    `<span class="chip">待补能力 <b>${summary.unavailable || 0}</b></span>`,
     `<span class="chip">原始材料上传 <b>0</b></span>`,
   ].join("");
-  el.levelOneResults.innerHTML = analyses.map((analysis, index) => {
-    const file = currentFiles[index];
-    const textLength = analysis.text?.length || 0;
-    const items = (analysis.findings || []).map((finding) =>
-      `<div class="level-one-finding level-one-finding--${escapeHtml(finding.status)}">${escapeHtml(finding.message)}</div>`
-    ).join("");
-    return `<article class="level-one-card"><header><b>${escapeHtml(file?.webkitRelativePath || file?.name || `文件 ${index + 1}`)}</b>` +
-      `<span>${textLength ? `提取 ${textLength} 个字符` : "未提取到文本"}</span></header>${items}</article>`;
+  el.levelOneResults.innerHTML = results.map((result) => {
+    const checkedItems = result.checked_items?.length
+      ? `<div class="level-one-checked">已执行：${result.checked_items.map(escapeHtml).join("；")}</div>` : "";
+    const matchedNames = (result.matched_document_ids || [])
+      .map((documentId) => documentNames.get(documentId) || documentId);
+    const matched = matchedNames.length
+      ? `<div class="level-one-matched">关联材料：${matchedNames.map(escapeHtml).join("、")}</div>` : "";
+    return `<article class="level-one-card"><header><b>${escapeHtml(result.title)}</b>` +
+      `<span>${escapeHtml(result.rule_id)} · v${escapeHtml(result.rule_version)}</span></header>` +
+      `<div class="level-one-finding level-one-finding--${escapeHtml(result.status)}">${escapeHtml(result.reason)}</div>` +
+      `${checkedItems}${matched}</article>`;
   }).join("");
 }
 
@@ -361,13 +372,24 @@ async function runLevelOneAudit() {
   el.levelOneStatus.classList.remove("runstatus--err");
   switchTab("level-one");
   try {
-    localAudit = await analyzeFilesLocally(
-      currentFiles,
-      el.countrySelect.value,
-      ({ current, total, label }) => {
+    const preprocessing = await preprocessFilesLocally(currentFiles, {
+      onProgress: ({ current, total, label }) => {
         el.levelOneStatus.textContent = `${label} · ${current}/${total}`;
       },
-    );
+    });
+    await checklistLoadPromise;
+    const country = el.countrySelect.value;
+    const context = createLocalAuditContext({
+      country,
+      visaType: country === "IS" ? "schengen-tourism" : "unknown",
+      checklist: checklistItems,
+      preprocessing,
+    });
+    localAudit = await runLocalAuditRules(context, {
+      onProgress: ({ current, total, label }) => {
+        el.levelOneStatus.textContent = `${label} · ${current}/${total}`;
+      },
+    });
     renderLevelOneAudit(localAudit);
     el.levelOneStatus.textContent = "一级审核完成，原始内容未离开本机。";
     queueWorkspaceSave();
@@ -692,17 +714,22 @@ async function restoreSavedWorkspace() {
     if (!restored) return;
     const { state, files } = restored;
     currentFiles = filterSelectedFiles(files);
-    localAudit = state.localAudit || null;
-    safePackage = state.safePackage || null;
-    auditResult = state.auditResult || null;
+    const restoredAudit = state.localAudit || null;
+    const currentAuditSchema = restoredAudit?.schema_version === "local-audit-result/v1";
+    localAudit = currentAuditSchema ? restoredAudit : null;
+    safePackage = currentAuditSchema ? (state.safePackage || null) : null;
+    auditResult = currentAuditSchema ? (state.auditResult || null) : null;
     activeFileIdx = Math.min(Math.max(state.activeFileIdx ?? 0, 0), Math.max(currentFiles.length - 1, 0));
     reviewedMaterialIds.clear();
-    (state.reviewedMaterialIds || []).forEach((id) => reviewedMaterialIds.add(id));
+    if (currentAuditSchema) {
+      (state.reviewedMaterialIds || []).forEach((id) => reviewedMaterialIds.add(id));
+    }
     el.countrySelect.value = state.country || "IS";
     const labels = { IS: "冰岛", NO: "挪威" };
     el.wsCountry.textContent = labels[el.countrySelect.value] || el.countrySelect.value;
     el.materialsDir.textContent = state.materialsDir || "已恢复本地材料";
-    await loadChecklist(el.countrySelect.value);
+    checklistLoadPromise = loadChecklist(el.countrySelect.value);
+    await checklistLoadPromise;
     goto("work");
     renderFileList();
     if (localAudit) {
@@ -717,8 +744,8 @@ async function restoreSavedWorkspace() {
     }
     if (auditResult) renderResults(auditResult);
     updateWorkflowSteps();
-    const restoredTab = ["checklist", "preview", "level-one", "privacy", "results"].includes(state.activeTabName)
-      ? state.activeTabName : "checklist";
+    const restoredTab = currentAuditSchema && ["checklist", "preview", "level-one", "privacy", "results"].includes(state.activeTabName)
+      ? state.activeTabName : (currentFiles.length ? "preview" : "checklist");
     if (currentFiles.length && restoredTab === "preview") await selectFile(activeFileIdx, "preview");
     else switchTab(restoredTab);
     if (!currentFiles.length) {
@@ -746,7 +773,7 @@ document.querySelectorAll("[data-action]").forEach((button) => {
       const labels = { IS: "冰岛", NO: "挪威" };
       el.wsCountry.textContent = labels[el.countrySelect.value] || el.countrySelect.value;
       resetWorkspace();
-      loadChecklist(el.countrySelect.value);
+      checklistLoadPromise = loadChecklist(el.countrySelect.value);
       goto("work");
       queueWorkspaceSave();
     }
