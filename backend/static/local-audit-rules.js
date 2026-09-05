@@ -83,28 +83,41 @@ const readableContentRule = {
 
 const localOcrCoverageRule = {
   id: "document.local-ocr-coverage",
-  version: "1.0.0",
+  version: "1.1.0",
   title: "图片和扫描件文字识别",
   async run(context, tools) {
-    const needsOcr = tools.findDocuments(context, (document) => document.recognition.ocr_status === "unavailable");
-    if (!needsOcr.length) {
+    const completed = tools.findDocuments(context, (document) => document.recognition.ocr_status === "completed");
+    const failed = tools.findDocuments(
+      context,
+      (document) => ["failed", "unavailable"].includes(document.recognition.ocr_status),
+    );
+    if (failed.length) {
       return {
-        status: "skipped",
-        reason: "当前材料均不需要本地 OCR 补充。",
-        checked_items: ["定位需要 OCR 的图片或扫描件"],
-        matched_document_ids: [],
+        status: "unavailable",
+        reason: `${failed.length} 份材料的本地 OCR 未完成。`,
+        checked_items: ["定位并识别图片或扫描页"],
+        matched_document_ids: failed.map((document) => document.document_id),
+        evidence: failed.map((document) => ({
+          document_id: document.document_id,
+          source_name: document.local_name,
+          kind: document.kind,
+          error: document.recognition.error,
+        })),
+      };
+    }
+    if (completed.length) {
+      return {
+        status: "pass",
+        reason: `${completed.length} 份包含图片或扫描页的材料已在本机完成 OCR。`,
+        checked_items: ["定位并识别图片或扫描页", "确认 OCR 处理状态"],
+        matched_document_ids: completed.map((document) => document.document_id),
       };
     }
     return {
-      status: "unavailable",
-      reason: `${needsOcr.length} 份材料需要 OCR；当前本地 OCR 适配器尚未接入。`,
+      status: "skipped",
+      reason: "当前材料均可直接读取文字，不需要 OCR。",
       checked_items: ["定位需要 OCR 的图片或扫描件"],
-      matched_document_ids: needsOcr.map((document) => document.document_id),
-      evidence: needsOcr.map((document) => ({
-        document_id: document.document_id,
-        source_name: document.local_name,
-        kind: document.kind,
-      })),
+      matched_document_ids: [],
     };
   },
 };
@@ -123,7 +136,10 @@ const passportCandidateRule = {
       kinds: ["pdf", "image"],
     });
     if (!candidates.length) {
-      const blockedByOcr = tools.findDocuments(context, (document) => document.recognition.ocr_status === "unavailable");
+      const blockedByOcr = tools.findDocuments(
+        context,
+        (document) => ["failed", "unavailable"].includes(document.recognition.ocr_status),
+      );
       return {
         status: blockedByOcr.length ? "unavailable" : "fail",
         reason: blockedByOcr.length

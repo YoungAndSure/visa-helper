@@ -1,16 +1,13 @@
 /** Browser-only visual privacy redaction for PDF/JPG copies. */
 
+import { createOcrPool, DEFAULT_OCR_WORKER_COUNT } from "./ocr-pool.js";
+
 const PDFJS_URL = "./vendor/pdfjs/pdf.min.mjs";
 const PDFJS_WORKER_URL = new URL("./vendor/pdfjs/pdf.worker.min.mjs", import.meta.url).href;
-const TESSERACT_URL = "./vendor/tesseract/tesseract.esm.min.js";
-const TESSERACT_WORKER_URL = new URL("./vendor/tesseract/worker.min.js", import.meta.url).href;
-const TESSERACT_CORE_URL = new URL("./vendor/tesseract/tesseract-core-lstm.wasm.js", import.meta.url).href;
-const TESSERACT_LANG_URL = new URL("./vendor/tesseract/lang", import.meta.url).href;
 const PDF_LIB_URL = new URL("./vendor/pdf-lib/pdf-lib.min.js", import.meta.url).href;
 const PDF_RENDER_SCALE = 1.6;
 
 let pdfjsPromise;
-let tesseractPromise;
 let pdfLibPromise;
 
 function extensionOf(name) {
@@ -33,11 +30,6 @@ async function loadPdfJs() {
     });
   }
   return pdfjsPromise;
-}
-
-async function loadTesseract() {
-  if (!tesseractPromise) tesseractPromise = import(TESSERACT_URL).then((module) => module.default);
-  return tesseractPromise;
 }
 
 async function loadPdfLib() {
@@ -142,20 +134,6 @@ export function detectSensitiveRanges(input) {
   return ranges.sort((a, b) => a.start - b.start || a.end - b.end);
 }
 
-function parseTsv(tsv) {
-  const rows = String(tsv || "").trim().split(/\r?\n/);
-  if (rows.length < 2) return [];
-  const headers = rows[0].split("\t");
-  return rows.slice(1).map((row) => {
-    const values = row.split("\t");
-    return Object.fromEntries(headers.map((header, index) => [header, values[index] ?? ""]));
-  }).filter((row) => row.text?.trim() && Number(row.conf) >= 15).map((row) => ({
-    text: row.text.trim(),
-    line: `${row.page_num}:${row.block_num}:${row.par_num}:${row.line_num}`,
-    left: Number(row.left), top: Number(row.top), width: Number(row.width), height: Number(row.height),
-  }));
-}
-
 export function boxesForSensitiveWords(words) {
   const byLine = new Map();
   for (const word of words || []) {
@@ -176,45 +154,43 @@ export function boxesForSensitiveWords(words) {
     for (const range of detectSensitiveRanges(text)) {
       const matched = offsets.filter(({ start, end }) => start < range.end && end > range.start);
       if (!matched.length) continue;
-      const left = Math.min(...matched.map(({ word }) => word.left));
-      const top = Math.min(...matched.map(({ word }) => word.top));
-      const right = Math.max(...matched.map(({ word }) => word.left + word.width));
-      const bottom = Math.max(...matched.map(({ word }) => word.top + word.height));
-      boxes.push({
-        id: crypto.randomUUID(), type: range.type, source: "automatic",
-        x: Math.max(0, left - 5), y: Math.max(0, top - 3),
-        width: right - left + 10, height: bottom - top + 6,
-      });
+      for (const { word, start, end } of matched) {
+        const preciseTextLayerBox = word.source === "pdf_text_layer" && word.text.length > 0;
+        const startRatio = preciseTextLayerBox ? Math.max(0, (range.start - start) / word.text.length) : 0;
+        const endRatio = preciseTextLayerBox ? Math.min(1, (range.end - start) / word.text.length) : 1;
+        const left = word.left + word.width * startRatio;
+        const right = word.left + word.width * Math.max(startRatio, endRatio);
+        boxes.push({
+          id: crypto.randomUUID(), type: range.type, source: "automatic",
+          x: Math.max(0, left - 5), y: Math.max(0, word.top - 3),
+          width: right - left + 10, height: word.height + 6,
+        });
+      }
     }
   }
   return boxes;
 }
 
-async function createOcrWorker(onProgress) {
-  const Tesseract = await loadTesseract();
-  return Tesseract.createWorker(["chi_sim", "eng"], 1, {
-    workerPath: TESSERACT_WORKER_URL,
-    corePath: TESSERACT_CORE_URL,
-    langPath: TESSERACT_LANG_URL,
-    workerBlobURL: false,
-    logger(message) {
-      if (message.status === "recognizing text") onProgress(message.progress || 0);
-    },
-  });
+function reusableRecognition(page) {
+  return page && ["pdf_text_layer", "ocr"].includes(page.recognition_method)
+    && Array.isArray(page.words)
+    && page.ocr_status !== "failed";
 }
 
 export async function prepareRedactionWorkspace(localAudit, files, { onProgress = () => {} } = {}) {
   const documents = localAudit?.context?.documents || [];
   const materials = [];
-  let worker = null;
-  let workerFailure = null;
-  try {
-    try {
-      onProgress({ label: "正在加载本地 OCR", current: 0, total: files.length });
-      worker = await createOcrWorker(() => {});
-    } catch (error) {
-      workerFailure = error instanceof Error ? error.message : String(error);
+  let ocrPoolPromise = null;
+  let ocrPool = null;
+  async function getOcrPool() {
+    if (!ocrPoolPromise) {
+      onProgress({ label: "正在加载双 Worker 本地 OCR", current: 0, total: files.length });
+      ocrPoolPromise = createOcrPool({ workerCount: DEFAULT_OCR_WORKER_COUNT });
     }
+    ocrPool = await ocrPoolPromise;
+    return ocrPool;
+  }
+  try {
     for (let index = 0; index < files.length; index += 1) {
       const file = files[index];
       const source = documents[index] || {};
@@ -233,19 +209,36 @@ export async function prepareRedactionWorkspace(localAudit, files, { onProgress 
           const rendered = await renderSourcePages(file);
           for (let pageIndex = 0; pageIndex < rendered.length; pageIndex += 1) {
             const page = rendered[pageIndex];
-            onProgress({ label: `本地识别 ${index + 1}/${files.length} · 第 ${pageIndex + 1}/${rendered.length} 页`, current: index, total: files.length });
+            const recognizedPage = source.pages?.[pageIndex];
             let redactions = [];
-            let ocrError = workerFailure;
-            if (worker) {
+            let recognitionMethod = recognizedPage?.recognition_method || "ocr";
+            let ocrStatus = recognizedPage?.ocr_status || "pending";
+            let ocrError = recognizedPage?.recognition_error || null;
+            if (reusableRecognition(recognizedPage)) {
+              onProgress({ label: `复用本地识别 ${index + 1}/${files.length} · 第 ${pageIndex + 1}/${rendered.length} 页`, current: index, total: files.length });
+              redactions = boxesForSensitiveWords(recognizedPage.words);
+            } else {
+              onProgress({ label: `补充 OCR ${index + 1}/${files.length} · 第 ${pageIndex + 1}/${rendered.length} 页`, current: index, total: files.length });
               try {
-                const result = await worker.recognize(page.canvas, {}, { text: true, tsv: true });
-                redactions = boxesForSensitiveWords(parseTsv(result.data.tsv));
+                const result = await (await getOcrPool()).recognize(page.canvas);
+                redactions = boxesForSensitiveWords(result.words);
+                recognitionMethod = "ocr";
+                ocrStatus = "completed";
                 ocrError = null;
               } catch (error) {
+                ocrStatus = "failed";
                 ocrError = error instanceof Error ? error.message : String(error);
               }
             }
-            material.pages.push({ page_number: page.page_number, width: page.width, height: page.height, redactions, ocr_status: ocrError ? "failed" : "completed", ocr_error: ocrError });
+            material.pages.push({
+              page_number: page.page_number,
+              width: page.width,
+              height: page.height,
+              redactions,
+              recognition_method: recognitionMethod,
+              ocr_status: ocrStatus,
+              ocr_error: ocrError,
+            });
           }
         } catch (error) {
           material.review_status = "blocked";
@@ -255,7 +248,7 @@ export async function prepareRedactionWorkspace(localAudit, files, { onProgress 
       materials.push(material);
     }
   } finally {
-    if (worker) await worker.terminate();
+    if (ocrPool) await ocrPool.terminate();
   }
   onProgress({ label: "本地隐私识别完成", current: files.length, total: files.length });
   return { schema_version: "local-redaction-workspace/v1", country: localAudit.context?.country || localAudit.country, visa_type: localAudit.context?.visa_type || "unknown", materials };

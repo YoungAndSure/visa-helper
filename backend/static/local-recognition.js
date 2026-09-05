@@ -5,10 +5,14 @@
  * only output is a normalized document context consumed by downstream rules.
  */
 
+import { createOcrPool, DEFAULT_OCR_WORKER_COUNT } from "./ocr-pool.js";
+
 const PDFJS_URL = "./vendor/pdfjs/pdf.min.mjs";
 const PDFJS_WORKER_URL = new URL("./vendor/pdfjs/pdf.worker.min.mjs", import.meta.url).href;
 const TEXT_EXTENSIONS = new Set(["txt", "md", "csv", "json", "xml", "html"]);
 const IMAGE_EXTENSIONS = new Set(["jpg", "jpeg", "png", "gif", "webp", "bmp"]);
+const PDF_PROCESS_SCALE = 1.6;
+const MIN_USABLE_TEXT_CHARACTERS = 16;
 
 let pdfjsPromise;
 
@@ -35,39 +39,159 @@ async function loadPdfJs() {
   return pdfjsPromise;
 }
 
-async function extractPdf(file) {
+export function hasUsablePdfText(text, itemCount = 0) {
+  const meaningfulCharacters = String(text || "").replace(/\s/g, "").length;
+  return meaningfulCharacters >= MIN_USABLE_TEXT_CHARACTERS && itemCount > 0;
+}
+
+function textItemBounds(item, viewport, pdfjs) {
+  const transform = pdfjs.Util.transform(viewport.transform, item.transform);
+  const angle = Math.atan2(transform[1], transform[0]);
+  const width = Math.max(1, Math.abs(Number(item.width || 0) * viewport.scale));
+  const height = Math.max(1, Math.hypot(transform[2], transform[3]));
+  const along = { x: Math.cos(angle) * width, y: Math.sin(angle) * width };
+  const above = { x: Math.sin(angle) * height, y: -Math.cos(angle) * height };
+  const corners = [
+    { x: transform[4], y: transform[5] },
+    { x: transform[4] + along.x, y: transform[5] + along.y },
+    { x: transform[4] + above.x, y: transform[5] + above.y },
+    { x: transform[4] + along.x + above.x, y: transform[5] + along.y + above.y },
+  ];
+  const left = Math.min(...corners.map((point) => point.x));
+  const top = Math.min(...corners.map((point) => point.y));
+  const right = Math.max(...corners.map((point) => point.x));
+  const bottom = Math.max(...corners.map((point) => point.y));
+  return { left, top, width: right - left, height: bottom - top };
+}
+
+function extractPdfTextPage(content, viewport, pdfjs, pageNumber) {
+  const lines = [];
+  const words = [];
+  let currentLine = [];
+  let lineNumber = 1;
+  let previousY = null;
+
+  for (const item of content.items) {
+    if (!("str" in item) || !item.str?.trim()) continue;
+    const y = item.transform?.[5] ?? null;
+    if (previousY !== null && y !== null && Math.abs(y - previousY) > 3 && currentLine.length) {
+      lines.push(currentLine.join(" "));
+      currentLine = [];
+      lineNumber += 1;
+    }
+    currentLine.push(item.str);
+    words.push({
+      text: item.str,
+      line: `${pageNumber}:${lineNumber}`,
+      ...textItemBounds(item, viewport, pdfjs),
+      confidence: 100,
+      source: "pdf_text_layer",
+    });
+    previousY = y;
+    if (item.hasEOL) {
+      lines.push(currentLine.join(" "));
+      currentLine = [];
+      lineNumber += 1;
+      previousY = null;
+    }
+  }
+  if (currentLine.length) lines.push(currentLine.join(" "));
+  return { text: lines.join("\n"), words };
+}
+
+async function renderPageForOcr(page) {
+  const viewport = page.getViewport({ scale: PDF_PROCESS_SCALE });
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.ceil(viewport.width);
+  canvas.height = Math.ceil(viewport.height);
+  await page.render({ canvasContext: canvas.getContext("2d", { alpha: false }), viewport }).promise;
+  return canvas;
+}
+
+async function mapWithConcurrency(values, concurrency, mapper) {
+  const results = new Array(values.length);
+  let nextIndex = 0;
+  async function consume() {
+    while (nextIndex < values.length) {
+      const index = nextIndex;
+      nextIndex += 1;
+      results[index] = await mapper(values[index], index);
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(concurrency, values.length) }, consume));
+  return results;
+}
+
+async function extractPdf(file, getOcrPool, onProgress) {
   const pdfjs = await loadPdfJs();
   const bytes = new Uint8Array(await file.arrayBuffer());
   const pdf = await pdfjs.getDocument({ data: bytes }).promise;
-  const pages = [];
+  const pages = new Array(pdf.numPages);
+  const ocrPageNumbers = [];
 
   try {
     for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
       const page = await pdf.getPage(pageNumber);
       const content = await page.getTextContent();
-      const lines = [];
-      let currentLine = [];
-      let previousY = null;
-
-      for (const item of content.items) {
-        if (!("str" in item)) continue;
-        const y = item.transform?.[5] ?? null;
-        if (previousY !== null && y !== null && Math.abs(y - previousY) > 3 && currentLine.length) {
-          lines.push(currentLine.join(" "));
-          currentLine = [];
-        }
-        currentLine.push(item.str);
-        previousY = y;
+      const viewport = page.getViewport({ scale: PDF_PROCESS_SCALE });
+      const extracted = extractPdfTextPage(content, viewport, pdfjs, pageNumber);
+      if (hasUsablePdfText(extracted.text, extracted.words.length)) {
+        pages[pageNumber - 1] = {
+          page_number: pageNumber,
+          width: Math.ceil(viewport.width),
+          height: Math.ceil(viewport.height),
+          blocks: [{ type: "text", text: extracted.text, source: "pdf_text_layer" }],
+          text: extracted.text,
+          words: extracted.words,
+          recognition_method: "pdf_text_layer",
+          ocr_status: "not_required",
+          recognition_error: null,
+        };
+      } else {
+        ocrPageNumbers.push(pageNumber);
       }
-      if (currentLine.length) lines.push(currentLine.join(" "));
-      const text = lines.join("\n");
-      pages.push({
-        page_number: pageNumber,
-        blocks: text ? [{ type: "text", text, source: "pdf_text_layer" }] : [],
-        text,
-      });
       page.cleanup();
     }
+
+    await mapWithConcurrency(ocrPageNumbers, DEFAULT_OCR_WORKER_COUNT, async (pageNumber) => {
+      const page = await pdf.getPage(pageNumber);
+      let canvas = null;
+      try {
+        onProgress(`OCR 识别 PDF 第 ${pageNumber}/${pdf.numPages} 页`);
+        canvas = await renderPageForOcr(page);
+        const result = await (await getOcrPool()).recognize(canvas);
+        pages[pageNumber - 1] = {
+          page_number: pageNumber,
+          width: canvas.width,
+          height: canvas.height,
+          blocks: result.text.trim() ? [{ type: "text", text: result.text, source: "ocr" }] : [],
+          text: result.text,
+          words: result.words,
+          recognition_method: "ocr",
+          ocr_status: "completed",
+          recognition_error: null,
+        };
+      } catch (error) {
+        const viewport = page.getViewport({ scale: PDF_PROCESS_SCALE });
+        pages[pageNumber - 1] = {
+          page_number: pageNumber,
+          width: Math.ceil(viewport.width),
+          height: Math.ceil(viewport.height),
+          blocks: [],
+          text: "",
+          words: [],
+          recognition_method: "ocr",
+          ocr_status: "failed",
+          recognition_error: error instanceof Error ? error.message : String(error),
+        };
+      } finally {
+        if (canvas) {
+          canvas.width = 0;
+          canvas.height = 0;
+        }
+        page.cleanup();
+      }
+    });
   } finally {
     await pdf.destroy();
   }
@@ -110,25 +234,35 @@ function documentBase(file, index) {
   };
 }
 
-async function preprocessFile(file, index) {
+function summarizePdfRecognition(pages, fullText) {
+  const methods = new Set(pages.map((page) => page.recognition_method));
+  const ocrPages = pages.filter((page) => page.recognition_method === "ocr");
+  const failedOcrPages = ocrPages.filter((page) => page.ocr_status === "failed");
+  let textSource = "none";
+  if (fullText.replace(/\[PAGE \d+\]/g, "").trim()) {
+    textSource = methods.size > 1 ? "mixed" : (methods.has("ocr") ? "ocr" : "pdf_text_layer");
+  }
+  return {
+    status: failedOcrPages.length || textSource === "none" ? "partial" : "success",
+    text_source: textSource,
+    ocr_status: failedOcrPages.length ? "failed" : (ocrPages.length ? "completed" : "not_required"),
+    error: failedOcrPages.length ? `${failedOcrPages.length} 页 OCR 识别失败` : null,
+  };
+}
+
+async function preprocessFile(file, index, getOcrPool, onProgress) {
   const base = documentBase(file, index);
   try {
     if (base.kind === "pdf") {
-      const pages = await extractPdf(file);
+      const pages = await extractPdf(file, getOcrPool, onProgress);
       const fullText = pages
         .map((page) => `[PAGE ${page.page_number}]\n${page.text}`)
         .join("\n\n");
-      const hasText = Boolean(fullText.replace(/\[PAGE \d+\]/g, "").trim());
       return {
         ...base,
         full_text: fullText,
         pages,
-        recognition: {
-          status: hasText ? "success" : "partial",
-          text_source: hasText ? "pdf_text_layer" : "none",
-          ocr_status: hasText ? "not_required" : "unavailable",
-          error: null,
-        },
+        recognition: summarizePdfRecognition(pages, fullText),
       };
     }
 
@@ -153,22 +287,44 @@ async function preprocessFile(file, index) {
 
     if (base.kind === "image") {
       const dimensions = await imageDimensions(file);
+      onProgress("OCR 识别图片");
+      const bitmap = await createImageBitmap(file);
+      let result;
+      try {
+        result = await (await getOcrPool()).recognize(bitmap);
+      } finally {
+        bitmap.close();
+      }
       const image = {
         image_id: `${base.document_id}-image-001`,
         media_type: base.media_type,
         width: dimensions.width,
         height: dimensions.height,
         description: "",
-        ocr_text: "",
+        ocr_text: result.text,
       };
       return {
         ...base,
-        pages: [{ page_number: 1, blocks: [{ type: "image", image_id: image.image_id }], text: "" }],
+        full_text: result.text,
+        pages: [{
+          page_number: 1,
+          width: dimensions.width,
+          height: dimensions.height,
+          blocks: [
+            { type: "image", image_id: image.image_id },
+            ...(result.text.trim() ? [{ type: "text", text: result.text, source: "ocr" }] : []),
+          ],
+          text: result.text,
+          words: result.words,
+          recognition_method: "ocr",
+          ocr_status: "completed",
+          recognition_error: null,
+        }],
         images: [image],
         recognition: {
-          status: "partial",
-          text_source: "none",
-          ocr_status: "unavailable",
+          status: result.text.trim() ? "success" : "partial",
+          text_source: result.text.trim() ? "ocr" : "none",
+          ocr_status: "completed",
           error: null,
         },
       };
@@ -197,19 +353,39 @@ async function preprocessFile(file, index) {
 }
 
 export async function preprocessFilesLocally(files, { onProgress = () => {} } = {}) {
-  const documents = [];
-  for (let index = 0; index < files.length; index += 1) {
-    onProgress({ current: index, total: files.length, label: `预处理第 ${index + 1} 个文件` });
-    documents.push(await preprocessFile(files[index], index));
+  let ocrPoolPromise = null;
+  let ocrPool = null;
+  let completedFiles = 0;
+  async function getOcrPool() {
+    if (!ocrPoolPromise) {
+      onProgress({ current: completedFiles, total: files.length, label: "正在加载双 Worker 本地 OCR" });
+      ocrPoolPromise = createOcrPool({ workerCount: DEFAULT_OCR_WORKER_COUNT });
+    }
+    ocrPool = await ocrPoolPromise;
+    return ocrPool;
   }
-  onProgress({ current: files.length, total: files.length, label: "本地文件预处理完成" });
-  return {
-    schema_version: "local-document-context/v1",
-    created_at: new Date().toISOString(),
-    processed_locally: true,
-    raw_files_uploaded: false,
-    documents,
-  };
+  try {
+    const indexedFiles = Array.from(files, (file, index) => ({ file, index }));
+    const documents = await mapWithConcurrency(indexedFiles, DEFAULT_OCR_WORKER_COUNT, async ({ file, index }) => {
+      onProgress({ current: completedFiles, total: files.length, label: `预处理第 ${index + 1} 个文件` });
+      const document = await preprocessFile(file, index, getOcrPool, (label) => {
+        onProgress({ current: completedFiles, total: files.length, label: `${file.name} · ${label}` });
+      });
+      completedFiles += 1;
+      onProgress({ current: completedFiles, total: files.length, label: `已完成 ${completedFiles}/${files.length} 个文件` });
+      return document;
+    });
+    onProgress({ current: files.length, total: files.length, label: "本地文件预处理完成" });
+    return {
+      schema_version: "local-document-context/v1",
+      created_at: new Date().toISOString(),
+      processed_locally: true,
+      raw_files_uploaded: false,
+      documents,
+    };
+  } finally {
+    if (ocrPool) await ocrPool.terminate();
+  }
 }
 
 /** Render PDF pages to canvas without browser PDF viewer controls or editing affordances. */

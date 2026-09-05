@@ -2,7 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { createLocalAuditContext, runLocalAuditRules } from "../../static/local-audit-engine.js";
-import { preprocessFilesLocally } from "../../static/local-recognition.js";
+import { hasUsablePdfText, preprocessFilesLocally } from "../../static/local-recognition.js";
+import { DEFAULT_OCR_WORKER_COUNT, parseOcrTsv } from "../../static/ocr-pool.js";
 import { boxesForSensitiveWords, buildSafePackage, detectSensitiveRanges, validateSafePackage } from "../../static/privacy.js";
 
 function preprocessing(documents) {
@@ -53,6 +54,23 @@ test("preprocessor creates normalized documents without raw File references", as
   assert.equal("file" in result.documents[0], false);
 });
 
+test("PDF text-layer routing skips OCR only for meaningful extractable text", () => {
+  assert.equal(hasUsablePdfText("Passport number AB1234567", 2), true);
+  assert.equal(hasUsablePdfText("1", 1), false);
+  assert.equal(hasUsablePdfText("", 0), false);
+  assert.equal(DEFAULT_OCR_WORKER_COUNT, 2);
+});
+
+test("OCR TSV output is normalized for downstream rules and redaction", () => {
+  const words = parseOcrTsv([
+    "level\tpage_num\tblock_num\tpar_num\tline_num\tword_num\tleft\ttop\twidth\theight\tconf\ttext",
+    "5\t1\t1\t1\t1\t1\t10\t20\t80\t16\t92\tAB1234567",
+  ].join("\n"));
+  assert.equal(words.length, 1);
+  assert.equal(words[0].line, "1:1:1:1");
+  assert.equal(words[0].source, "ocr");
+});
+
 test("built-in rules discover candidates from the shared context", async () => {
   const context = createLocalAuditContext({
     country: "IS",
@@ -91,6 +109,21 @@ test("privacy detector maps sensitive OCR words to visual boxes", () => {
   assert.equal(boxes.length, 1);
   assert.equal(boxes[0].type, "email");
   assert.ok(boxes[0].width >= 130);
+});
+
+test("privacy detector narrows redaction inside a PDF text item", () => {
+  const boxes = boxesForSensitiveWords([{
+    text: "Email: person@example.com",
+    line: "1",
+    left: 0,
+    top: 10,
+    width: 240,
+    height: 12,
+    source: "pdf_text_layer",
+  }]);
+  assert.equal(boxes.length, 1);
+  assert.ok(boxes[0].x > 40);
+  assert.ok(boxes[0].width < 200);
 });
 
 test("safe package contains only anonymous sanitized file copies", () => {

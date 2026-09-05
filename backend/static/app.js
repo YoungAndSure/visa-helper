@@ -5,7 +5,7 @@
  * can be sent to /material-audit/run.
  */
 import { createLocalAuditContext, runLocalAuditRules } from "./local-audit-engine.js?v=plugin-audit-v1";
-import { preprocessFilesLocally, renderPdfReadOnly } from "./local-recognition.js?v=document-context-v1";
+import { preprocessFilesLocally, renderPdfReadOnly } from "./local-recognition.js?v=document-context-v2";
 import {
   buildSafePackage,
   countRedactions,
@@ -13,7 +13,7 @@ import {
   prepareRedactionWorkspace,
   renderRedactionEditor,
   validateSafePackage,
-} from "./privacy.js?v=visual-redaction-v1";
+} from "./privacy.js?v=visual-redaction-v2";
 import { filterSelectedFiles } from "./file-filter.js?v=ignored-files-v1";
 import { clearWorkspaceSession, restoreWorkspaceSession, saveWorkspaceFiles, saveWorkspaceState } from "./workspace-session.js?v=workspace-resume-v1";
 
