@@ -42,16 +42,16 @@ http://localhost:8000/ui
 
 - 选国家 → 自动拉 `/material-audit/checklist` 预览要求清单
 - 选材料文件夹 → 本地只读预览原文件（PDF 用 Canvas 渲染，不显示编辑工具栏）
-- 点「一级审核」→ 独立预处理模块生成统一 Document Context，再由插件式规则引擎执行本地规则；原始文字不会发送到后端
-- 点「擦除隐私」→ 基于一级审核结果替换文字隐私、生成图片打码占位，并为每个原文件生成安全材料对象
-- 用户在与原文件顺序一致的文本/图片区块流中逐个检查、编辑并确认后，才允许把安全材料包发给 `/material-audit/run`
+- 点「本地审核」→ 独立预处理模块生成统一 Document Context，再由插件式规则引擎执行必须使用原始隐私的规则
+- 点「擦除隐私」→ 浏览器本地 OCR 在 PDF/JPG 视觉副本上自动画框，用户可继续手动涂抹
+- 用户确认时把遮挡烧录进新 PDF/JPG；逐份确认后，才允许把匿名脱敏文件发给 `/material-audit/run` 进行远端审核
 - 桌面工作区固定在一屏内，材料内容在右侧卡片内部滚动；隐私处理汇总仅在底部状态条展示
 - 图片默认不进入 JSON 内容，只生成 `pending_manual_redaction` 对象
 - 审核中的页面刷新后会恢复当前国家、文件、页卡和审核进度；恢复数据仅存放在当前
   浏览器的本地会话中，点击「更换国家 / 重新开始」时清除，新会话打开时也会清理旧副本
 
-> ⚠️ 一级审核插件框架已经接入，目前只有材料可用性、可读性、OCR 能力缺口和护照候选定位等基础规则；
-> OCR、完整签证规则和 `/material-audit/run` 真实二级审核后续实装。
+> ⚠️ 本地审核插件框架已经接入，目前只有材料可用性、可读性、OCR 能力缺口和护照候选定位等基础规则；
+> 隐私擦除已接入本地 OCR 与 PDF/JPG 手动涂抹框架，完整隐私识别、签证规则和 `/material-audit/run` 真实远端审核仍需继续完善。
 > 页面会显式标注「示例数据」。
 
 ## Endpoints
@@ -134,22 +134,28 @@ curl 'localhost:8000/material-audit/checklist?country=IS'
 curl -X POST localhost:8000/material-audit/run \
   -H 'Content-Type: application/json' \
   -d '{
+    "schema_version": "privacy-files/v1",
     "country": "IS",
     "visa_type": "schengen-tourism",
     "materials": [{
       "material_id": "material-001",
       "source_ref": "local-file-001",
-      "material_type": "bank-statement",
       "media_type": "application/pdf",
       "kind": "pdf",
-      "text": "Name: [REDACTED_NAME]",
-      "review_status": "needs_review"
+      "sanitized_file": {
+        "media_type": "application/pdf",
+        "content": "data:application/pdf;base64,...",
+        "size": 123456,
+        "page_count": 2,
+        "redaction_count": 5
+      },
+      "review_status": "ready"
     }],
     "privacy": {
       "processed_locally": true,
       "raw_files_uploaded": false,
       "user_reviewed": true,
-      "redaction_engine": "browser-regex-v1"
+      "redaction_engine": "browser-ocr-manual-v1"
     },
     "review_scopes": ["checklist", "risk"],
     "use_llm": false
@@ -158,11 +164,11 @@ curl -X POST localhost:8000/material-audit/run \
 ```
 
 > ⚠️ 当前 Audit Agent 已有 intake/checklist/knowledge/model/report 编排骨架，但后三项仍是
-> stub/FAKE。请求 Schema 已强制执行隐私标记并拒绝原始文件名、路径及明显未擦除 PII。
+> stub/FAKE。请求 Schema 已强制执行隐私标记，并只接受匿名、已确认的脱敏 PDF/JPG。
 
 ## 设计要点
 
-- **原始材料不上传**：浏览器本地处理，后端只接收用户确认后的安全 JSON
+- **原始材料不上传**：浏览器本地处理，后端只接收用户确认后的脱敏 PDF/JPG 副本
 - **敏感正文不落日志**：材料审核和表单接口即使开启 `LOG_BODIES=1` 也不记录 body
 - **PII 脱敏**：`backend/redact.py` 的 `redact_applicant_context()`
   在送 prompt 前过滤 passport / ID / 卡号 / 手机 / email；Chrome 扩展仍持有
@@ -170,7 +176,7 @@ curl -X POST localhost:8000/material-audit/run \
 - **CORS allowlist**：`http://localhost:5173/3000`（dev）+ `chrome-extension://<id>`
 - **错误策略**：LLM 失败降级为 mock/unknown 而不是 500，前端能继续跑
 
-安全 JSON 契约详见 [`../docs/privacy-safe-materials.md`](../docs/privacy-safe-materials.md)。
+文件脱敏契约详见 [`../docs/privacy-safe-materials.md`](../docs/privacy-safe-materials.md)。
 
 ## 与后台工具及 Checklist 数据的关系
 

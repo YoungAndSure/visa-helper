@@ -92,7 +92,7 @@ class AuditAgent:
         return AgentStep(
             name="privacy_intake",
             status="completed",
-            detail=f"收到 {len(req.materials)} 个安全材料对象；未接收原始文件",
+            detail=f"收到 {len(req.materials)} 个用户确认的脱敏文件；未接收原始文件",
         )
 
     @staticmethod
@@ -128,7 +128,7 @@ class AuditAgent:
         ]
         if req.materials:
             warnings.append(
-                f"隐私边界：后端收到 {len(req.materials)} 个用户确认的安全材料对象，"
+                f"隐私边界：后端收到 {len(req.materials)} 个用户确认的脱敏文件，"
                 "未收到原始文件、文件名或本地路径。"
             )
         return results, RunSummary(

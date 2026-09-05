@@ -1,135 +1,406 @@
-/**
- * Browser-only privacy redaction and safe-package pipeline.
- *
- * This module accepts normalized local recognition output, never raw File objects. The exported
- * package deliberately omits original filenames, paths and binary content.
- */
+/** Browser-only visual privacy redaction for PDF/JPG copies. */
 
-function replaceAndCount(text, regex, replacement, counter, type) {
-  return text.replace(regex, (...args) => {
-    counter[type] = (counter[type] || 0) + 1;
-    return typeof replacement === "function" ? replacement(...args) : replacement;
+const PDFJS_URL = "./vendor/pdfjs/pdf.min.mjs";
+const PDFJS_WORKER_URL = new URL("./vendor/pdfjs/pdf.worker.min.mjs", import.meta.url).href;
+const TESSERACT_URL = "./vendor/tesseract/tesseract.esm.min.js";
+const TESSERACT_WORKER_URL = new URL("./vendor/tesseract/worker.min.js", import.meta.url).href;
+const TESSERACT_CORE_URL = new URL("./vendor/tesseract/tesseract-core-lstm.wasm.js", import.meta.url).href;
+const TESSERACT_LANG_URL = new URL("./vendor/tesseract/lang", import.meta.url).href;
+const PDF_LIB_URL = new URL("./vendor/pdf-lib/pdf-lib.min.js", import.meta.url).href;
+const PDF_RENDER_SCALE = 1.6;
+
+let pdfjsPromise;
+let tesseractPromise;
+let pdfLibPromise;
+
+function extensionOf(name) {
+  const parts = String(name || "").toLowerCase().split(".");
+  return parts.length > 1 ? parts.pop() : "";
+}
+
+export function redactionFileKind(file) {
+  const extension = extensionOf(file?.name);
+  if (file?.type === "application/pdf" || extension === "pdf") return "pdf";
+  if (file?.type === "image/jpeg" || extension === "jpg" || extension === "jpeg") return "image";
+  return "unsupported";
+}
+
+async function loadPdfJs() {
+  if (!pdfjsPromise) {
+    pdfjsPromise = import(PDFJS_URL).then((pdfjs) => {
+      pdfjs.GlobalWorkerOptions.workerSrc = PDFJS_WORKER_URL;
+      return pdfjs;
+    });
+  }
+  return pdfjsPromise;
+}
+
+async function loadTesseract() {
+  if (!tesseractPromise) tesseractPromise = import(TESSERACT_URL).then((module) => module.default);
+  return tesseractPromise;
+}
+
+async function loadPdfLib() {
+  if (globalThis.PDFLib) return globalThis.PDFLib;
+  if (!pdfLibPromise) {
+    pdfLibPromise = new Promise((resolve, reject) => {
+      const script = document.createElement("script");
+      script.src = PDF_LIB_URL;
+      script.onload = () => resolve(globalThis.PDFLib);
+      script.onerror = () => reject(new Error("PDF 重建组件加载失败"));
+      document.head.appendChild(script);
+    });
+  }
+  return pdfLibPromise;
+}
+
+function canvasToBlob(canvas, type = "image/jpeg", quality = 0.9) {
+  return new Promise((resolve, reject) => {
+    canvas.toBlob((blob) => blob ? resolve(blob) : reject(new Error("无法生成脱敏文件")), type, quality);
   });
 }
 
-/** Rough deterministic redactor. Future versions can replace this with NER/OCR adapters. */
-export function redactText(input) {
-  let text = String(input || "");
-  const counts = {};
-
-  const directRules = [
-    ["email", /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi, "[REDACTED_EMAIL]"],
-    ["cn_id", /(?<!\d)\d{17}[0-9Xx](?!\d)/g, "[REDACTED_ID]"],
-    ["phone", /(?<!\d)(?:\+?86[-\s]?)?1[3-9]\d{9}(?!\d)/g, "[REDACTED_PHONE]"],
-    ["bank_account", /(?<!\d)\d{12,19}(?!\d)/g, "[REDACTED_ACCOUNT]"],
-    ["passport", /\b[A-Z]{1,2}\d{6,9}\b/gi, "[REDACTED_PASSPORT]"],
-  ];
-
-  for (const [type, regex, token] of directRules) {
-    text = replaceAndCount(text, regex, token, counts, type);
-  }
-
-  const labeledRules = [
-    ["name", /((?:姓名|申请人姓名|full\s*name|name|surname|given\s*name)\s*[:：]\s*)([^\n\r,，;；]{2,80})/gi, "[REDACTED_NAME]"],
-    ["address", /((?:住址|地址|家庭地址|address)\s*[:：]\s*)([^\n\r]{4,160})/gi, "[REDACTED_ADDRESS]"],
-    ["birth_date", /((?:出生日期|生日|date\s*of\s*birth|dob)\s*[:：]\s*)([^\n\r,，;；]{4,40})/gi, "[REDACTED_DATE]"],
-  ];
-
-  for (const [type, regex, token] of labeledRules) {
-    text = replaceAndCount(text, regex, (_match, prefix) => `${prefix}${token}`, counts, type);
-  }
-
-  return {
-    text,
-    redactions: Object.entries(counts).map(([type, count]) => ({ type, count })),
-  };
+function blobToDataUrl(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(reader.error || new Error("文件编码失败"));
+    reader.readAsDataURL(blob);
+  });
 }
 
-export function buildSafePackageFromAnalysis(localAudit) {
-  const documents = localAudit.context?.documents || localAudit.analyses || [];
-  const materials = documents.map((document) => {
-    const text = document.full_text ?? document.text ?? "";
-    const redacted = redactText(text);
-    const sourceImages = document.images || [];
-    const imagesToProtect = sourceImages.length ? sourceImages : (document.kind === "image" ? [{}] : []);
-    const safeImages = imagesToProtect.map((image, index) => ({
-      image_id: `${document.material_id}-image-${String(index + 1).padStart(3, "0")}`,
-      media_type: image.media_type || document.media_type,
-      width: image.width ?? null,
-      height: image.height ?? null,
-      included: false,
-      redaction_status: "pending_manual_redaction",
-      content: null,
-      description: "",
-    }));
-    return {
-      material_id: document.material_id,
-      source_ref: document.source_ref,
-      material_type: "unknown",
-      media_type: document.media_type,
-      kind: document.kind,
-      text: redacted.text,
-      images: safeImages,
-      content_blocks: [
-        ...(redacted.text.trim() ? [{ type: "text", text: redacted.text }] : []),
-        ...safeImages.map((image) => ({ type: "image", image })),
-      ],
-      redactions: redacted.redactions,
-      review_status: document.kind === "unsupported" || (!redacted.text.trim() && !safeImages.length)
-        ? "blocked" : "needs_review",
-      user_notes: "由本地一级审核结果生成；图片隐私打码能力尚未接入。",
-    };
-  });
+async function renderImageFile(file) {
+  const bitmap = await createImageBitmap(file);
+  const canvas = document.createElement("canvas");
+  canvas.width = bitmap.width;
+  canvas.height = bitmap.height;
+  canvas.getContext("2d", { alpha: false }).drawImage(bitmap, 0, 0);
+  bitmap.close();
+  return [{ page_number: 1, width: canvas.width, height: canvas.height, canvas }];
+}
 
-  return {
-    schema_version: "privacy-materials/v1alpha1",
-    country: localAudit.context?.country || localAudit.country,
-    visa_type: localAudit.context?.visa_type || (localAudit.country === "IS" ? "schengen-tourism" : "unknown"),
-    privacy: {
-      processed_locally: true,
-      raw_files_uploaded: false,
-      user_reviewed: false,
-      redaction_engine: "browser-regex-v1",
+async function renderPdfFile(file) {
+  const pdfjs = await loadPdfJs();
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  const pdf = await pdfjs.getDocument({ data: bytes }).promise;
+  const pages = [];
+  try {
+    for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
+      const page = await pdf.getPage(pageNumber);
+      const viewport = page.getViewport({ scale: PDF_RENDER_SCALE });
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.ceil(viewport.width);
+      canvas.height = Math.ceil(viewport.height);
+      await page.render({ canvasContext: canvas.getContext("2d", { alpha: false }), viewport }).promise;
+      pages.push({ page_number: pageNumber, width: canvas.width, height: canvas.height, canvas });
+      page.cleanup();
+    }
+  } finally {
+    await pdf.destroy();
+  }
+  return pages;
+}
+
+async function renderSourcePages(file) {
+  const kind = redactionFileKind(file);
+  if (kind === "image") return renderImageFile(file);
+  if (kind === "pdf") return renderPdfFile(file);
+  throw new Error("当前隐私擦除只支持 PDF、JPG 和 JPEG");
+}
+
+const DIRECT_PII = [
+  ["email", /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi],
+  ["cn_id", /(?<!\d)\d{17}[0-9Xx](?!\d)/g],
+  ["phone", /(?<!\d)(?:\+?86[-\s]?)?1[3-9]\d{9}(?!\d)/g],
+  ["bank_account", /(?<!\d)\d{12,19}(?!\d)/g],
+  ["passport", /\b[A-Z]{1,2}\d{6,9}\b/gi],
+];
+
+const LABELED_PII = [
+  ["name", /(?:姓名|申请人姓名|full\s*name|name|surname|given\s*name)\s*[:：]?\s*([^\n\r,，;；]{2,80})/gi],
+  ["address", /(?:住址|地址|家庭地址|address)\s*[:：]?\s*([^\n\r]{4,160})/gi],
+  ["birth_date", /(?:出生日期|生日|date\s*of\s*birth|dob)\s*[:：]?\s*([^\n\r,，;；]{4,40})/gi],
+];
+
+export function detectSensitiveRanges(input) {
+  const text = String(input || "");
+  const ranges = [];
+  for (const [type, expression] of DIRECT_PII) {
+    expression.lastIndex = 0;
+    for (const match of text.matchAll(expression)) {
+      ranges.push({ type, start: match.index, end: match.index + match[0].length });
+    }
+  }
+  for (const [type, expression] of LABELED_PII) {
+    expression.lastIndex = 0;
+    for (const match of text.matchAll(expression)) {
+      const value = match[1] || "";
+      const offset = match[0].lastIndexOf(value);
+      ranges.push({ type, start: match.index + offset, end: match.index + offset + value.length });
+    }
+  }
+  return ranges.sort((a, b) => a.start - b.start || a.end - b.end);
+}
+
+function parseTsv(tsv) {
+  const rows = String(tsv || "").trim().split(/\r?\n/);
+  if (rows.length < 2) return [];
+  const headers = rows[0].split("\t");
+  return rows.slice(1).map((row) => {
+    const values = row.split("\t");
+    return Object.fromEntries(headers.map((header, index) => [header, values[index] ?? ""]));
+  }).filter((row) => row.text?.trim() && Number(row.conf) >= 15).map((row) => ({
+    text: row.text.trim(),
+    line: `${row.page_num}:${row.block_num}:${row.par_num}:${row.line_num}`,
+    left: Number(row.left), top: Number(row.top), width: Number(row.width), height: Number(row.height),
+  }));
+}
+
+export function boxesForSensitiveWords(words) {
+  const byLine = new Map();
+  for (const word of words || []) {
+    const line = word.line || "1";
+    if (!byLine.has(line)) byLine.set(line, []);
+    byLine.get(line).push(word);
+  }
+  const boxes = [];
+  for (const lineWords of byLine.values()) {
+    let text = "";
+    const offsets = [];
+    for (const word of lineWords) {
+      if (text) text += " ";
+      const start = text.length;
+      text += word.text;
+      offsets.push({ word, start, end: text.length });
+    }
+    for (const range of detectSensitiveRanges(text)) {
+      const matched = offsets.filter(({ start, end }) => start < range.end && end > range.start);
+      if (!matched.length) continue;
+      const left = Math.min(...matched.map(({ word }) => word.left));
+      const top = Math.min(...matched.map(({ word }) => word.top));
+      const right = Math.max(...matched.map(({ word }) => word.left + word.width));
+      const bottom = Math.max(...matched.map(({ word }) => word.top + word.height));
+      boxes.push({
+        id: crypto.randomUUID(), type: range.type, source: "automatic",
+        x: Math.max(0, left - 5), y: Math.max(0, top - 3),
+        width: right - left + 10, height: bottom - top + 6,
+      });
+    }
+  }
+  return boxes;
+}
+
+async function createOcrWorker(onProgress) {
+  const Tesseract = await loadTesseract();
+  return Tesseract.createWorker(["chi_sim", "eng"], 1, {
+    workerPath: TESSERACT_WORKER_URL,
+    corePath: TESSERACT_CORE_URL,
+    langPath: TESSERACT_LANG_URL,
+    workerBlobURL: false,
+    logger(message) {
+      if (message.status === "recognizing text") onProgress(message.progress || 0);
     },
-    materials,
+  });
+}
+
+export async function prepareRedactionWorkspace(localAudit, files, { onProgress = () => {} } = {}) {
+  const documents = localAudit?.context?.documents || [];
+  const materials = [];
+  let worker = null;
+  let workerFailure = null;
+  try {
+    try {
+      onProgress({ label: "正在加载本地 OCR", current: 0, total: files.length });
+      worker = await createOcrWorker(() => {});
+    } catch (error) {
+      workerFailure = error instanceof Error ? error.message : String(error);
+    }
+    for (let index = 0; index < files.length; index += 1) {
+      const file = files[index];
+      const source = documents[index] || {};
+      const kind = redactionFileKind(file);
+      const material = {
+        material_id: source.material_id || `material-${String(index + 1).padStart(3, "0")}`,
+        source_ref: source.source_ref || `local-file-${String(index + 1).padStart(3, "0")}`,
+        kind,
+        media_type: kind === "pdf" ? "application/pdf" : (kind === "image" ? "image/jpeg" : "application/octet-stream"),
+        pages: [], review_status: kind === "unsupported" ? "blocked" : "needs_review",
+        processing_error: kind === "unsupported" ? "当前仅支持 PDF、JPG 和 JPEG 的隐私擦除。" : null,
+        sanitized_file: null,
+      };
+      if (kind !== "unsupported") {
+        try {
+          const rendered = await renderSourcePages(file);
+          for (let pageIndex = 0; pageIndex < rendered.length; pageIndex += 1) {
+            const page = rendered[pageIndex];
+            onProgress({ label: `本地识别 ${index + 1}/${files.length} · 第 ${pageIndex + 1}/${rendered.length} 页`, current: index, total: files.length });
+            let redactions = [];
+            let ocrError = workerFailure;
+            if (worker) {
+              try {
+                const result = await worker.recognize(page.canvas, {}, { text: true, tsv: true });
+                redactions = boxesForSensitiveWords(parseTsv(result.data.tsv));
+                ocrError = null;
+              } catch (error) {
+                ocrError = error instanceof Error ? error.message : String(error);
+              }
+            }
+            material.pages.push({ page_number: page.page_number, width: page.width, height: page.height, redactions, ocr_status: ocrError ? "failed" : "completed", ocr_error: ocrError });
+          }
+        } catch (error) {
+          material.review_status = "blocked";
+          material.processing_error = error instanceof Error ? error.message : String(error);
+        }
+      }
+      materials.push(material);
+    }
+  } finally {
+    if (worker) await worker.terminate();
+  }
+  onProgress({ label: "本地隐私识别完成", current: files.length, total: files.length });
+  return { schema_version: "local-redaction-workspace/v1", country: localAudit.context?.country || localAudit.country, visa_type: localAudit.context?.visa_type || "unknown", materials };
+}
+
+function drawRedactions(context, redactions) {
+  context.save();
+  context.fillStyle = "#05070a";
+  for (const box of redactions || []) context.fillRect(box.x, box.y, box.width, box.height);
+  context.restore();
+}
+
+async function renderedPagesWithRedactions(material, file) {
+  const rendered = await renderSourcePages(file);
+  for (let index = 0; index < rendered.length; index += 1) {
+    drawRedactions(rendered[index].canvas.getContext("2d"), material.pages[index]?.redactions || []);
+  }
+  return rendered;
+}
+
+export async function exportRedactedMaterial(material, file) {
+  if (material.kind === "unsupported" || material.processing_error) throw new Error(material.processing_error || "此文件无法脱敏");
+  const pages = await renderedPagesWithRedactions(material, file);
+  let blob;
+  if (material.kind === "image") {
+    blob = await canvasToBlob(pages[0].canvas, "image/jpeg", 0.92);
+  } else {
+    const PDFLib = await loadPdfLib();
+    const pdf = await PDFLib.PDFDocument.create();
+    pdf.setTitle(""); pdf.setAuthor(""); pdf.setSubject(""); pdf.setKeywords([]);
+    pdf.setProducer("visa-helper local redaction"); pdf.setCreator("visa-helper local redaction");
+    for (const rendered of pages) {
+      const pageBlob = await canvasToBlob(rendered.canvas, "image/jpeg", 0.9);
+      const image = await pdf.embedJpg(await pageBlob.arrayBuffer());
+      const page = pdf.addPage([rendered.width, rendered.height]);
+      page.drawImage(image, { x: 0, y: 0, width: rendered.width, height: rendered.height });
+    }
+    blob = new Blob([await pdf.save({ useObjectStreams: true })], { type: "application/pdf" });
+  }
+  const redactionCount = material.pages.reduce((sum, page) => sum + page.redactions.length, 0);
+  material.sanitized_file = { media_type: material.media_type, content: await blobToDataUrl(blob), size: blob.size, page_count: pages.length, redaction_count: redactionCount };
+  material.review_status = "ready";
+  return material.sanitized_file;
+}
+
+export function buildSafePackage(workspace, userReviewed = false) {
+  return {
+    schema_version: "privacy-files/v1", country: workspace.country, visa_type: workspace.visa_type,
+    privacy: { processed_locally: true, raw_files_uploaded: false, user_reviewed: Boolean(userReviewed), redaction_engine: "browser-ocr-manual-v1" },
+    materials: workspace.materials.map((material) => ({
+      material_id: material.material_id, source_ref: material.source_ref, kind: material.kind,
+      media_type: material.media_type, sanitized_file: material.sanitized_file, review_status: material.review_status,
+    })),
   };
 }
 
-export function validateSafePackage(value) {
+export function validateSafePackage(value, { requireReady = Boolean(value?.privacy?.user_reviewed) } = {}) {
   const errors = [];
-  if (!value || typeof value !== "object") return ["根节点必须是 JSON 对象。"];
-  if (value.schema_version !== "privacy-materials/v1alpha1") errors.push("schema_version 不正确。");
-  if (value.privacy?.raw_files_uploaded !== false) errors.push("raw_files_uploaded 必须为 false。");
-  if (value.privacy?.processed_locally !== true) errors.push("processed_locally 必须为 true。");
-  if (!Array.isArray(value.materials) || !value.materials.length) errors.push("materials 不能为空。");
-
-  for (const [index, material] of (value.materials || []).entries()) {
-    if (!material.material_id) errors.push(`第 ${index + 1} 项缺少 material_id。`);
-    if (!/^material-\d{3}$/.test(material.material_id || "")) {
-      errors.push(`第 ${index + 1} 项 material_id 必须是匿名编号。`);
-    }
-    if (!/^local-file-\d{3}$/.test(material.source_ref || "")) {
-      errors.push(`第 ${index + 1} 项 source_ref 必须是匿名本地引用。`);
-    }
-    if ("name" in material || "path" in material || "relative_path" in material) {
-      errors.push(`第 ${index + 1} 项包含原始文件名或路径字段。`);
-    }
-    for (const image of material.images || []) {
-      if (image.included && !image.content) {
-        errors.push(`${material.material_id} 的图片标记 included，但没有脱敏后的 content。`);
-      }
-      if (!image.included && image.content) {
-        errors.push(`${material.material_id} 的图片未启用，但仍包含 content。`);
-      }
-    }
-    for (const [blockIndex, block] of (material.content_blocks || []).entries()) {
-      if (block.type === "text" && typeof block.text !== "string") {
-        errors.push(`${material.material_id} 的第 ${blockIndex + 1} 个文本块无效。`);
-      }
-      if (block.type === "image" && !block.image) {
-        errors.push(`${material.material_id} 的第 ${blockIndex + 1} 个图片块无效。`);
-      }
-    }
+  if (value?.schema_version !== "privacy-files/v1") errors.push("安全材料协议版本不正确。");
+  if (value?.privacy?.processed_locally !== true) errors.push("材料尚未在本地处理。");
+  if (value?.privacy?.raw_files_uploaded !== false) errors.push("不得上传原始文件。");
+  if (!value?.materials?.length) errors.push("安全材料不能为空。");
+  for (const [index, material] of (value?.materials || []).entries()) {
+    if (!/^material-\d{3}$/.test(material.material_id || "")) errors.push(`第 ${index + 1} 项缺少匿名材料编号。`);
+    if (!/^local-file-\d{3}$/.test(material.source_ref || "")) errors.push(`第 ${index + 1} 项缺少匿名本地引用。`);
+    if (requireReady && !["pdf", "image"].includes(material.kind)) errors.push(`${material.material_id} 不是当前支持的 PDF/JPG。`);
+    if (requireReady && !material.sanitized_file?.content?.startsWith(`data:${material.media_type};base64,`)) errors.push(`${material.material_id} 尚未生成可发送的脱敏文件。`);
+    if (requireReady && material.review_status !== "ready") errors.push(`${material.material_id} 尚未确认。`);
+    if ("name" in material || "path" in material || "pages" in material) errors.push(`${material.material_id} 包含不应发送的本地字段。`);
   }
   return errors;
+}
+
+export function countRedactions(workspace) {
+  return (workspace?.materials || []).reduce((total, material) => total + material.pages.reduce((sum, page) => sum + page.redactions.length, 0), 0);
+}
+
+export async function renderRedactionEditor(material, file, container, { onChange = () => {}, isCurrent = () => true } = {}) {
+  container.replaceChildren();
+  if (material.kind === "unsupported" || material.processing_error) {
+    const empty = document.createElement("div");
+    empty.className = "privacy-content__empty";
+    empty.textContent = material.processing_error || "此文件暂不支持隐私擦除。";
+    container.appendChild(empty);
+    return;
+  }
+  const toolbar = document.createElement("div");
+  toolbar.className = "redaction-toolbar";
+  toolbar.innerHTML = `<b>涂抹模式</b><span>在遗漏的隐私上拖动画框</span>`;
+  const undo = document.createElement("button");
+  undo.type = "button"; undo.className = "redaction-tool"; undo.textContent = "撤销上一笔";
+  toolbar.appendChild(undo); container.appendChild(toolbar);
+  const pageHost = document.createElement("div");
+  pageHost.className = "redaction-pages"; container.appendChild(pageHost);
+  const rendered = await renderSourcePages(file);
+  if (!isCurrent()) return;
+  const overlays = [];
+  function redraw() {
+    rendered.forEach((page, index) => {
+      const overlay = overlays[index];
+      if (!overlay) return;
+      const context = overlay.getContext("2d");
+      context.clearRect(0, 0, overlay.width, overlay.height);
+      drawRedactions(context, material.pages[index]?.redactions || []);
+    });
+  }
+  rendered.forEach((page, index) => {
+    const wrap = document.createElement("section");
+    wrap.className = "redaction-page"; wrap.setAttribute("aria-label", `脱敏编辑第 ${index + 1} 页`);
+    const label = document.createElement("span");
+    label.className = "redaction-page__label"; label.textContent = material.kind === "pdf" ? `第 ${index + 1} 页` : "JPG 图片";
+    const surface = document.createElement("div"); surface.className = "redaction-page__surface";
+    surface.style.setProperty("--page-width", `${page.width}px`);
+    surface.style.aspectRatio = `${page.width} / ${page.height}`;
+    page.canvas.className = "redaction-page__source";
+    const overlay = document.createElement("canvas");
+    overlay.className = "redaction-page__overlay"; overlay.width = page.width; overlay.height = page.height;
+    overlays.push(overlay); surface.append(page.canvas, overlay); wrap.append(label, surface); pageHost.appendChild(wrap);
+    let start = null;
+    overlay.addEventListener("pointerdown", (event) => {
+      const rect = overlay.getBoundingClientRect();
+      start = { x: (event.clientX - rect.left) * overlay.width / rect.width, y: (event.clientY - rect.top) * overlay.height / rect.height };
+      overlay.setPointerCapture(event.pointerId);
+    });
+    overlay.addEventListener("pointerup", (event) => {
+      if (!start) return;
+      const rect = overlay.getBoundingClientRect();
+      const end = { x: (event.clientX - rect.left) * overlay.width / rect.width, y: (event.clientY - rect.top) * overlay.height / rect.height };
+      const x = Math.max(0, Math.min(start.x, end.x)); const y = Math.max(0, Math.min(start.y, end.y));
+      const width = Math.min(overlay.width - x, Math.abs(end.x - start.x)); const height = Math.min(overlay.height - y, Math.abs(end.y - start.y));
+      start = null;
+      if (width < 5 || height < 5) return;
+      material.pages[index].redactions.push({ id: crypto.randomUUID(), type: "manual", source: "manual", x, y, width, height });
+      material.sanitized_file = null; material.review_status = "needs_review"; redraw(); onChange(material);
+    });
+  });
+  undo.addEventListener("click", () => {
+    for (let index = material.pages.length - 1; index >= 0; index -= 1) {
+      const redactions = material.pages[index].redactions;
+      const manualIndex = redactions.map((item) => item.source).lastIndexOf("manual");
+      if (manualIndex >= 0) {
+        redactions.splice(manualIndex, 1); material.sanitized_file = null; material.review_status = "needs_review";
+        redraw(); onChange(material); return;
+      }
+    }
+  });
+  redraw();
 }

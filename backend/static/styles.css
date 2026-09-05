@@ -658,6 +658,8 @@ body {
 .privacy-material__ref { color: var(--muted); font: 11px ui-monospace, "SF Mono", monospace; }
 .privacy-section { display: block; margin: 16px 0 0; }
 .privacy-section h5 { margin: 0 0 7px; color: var(--text); font-size: 12.5px; }
+.privacy-section--compact { display: flex; align-items: center; gap: 10px; margin-top: 0; }
+.privacy-section--compact h5 { flex: none; margin: 0; }
 .redaction-list { display: flex; flex-wrap: wrap; gap: 6px; }
 .redaction-chip { padding: 5px 8px; border-radius: 6px; background: #eaf2ff; color: var(--brand); font-size: 11.5px; }
 .redaction-list:empty::after { content: "没有检测到规则可识别的隐私字段"; color: var(--muted); font-size: 12px; }
@@ -666,10 +668,62 @@ body {
   flex-direction: column;
   flex: 1;
   min-height: 0;
-  gap: 12px;
-  margin-top: 16px;
-  overflow-y: auto;
+  margin-top: 10px;
+  overflow: hidden;
 }
+.redaction-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  flex: none;
+  min-height: 36px;
+  padding: 5px 8px;
+  border: 1px solid var(--border);
+  border-bottom: 0;
+  border-radius: 7px 7px 0 0;
+  background: var(--surface);
+  color: var(--text-2);
+  font-size: 11px;
+}
+.redaction-toolbar b { color: var(--text); font-size: 12px; }
+.redaction-toolbar span { flex: 1; }
+.redaction-tool {
+  border: 1px solid var(--border-2);
+  border-radius: 5px;
+  padding: 4px 8px;
+  background: var(--surface-2);
+  color: var(--text-2);
+  cursor: pointer;
+  font: inherit;
+}
+.redaction-tool:hover { border-color: var(--brand); color: var(--brand); }
+.redaction-pages {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 12px;
+  border: 1px solid var(--border);
+  background: #eef1f5;
+}
+.redaction-page { display: flex; flex-direction: column; align-items: center; gap: 5px; margin: 0 auto 14px; }
+.redaction-page:last-child { margin-bottom: 0; }
+.redaction-page__label { color: var(--muted); font-size: 10.5px; }
+.redaction-page__surface {
+  position: relative;
+  width: min(100%, var(--page-width));
+  flex: none;
+  background: #fff;
+  box-shadow: 0 2px 9px rgba(25, 38, 58, 0.14);
+}
+.redaction-page__source,
+.redaction-page__overlay {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.redaction-page__overlay { cursor: crosshair; touch-action: none; }
 .privacy-content__text {
   display: block;
   width: 100%;

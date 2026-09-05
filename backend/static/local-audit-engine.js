@@ -14,9 +14,9 @@ function validateRules(rules) {
   const ids = new Set();
   for (const rule of rules) {
     if (!rule?.id || !rule?.title || typeof rule.run !== "function") {
-      throw new TypeError("每条一级审核规则都必须提供 id、title 和 run(context, tools)。");
+      throw new TypeError("每条本地审核规则都必须提供 id、title 和 run(context, tools)。");
     }
-    if (ids.has(rule.id)) throw new TypeError(`一级审核规则 ID 重复：${rule.id}`);
+    if (ids.has(rule.id)) throw new TypeError(`本地审核规则 ID 重复：${rule.id}`);
     ids.add(rule.id);
   }
 }
@@ -52,7 +52,7 @@ function summarize(results) {
 
 export function createLocalAuditContext({ country, visaType, checklist = [], preprocessing }) {
   if (preprocessing?.schema_version !== "local-document-context/v1") {
-    throw new TypeError("一级审核只能接收 local-document-context/v1 预处理结果。");
+    throw new TypeError("本地审核只能接收 local-document-context/v1 预处理结果。");
   }
   return deepFreeze({
     schema_version: "local-audit-context/v1",
@@ -95,7 +95,7 @@ export async function runLocalAuditRules(
       }, performance.now() - startedAt));
     }
   }
-  onProgress({ current: rules.length, total: rules.length, label: "本地一级审核完成" });
+  onProgress({ current: rules.length, total: rules.length, label: "本地审核完成" });
   return {
     schema_version: "local-audit-result/v1",
     created_at: new Date().toISOString(),

@@ -13,7 +13,7 @@ const inputAvailableRule = {
     if (!context.documents.length) {
       return {
         status: "fail",
-        reason: "没有可供一级审核的材料。",
+        reason: "没有可供本地审核的材料。",
         checked_items: ["检查是否存在已预处理材料"],
         matched_document_ids: [],
       };

@@ -1,8 +1,8 @@
-# 浏览器本地一级审核架构
+# 浏览器本地审核架构
 
 ## 模块边界
 
-一级审核由两个互相独立的模块组成：
+本地审核由两个互相独立的模块组成：
 
 1. 本地识别/预处理模块接收浏览器 `File[]`，负责读取 PDF 文字层、文本文件和图片基础信息，
    后续 OCR、版面分析和本地图片描述也在这一层接入。
@@ -15,7 +15,11 @@
 - `backend/static/local-audit-engine.js`：规则校验、执行、错误隔离和汇总；
 - `backend/static/local-audit-rules.js`：内置规则注册表；
 - `backend/static/local-audit-tools.js`：规则间共享的确定性工具；
-- `backend/static/privacy.js`：一级审核完成后的隐私擦除和安全材料生成。
+- `backend/static/privacy.js`：本地审核后的 PDF/JPG 视觉隐私识别、手动涂抹和安全文件重建。
+
+本地/远端规则的边界不是复杂度，而是**是否必须使用原始隐私**。需要真实姓名、证件号等
+信息才能判断的规则放在本地；不需要真实身份、可基于脱敏材料判断的规则交给后端 Agent、
+Checklist 和知识库。详见 [`privacy-safe-materials.md`](privacy-safe-materials.md)。
 
 ## 统一上下文
 

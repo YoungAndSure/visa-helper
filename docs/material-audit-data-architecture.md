@@ -78,15 +78,16 @@
 ```text
 用户选择材料
   → 前端本地列出和预览
-  → 本地解析、脱敏和抽取结构化事实
-  → 执行 Checklist 审核
-  → 仅将最小化事实发送给 Knowledge Agent 做风险审核
+  → 本地识别并执行必须使用真实隐私的本地规则
+  → 在 PDF/JPG 视觉副本上自动识别隐私并由用户补充涂抹
+  → 烧录遮挡，生成匿名脱敏文件
+  → 后端 Agent 使用脱敏文件执行 Checklist、知识库和模型审核
   → 返回综合报告
 ```
 
 ### 3.4 接口边界（待下一步细化）
 
-后端审核请求不包含原始文件，目标形态是提交国家、签证类型和本地抽取后的最小化事实：
+后端审核请求不包含原始文件，目标形态是提交国家、签证类型和用户确认后的匿名脱敏文件：
 
 ```http
 POST /material-audit/run
@@ -95,22 +96,30 @@ Content-Type: application/json
 
 ```json
 {
+  "schema_version": "privacy-files/v1",
   "country": "IS",
   "visa_type": "schengen-tourism",
   "materials": [
     {
-      "material_type": "bank-statement",
-      "facts": {
-        "statement_months": 3,
-        "recent_large_deposit": true
-      }
+      "material_id": "material-001",
+      "source_ref": "local-file-001",
+      "kind": "pdf",
+      "media_type": "application/pdf",
+      "sanitized_file": {
+        "media_type": "application/pdf",
+        "content": "data:application/pdf;base64,...",
+        "size": 123456,
+        "page_count": 2,
+        "redaction_count": 5
+      },
+      "review_status": "ready"
     }
   ]
 }
 ```
 
-本地解析放在普通网页、Chrome 扩展、本地伴随服务还是其他可信执行环境，以及哪些事实可以
-发送给后端，下一步单独设计；本阶段只确定“原始材料不上传”的边界。
+当前以 Base64 作为 JSON 传输封装，后续可替换为 multipart 或对象存储。文件脱敏和本地审核
+设计详见 [`privacy-safe-materials.md`](privacy-safe-materials.md)。
 
 ### 3.5 当前项目状态
 
@@ -119,15 +128,15 @@ Content-Type: application/json
 - 选择本地文件夹；
 - 列出文件；
 - 本地预览图片和 PDF；
-- 在浏览器内提取 PDF/文本并执行第一版规则隐私擦除；
-- 生成、展示和编辑 `privacy-materials/v1alpha1` 安全 JSON；
-- 图片默认只生成不含原图内容的待人工处理对象；
-- 用户保存确认安全 JSON 后才允许调用后端；
-- 调用 `/material-audit/run` 并展示结果。
+- 在浏览器内提取 PDF/文本并执行插件式本地审核；
+- 在原文件视觉副本上自动/手动打码，并生成 `privacy-files/v1` 脱敏 PDF/JPG；
+- 用户确认后，将遮挡烧录到新生成的 PDF/JPG；
+- 用户确认全部脱敏文件后才允许调用后端；
+- 只发送匿名脱敏文件，调用 `/material-audit/run` 进行远端审核并展示结果。
 
 后端已经接收安全材料 Schema，并搭建 Audit Agent 的 intake、Checklist、知识库、模型和报告
-步骤骨架；当前审核状态仍为 FAKE，知识库和模型步骤尚未实装。第一版隐私擦除仅覆盖规则
-可识别文本，扫描 PDF、图片 OCR/打码、姓名地址 NER 和人工画框能力仍待优化。
+步骤骨架；当前审核状态仍为 FAKE，知识库和模型步骤尚未实装。第一版隐私擦除已经具备本地
+OCR、PDF/JPG 自动画框和人工补画框架；对象检测、姓名地址 NER 和识别准确率仍待优化。
 
 ---
 
@@ -332,11 +341,12 @@ country=IS + visa_type=schengen-tourism
 
 ### 6.1 模块边界
 
-知识库与 Agent 作为一个完整后台能力对外提供服务。外部模块不直接操作向量索引或抓取数据，而是向 Agent 提交一个材料风险审核请求。
+知识库与 Agent 作为一个完整后台能力对外提供服务。外部模块不直接操作向量索引或抓取数据；
+`material-audit` Agent 在收到脱敏材料后调用它，传入已经抽取且不含身份隐私的审核事实。
 
 Agent 内部负责：
 
-1. 理解国家、签证类型、材料类型和已抽取事实；
+1. 理解国家、签证类型和不含身份隐私的已抽取事实；
 2. 构造检索条件；
 3. 从知识库取得相关证据；
 4. 区分官方规则、专业意见和用户经验；

@@ -61,7 +61,7 @@ if LOG_FILE:
     log.info("logging to file: %s", os.path.abspath(LOG_FILE))
 
 # 是否打印普通请求 body — 默认关闭；仅显式设 LOG_BODIES=1 时开启。
-# 涉及材料和申请人信息的接口始终不打印 body，避免安全 JSON/PII 进入日志。
+# 涉及材料和申请人信息的接口始终不打印 body，避免脱敏文件或 PII 进入日志。
 LOG_BODIES = os.environ.get("LOG_BODIES", "0") == "1"
 LOG_BODY_MAX = int(os.environ.get("LOG_BODY_MAX", "500"))
 SENSITIVE_BODY_PATHS = {

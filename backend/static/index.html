@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>visa-helper · 材料审核</title>
-  <link rel="stylesheet" href="./styles.css?v=plugin-audit-v6" />
+  <link rel="stylesheet" href="./styles.css?v=visual-redaction-v1" />
 </head>
 <body>
   <!-- ===== 顶部（始终显示） ===== -->
@@ -14,7 +14,7 @@
         <div class="mark">🛂</div>
         <div>
           <h1>visa-helper <span class="tag">材料审核</span></h1>
-          <p class="tagline">为申根 / 北欧签证材料做清单核对 · 本地运行 · 不外传文件</p>
+          <p class="tagline">为申根 / 北欧签证材料做本地核对与隐私安全的远端审核</p>
         </div>
       </div>
       <div id="health" class="health health--unknown" title="后端状态">
@@ -36,7 +36,7 @@
           </p>
           <ul class="hero__bullets">
             <li>📋 <b>官方清单驱动</b> —— 永远是最新版的申根要求，不靠过时模板</li>
-            <li>🔒 <b>原始文件不出本机</b> —— 本地提取、擦除隐私，确认后只发送安全材料</li>
+            <li>🔒 <b>原始文件不出本机</b> —— 本地审核并烧录隐私遮挡，只发送脱敏副本</li>
             <li>⚡ <b>秒级反馈</b> —— 选完文件夹几秒内拿到完整审核报告</li>
           </ul>
           <button class="btn btn--primary btn--lg" data-action="go-country">
@@ -108,18 +108,18 @@
             <ul id="filelist" class="filelist" aria-live="polite"></ul>
             <button id="levelOneBtn" class="workflow-step" disabled>
               <span class="workflow-step__number">2</span>
-              <span class="workflow-step__label">本地识别并进行一级审核</span>
+              <span class="workflow-step__label">本地识别并进行本地审核</span>
             </button>
             <p id="levelOneStatus" class="runstatus"></p>
             <button id="privacyBtn" class="workflow-step" disabled>
               <span class="workflow-step__number">3</span>
-              <span class="workflow-step__label">擦除隐私并生成安全材料</span>
+              <span class="workflow-step__label">擦除隐私并生成脱敏文件</span>
             </button>
             <p id="privacyStatus" class="runstatus"></p>
             <button id="confirmAllBtn" class="confirm-all" disabled>✓ 一键确认全部材料</button>
             <button id="runBtn" class="workflow-step" disabled>
               <span class="workflow-step__number">4</span>
-              <span class="workflow-step__label">发送安全材料并进行二级审核</span>
+              <span class="workflow-step__label">发送脱敏文件并进行远端审核</span>
             </button>
             <p id="runStatus" class="runstatus"></p>
           </aside>
@@ -129,9 +129,9 @@
             <div class="tabs">
               <button class="tab tab--active" data-tab="checklist">📋 要求清单</button>
               <button class="tab" data-tab="preview">👁 文件预览</button>
-              <button class="tab" data-tab="level-one">① 一级审核结果</button>
+              <button class="tab" data-tab="level-one">① 本地审核结果</button>
               <button class="tab" data-tab="privacy">🔒 隐私材料</button>
-              <button class="tab" data-tab="results">✅ 最终报告</button>
+              <button class="tab" data-tab="results">✅ 远端审核报告</button>
             </div>
 
             <div id="tab-checklist" class="tabpane tabpane--active">
@@ -150,14 +150,14 @@
               <div id="levelOneSummary" class="summary"></div>
               <div id="levelOneResults" class="level-one-results"></div>
               <div id="levelOneEmpty" class="empty">
-                <span class="icon">①</span> 选择文件后，运行本地一级审核。
+                <span class="icon">①</span> 选择文件后，运行本地审核。
               </div>
             </div>
 
             <div id="tab-privacy" class="tabpane">
               <div id="privacyEmpty" class="empty">
                 <span class="icon">🔐</span>
-                选择文件后，点击左侧「擦除隐私并生成安全材料」。
+                完成本地审核后，点击左侧「擦除隐私并生成脱敏文件」。
               </div>
               <div id="privacyMaterial" class="privacy-material" hidden>
                 <div class="privacy-material__header">
@@ -167,11 +167,11 @@
                   </div>
                   <span id="privacyReviewState" class="privacy-badge privacy-badge--review">待确认</span>
                 </div>
-                <section class="privacy-section">
-                  <h5>检测到的隐私替换</h5>
+                <section class="privacy-section privacy-section--compact">
+                  <h5>隐私遮挡</h5>
                   <div id="privacyRedactions" class="redaction-list"></div>
                 </section>
-                <div id="privacyContent" class="privacy-content" aria-label="脱敏后的材料内容"></div>
+                <div id="privacyContent" class="privacy-content" aria-label="PDF 或 JPG 隐私擦除编辑器"></div>
                 <div id="privacyValidation" class="privacy-validation"></div>
                 <button id="confirmMaterialBtn" class="btn btn--primary">确认当前材料</button>
               </div>
@@ -188,7 +188,7 @@
               </details>
               <div id="resultsEmpty" class="empty">
                 <span class="icon">📭</span>
-                还没有最终报告，请先完成四个步骤。
+                还没有远端审核报告，请先完成四个步骤。
               </div>
             </div>
           </section>
@@ -196,12 +196,12 @@
         <div id="privacyStatusBar" class="privacy-statusbar" hidden>
           <span id="privacyBadge" class="privacy-badge privacy-badge--idle">尚未处理</span>
           <div id="privacySummary" class="privacy-summary"></div>
-          <span class="privacy-statusbar__hint">原文件保留在本机，仅发送人工确认后的内容</span>
+          <span class="privacy-statusbar__hint">原文件不修改，仅发送人工确认后的脱敏 PDF/JPG 副本</span>
         </div>
       </div>
     </section>
   </main>
 
-  <script src="./app.js?v=plugin-audit-v9" type="module"></script>
+  <script src="./app.js?v=visual-redaction-v1" type="module"></script>
 </body>
 </html>

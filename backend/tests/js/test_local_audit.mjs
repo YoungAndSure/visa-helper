@@ -3,7 +3,7 @@ import test from "node:test";
 
 import { createLocalAuditContext, runLocalAuditRules } from "../../static/local-audit-engine.js";
 import { preprocessFilesLocally } from "../../static/local-recognition.js";
-import { buildSafePackageFromAnalysis } from "../../static/privacy.js";
+import { boxesForSensitiveWords, buildSafePackage, detectSensitiveRanges, validateSafePackage } from "../../static/privacy.js";
 
 function preprocessing(documents) {
   return {
@@ -82,15 +82,39 @@ test("custom rules plug into the engine and failures stay isolated", async () =>
   assert.match(audit.rule_results[1].reason, /boom/);
 });
 
-test("privacy pipeline consumes audit context without copying local filenames", async () => {
-  const context = createLocalAuditContext({
+test("privacy detector maps sensitive OCR words to visual boxes", () => {
+  assert.deepEqual(detectSensitiveRanges("Phone: 13800000000")[0].type, "phone");
+  const boxes = boxesForSensitiveWords([
+    { text: "Email:", line: "1", left: 10, top: 20, width: 40, height: 12 },
+    { text: "person@example.com", line: "1", left: 55, top: 20, width: 130, height: 12 },
+  ]);
+  assert.equal(boxes.length, 1);
+  assert.equal(boxes[0].type, "email");
+  assert.ok(boxes[0].width >= 130);
+});
+
+test("safe package contains only anonymous sanitized file copies", () => {
+  const workspace = {
     country: "IS",
-    visaType: "schengen-tourism",
-    preprocessing: preprocessing([document({ full_text: "Name: Example User" })]),
-  });
-  const audit = await runLocalAuditRules(context);
-  const safePackage = buildSafePackageFromAnalysis(audit);
+    visa_type: "schengen-tourism",
+    materials: [{
+      material_id: "material-001",
+      source_ref: "local-file-001",
+      kind: "image",
+      media_type: "image/jpeg",
+      pages: [{ redactions: [] }],
+      sanitized_file: {
+        media_type: "image/jpeg",
+        content: "data:image/jpeg;base64,/9j/c2FuaXRpemVkLWltYWdl",
+        size: 24,
+        page_count: 1,
+        redaction_count: 0,
+      },
+      review_status: "ready",
+    }],
+  };
+  const safePackage = buildSafePackage(workspace, true);
   assert.equal(safePackage.materials[0].material_id, "material-001");
-  assert.equal("local_name" in safePackage.materials[0], false);
-  assert.match(safePackage.materials[0].text, /\[REDACTED_NAME\]/);
+  assert.equal("pages" in safePackage.materials[0], false);
+  assert.deepEqual(validateSafePackage(safePackage), []);
 });

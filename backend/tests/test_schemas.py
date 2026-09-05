@@ -156,35 +156,28 @@ def test_material_audit_run_returns_fake_results(client):
 
 def test_material_audit_run_accepts_reviewed_privacy_safe_materials(client):
     response = client.post("/material-audit/run", json={
+        "schema_version": "privacy-files/v1",
         "country": "IS",
         "visa_type": "schengen-tourism",
         "materials": [{
             "material_id": "material-001",
             "source_ref": "local-file-001",
-            "material_type": "bank-statement",
             "media_type": "application/pdf",
             "kind": "pdf",
-            "text": "Name: [REDACTED_NAME]",
-            "content_blocks": [
-                {"type": "text", "text": "Name: [REDACTED_NAME]"},
-                {
-                    "type": "image",
-                    "image": {
-                        "image_id": "material-001-image-001",
-                        "media_type": "image/png",
-                        "included": False,
-                    },
-                },
-                {"type": "text", "text": "Account: [REDACTED_ACCOUNT]"},
-            ],
-            "redactions": [{"type": "name", "count": 1}],
-            "review_status": "needs_review",
+            "sanitized_file": {
+                "media_type": "application/pdf",
+                "content": "data:application/pdf;base64,JVBERi0xLjQKc2FuaXRpemVk",
+                "size": 24,
+                "page_count": 1,
+                "redaction_count": 2,
+            },
+            "review_status": "ready",
         }],
         "privacy": {
             "processed_locally": True,
             "raw_files_uploaded": False,
             "user_reviewed": True,
-            "redaction_engine": "browser-regex-v1",
+            "redaction_engine": "browser-ocr-manual-v1",
         },
         "review_scopes": ["checklist", "risk"],
         "use_llm": False,
@@ -209,8 +202,16 @@ def test_material_audit_rejects_unreviewed_materials(client):
         "materials": [{
             "material_id": "material-001",
             "source_ref": "local-file-001",
-            "kind": "text",
-            "text": "already redacted",
+            "kind": "image",
+            "media_type": "image/jpeg",
+            "sanitized_file": {
+                "media_type": "image/jpeg",
+                "content": "data:image/jpeg;base64,/9j/c2FuaXRpemVkLWltYWdl",
+                "size": 24,
+                "page_count": 1,
+                "redaction_count": 1,
+            },
+            "review_status": "ready",
         }],
         "privacy": {
             "processed_locally": True,
@@ -227,9 +228,17 @@ def test_material_audit_rejects_original_filename_field(client):
         "materials": [{
             "material_id": "material-001",
             "source_ref": "local-file-001",
-            "kind": "text",
+            "kind": "image",
+            "media_type": "image/jpeg",
             "name": "真实姓名-bank-statement.pdf",
-            "text": "redacted",
+            "sanitized_file": {
+                "media_type": "image/jpeg",
+                "content": "data:image/jpeg;base64,/9j/c2FuaXRpemVkLWltYWdl",
+                "size": 24,
+                "page_count": 1,
+                "redaction_count": 1,
+            },
+            "review_status": "ready",
         }],
         "privacy": {
             "processed_locally": True,
@@ -240,14 +249,22 @@ def test_material_audit_rejects_original_filename_field(client):
     assert response.status_code == 422
 
 
-def test_material_audit_rejects_obvious_pii_reintroduced_in_text(client):
+def test_material_audit_rejects_mismatched_sanitized_media_type(client):
     response = client.post("/material-audit/run", json={
         "country": "IS",
         "materials": [{
             "material_id": "material-001",
             "source_ref": "local-file-001",
-            "kind": "text",
-            "text": "Phone: 13800000000",
+            "kind": "pdf",
+            "media_type": "application/pdf",
+            "sanitized_file": {
+                "media_type": "image/jpeg",
+                "content": "data:image/jpeg;base64,/9j/c2FuaXRpemVkLWltYWdl",
+                "size": 24,
+                "page_count": 1,
+                "redaction_count": 1,
+            },
+            "review_status": "ready",
         }],
         "privacy": {
             "processed_locally": True,
@@ -258,37 +275,48 @@ def test_material_audit_rejects_obvious_pii_reintroduced_in_text(client):
     assert response.status_code == 422
 
 
-def test_material_audit_rejects_obvious_pii_in_ordered_text_block(client):
-    response = client.post("/material-audit/run", json={
-        "country": "IS",
-        "materials": [{
-            "material_id": "material-001",
-            "source_ref": "local-file-001",
-            "kind": "text",
-            "content_blocks": [{"type": "text", "text": "Phone: 13800000000"}],
-        }],
-        "privacy": {
-            "processed_locally": True,
-            "raw_files_uploaded": False,
-            "user_reviewed": True,
-        },
-    })
-    assert response.status_code == 422
-
-
-def test_material_audit_rejects_content_on_excluded_image(client):
+def test_material_audit_rejects_non_data_url_file_content(client):
     response = client.post("/material-audit/run", json={
         "country": "IS",
         "materials": [{
             "material_id": "material-001",
             "source_ref": "local-file-001",
             "kind": "image",
-            "images": [{
-                "image_id": "material-001-image-001",
-                "media_type": "image/png",
-                "included": False,
-                "content": "data:image/png;base64,raw-content-must-not-pass",
-            }],
+            "media_type": "image/jpeg",
+            "sanitized_file": {
+                "media_type": "image/jpeg",
+                "content": "RAW-CONTENT-MUST-NOT-PASS-VALIDATION",
+                "size": 24,
+                "page_count": 1,
+                "redaction_count": 1,
+            },
+            "review_status": "ready",
+        }],
+        "privacy": {
+            "processed_locally": True,
+            "raw_files_uploaded": False,
+            "user_reviewed": True,
+        },
+    })
+    assert response.status_code == 422
+
+
+def test_material_audit_rejects_unready_sanitized_file(client):
+    response = client.post("/material-audit/run", json={
+        "country": "IS",
+        "materials": [{
+            "material_id": "material-001",
+            "source_ref": "local-file-001",
+            "kind": "image",
+            "media_type": "image/jpeg",
+            "sanitized_file": {
+                "media_type": "image/jpeg",
+                "content": "data:image/jpeg;base64,/9j/c2FuaXRpemVkLWltYWdl",
+                "size": 24,
+                "page_count": 1,
+                "redaction_count": 1,
+            },
+            "review_status": "needs_review",
         }],
         "privacy": {
             "processed_locally": True,
