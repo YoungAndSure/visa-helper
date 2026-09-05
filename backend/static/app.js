@@ -6,6 +6,7 @@
  */
 import { analyzeFilesLocally, buildSafePackageFromAnalysis, renderPdfReadOnly, validateSafePackage } from "./privacy.js?v=two-level-audit-v7";
 import { filterSelectedFiles } from "./file-filter.js?v=ignored-files-v1";
+import { clearWorkspaceSession, restoreWorkspaceSession, saveWorkspaceFiles, saveWorkspaceState } from "./workspace-session.js?v=workspace-resume-v1";
 
 const API = "";
 const $ = (selector) => document.querySelector(selector);
@@ -63,6 +64,10 @@ let safePackage = null;
 let levelOneProcessing = false;
 let privacyProcessing = false;
 let previewGeneration = 0;
+let activeTabName = "checklist";
+let auditResult = null;
+let restoringWorkspace = false;
+let saveTimer = null;
 const reviewedMaterialIds = new Set();
 
 function escapeHtml(value) {
@@ -123,7 +128,32 @@ function goto(stageName) {
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
+function workspaceSnapshot() {
+  return {
+    version: 1,
+    country: el.countrySelect.value,
+    activeTabName,
+    activeFileIdx,
+    materialsDir: el.materialsDir.textContent,
+    localAudit,
+    safePackage,
+    reviewedMaterialIds: [...reviewedMaterialIds],
+    auditResult,
+  };
+}
+
+function queueWorkspaceSave() {
+  if (restoringWorkspace || !stages.work.classList.contains("is-active")) return;
+  window.clearTimeout(saveTimer);
+  saveTimer = window.setTimeout(() => {
+    saveWorkspaceState(workspaceSnapshot()).catch((error) => {
+      console.warn("无法保存本地审核会话", error);
+    });
+  }, 120);
+}
+
 function switchTab(name) {
+  activeTabName = name;
   document.querySelectorAll(".tab").forEach((tab) => {
     tab.classList.toggle("tab--active", tab.dataset.tab === name);
   });
@@ -133,6 +163,7 @@ function switchTab(name) {
   el.privacyStatusBar.hidden = name !== "privacy";
   if (name === "privacy") renderPrivacyMaterial(activeFileIdx);
   renderFileList();
+  queueWorkspaceSave();
 }
 
 async function checkHealth() {
@@ -221,9 +252,13 @@ function resetPrivacyState() {
 }
 
 function resetWorkspace() {
+  window.clearTimeout(saveTimer);
+  saveTimer = null;
   previewGeneration += 1;
   revokePreviewUrl();
   currentFiles = [];
+  auditResult = null;
+  activeTabName = "checklist";
   activeFileIdx = -1;
   el.picker.value = "";
   el.filelist.innerHTML = "";
@@ -237,10 +272,17 @@ function resetWorkspace() {
   el.reportWrap.hidden = true;
   el.resultsEmpty.style.display = "";
   el.runStatus.textContent = "";
+  document.querySelectorAll(".tab").forEach((tab) => {
+    tab.classList.toggle("tab--active", tab.dataset.tab === "checklist");
+  });
+  document.querySelectorAll(".tabpane").forEach((pane) => {
+    pane.classList.toggle("tabpane--active", pane.id === "tab-checklist");
+  });
+  el.privacyStatusBar.hidden = true;
   resetPrivacyState();
 }
 
-function onPick() {
+async function onPick() {
   currentFiles = filterSelectedFiles(el.picker.files);
   el.filelist.innerHTML = "";
   el.previewArea.innerHTML = "";
@@ -257,6 +299,14 @@ function onPick() {
   renderFileList();
   selectFile(0, "preview");
   updateWorkflowSteps();
+  try {
+    await saveWorkspaceFiles(currentFiles);
+  } catch (error) {
+    el.levelOneStatus.textContent = "无法保存刷新恢复副本；本次可以继续，但刷新后需要重新选择文件夹。";
+    el.levelOneStatus.classList.add("runstatus--err");
+    console.warn("无法保存本地文件会话", error);
+  }
+  queueWorkspaceSave();
 }
 
 function renderFileList() {
@@ -272,7 +322,10 @@ function renderFileList() {
       `<span class="file-icon">${fileIcon(file.name)}</span>` +
       `<span class="file-name">${escapeHtml(file.webkitRelativePath || file.name)}</span>` +
       `<span class="file-size">${confirmed ? "已确认 ✓" : humanSize(file.size)}</span></button>`;
-    row.querySelector(".file-main").addEventListener("click", () => selectFile(index, "preview"));
+    row.querySelector(".file-main").addEventListener("click", () => {
+      const targetTab = activeTabName === "privacy" && safePackage ? "privacy" : "preview";
+      selectFile(index, targetTab);
+    });
     el.filelist.appendChild(row);
   });
 }
@@ -317,6 +370,7 @@ async function runLevelOneAudit() {
     );
     renderLevelOneAudit(localAudit);
     el.levelOneStatus.textContent = "一级审核完成，原始内容未离开本机。";
+    queueWorkspaceSave();
   } catch (error) {
     localAudit = null;
     el.levelOneStatus.textContent = `一级审核失败：${error.message}`;
@@ -362,6 +416,7 @@ async function selectFile(index, targetTab = "preview") {
       `<div style="font-size:12px;margin-top:4px;">当前版本不会读取或发送它的二进制内容。</div></div>`;
   }
   el.previewArea.appendChild(body);
+  queueWorkspaceSave();
 }
 
 function renderPrivacySummary(packageValue) {
@@ -468,6 +523,7 @@ function markCurrentMaterialDirty() {
   renderPrivacySummary(safePackage);
   renderFileList();
   updateWorkflowSteps();
+  queueWorkspaceSave();
 }
 
 function confirmCurrentMaterial() {
@@ -494,6 +550,7 @@ function confirmCurrentMaterial() {
   renderPrivacyMaterial(activeFileIdx);
   renderFileList();
   updateWorkflowSteps();
+  queueWorkspaceSave();
 }
 
 function confirmAllMaterials() {
@@ -514,6 +571,7 @@ function confirmAllMaterials() {
   renderPrivacyMaterial(activeFileIdx);
   renderFileList();
   updateWorkflowSteps();
+  queueWorkspaceSave();
 }
 
 async function processPrivacy() {
@@ -543,6 +601,7 @@ async function processPrivacy() {
   } finally {
     privacyProcessing = false;
     updateWorkflowSteps();
+    queueWorkspaceSave();
   }
 }
 
@@ -572,7 +631,9 @@ async function runAudit() {
       }),
     });
     renderResults(data);
+    auditResult = data;
     el.runStatus.textContent = `完成 · 共 ${data.summary.total} 项`;
+    queueWorkspaceSave();
   } catch (error) {
     el.runStatus.textContent = `审核失败：${error.message}`;
     el.runStatus.classList.add("runstatus--err");
@@ -624,20 +685,70 @@ function renderResults(data) {
   }
 }
 
+async function restoreSavedWorkspace() {
+  restoringWorkspace = true;
+  try {
+    const restored = await restoreWorkspaceSession();
+    if (!restored) return;
+    const { state, files } = restored;
+    currentFiles = filterSelectedFiles(files);
+    localAudit = state.localAudit || null;
+    safePackage = state.safePackage || null;
+    auditResult = state.auditResult || null;
+    activeFileIdx = Math.min(Math.max(state.activeFileIdx ?? 0, 0), Math.max(currentFiles.length - 1, 0));
+    reviewedMaterialIds.clear();
+    (state.reviewedMaterialIds || []).forEach((id) => reviewedMaterialIds.add(id));
+    el.countrySelect.value = state.country || "IS";
+    const labels = { IS: "冰岛", NO: "挪威" };
+    el.wsCountry.textContent = labels[el.countrySelect.value] || el.countrySelect.value;
+    el.materialsDir.textContent = state.materialsDir || "已恢复本地材料";
+    await loadChecklist(el.countrySelect.value);
+    goto("work");
+    renderFileList();
+    if (localAudit) {
+      renderLevelOneAudit(localAudit);
+      el.levelOneStatus.textContent = "已恢复本地一级审核结果。";
+    }
+    if (safePackage) {
+      renderPrivacySummary(safePackage);
+      const allConfirmed = Boolean(safePackage.privacy?.user_reviewed);
+      setPrivacyBadge(allConfirmed ? "ready" : "review", allConfirmed ? "全部确认，可发送" : `${reviewedMaterialIds.size}/${safePackage.materials.length} 已确认`);
+      el.privacyStatus.textContent = "已恢复安全材料，请继续核对。";
+    }
+    if (auditResult) renderResults(auditResult);
+    updateWorkflowSteps();
+    const restoredTab = ["checklist", "preview", "level-one", "privacy", "results"].includes(state.activeTabName)
+      ? state.activeTabName : "checklist";
+    if (currentFiles.length && restoredTab === "preview") await selectFile(activeFileIdx, "preview");
+    else switchTab(restoredTab);
+    if (!currentFiles.length) {
+      el.levelOneStatus.textContent = "审核页面已恢复，但浏览器未能恢复文件；请重新选择材料文件夹。";
+      el.levelOneStatus.classList.add("runstatus--err");
+    }
+  } catch (error) {
+    console.warn("无法恢复本地审核会话", error);
+  } finally {
+    restoringWorkspace = false;
+  }
+}
+
 document.querySelectorAll("[data-action]").forEach((button) => {
-  button.addEventListener("click", () => {
+  button.addEventListener("click", async () => {
     const action = button.dataset.action;
     if (action === "go-country") goto("country");
     else if (action === "go-intro") goto("intro");
     else if (action === "back-country") {
+      await clearWorkspaceSession();
       resetWorkspace();
       goto("country");
     } else if (action === "start") {
+      await clearWorkspaceSession();
       const labels = { IS: "冰岛", NO: "挪威" };
       el.wsCountry.textContent = labels[el.countrySelect.value] || el.countrySelect.value;
       resetWorkspace();
       loadChecklist(el.countrySelect.value);
       goto("work");
+      queueWorkspaceSave();
     }
   });
 });
@@ -654,3 +765,4 @@ document.querySelectorAll(".tab").forEach((tab) => {
 window.addEventListener("beforeunload", revokePreviewUrl);
 
 checkHealth();
+restoreSavedWorkspace();
