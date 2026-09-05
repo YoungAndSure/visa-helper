@@ -5,6 +5,7 @@
  * can be sent to /material-audit/run.
  */
 import { analyzeFilesLocally, buildSafePackageFromAnalysis, renderPdfReadOnly, validateSafePackage } from "./privacy.js?v=two-level-audit-v7";
+import { filterSelectedFiles } from "./file-filter.js?v=ignored-files-v1";
 
 const API = "";
 const $ = (selector) => document.querySelector(selector);
@@ -240,7 +241,7 @@ function resetWorkspace() {
 }
 
 function onPick() {
-  currentFiles = Array.from(el.picker.files || []);
+  currentFiles = filterSelectedFiles(el.picker.files);
   el.filelist.innerHTML = "";
   el.previewArea.innerHTML = "";
   el.previewEmpty.style.display = "";
