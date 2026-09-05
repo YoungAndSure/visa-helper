@@ -13,6 +13,7 @@ const TEXT_EXTENSIONS = new Set(["txt", "md", "csv", "json", "xml", "html"]);
 const IMAGE_EXTENSIONS = new Set(["jpg", "jpeg", "png", "gif", "webp", "bmp"]);
 const PDF_PROCESS_SCALE = 1.6;
 const MIN_USABLE_TEXT_CHARACTERS = 16;
+export const LOCAL_RECOGNITION_PIPELINE_VERSION = "hybrid-ocr-v2";
 
 let pdfjsPromise;
 
@@ -122,20 +123,41 @@ async function mapWithConcurrency(values, concurrency, mapper) {
   return results;
 }
 
-async function extractPdf(file, getOcrPool, onProgress) {
+async function extractPdf(file, getOcrPool, onProgress, debugLog) {
+  const pdfStartedAt = performance.now();
+  debugLog("pdf.open.started", { file_name: file.name, file_size: file.size });
   const pdfjs = await loadPdfJs();
   const bytes = new Uint8Array(await file.arrayBuffer());
   const pdf = await pdfjs.getDocument({ data: bytes }).promise;
   const pages = new Array(pdf.numPages);
   const ocrPageNumbers = [];
+  debugLog("pdf.open.completed", {
+    file_name: file.name,
+    file_size: file.size,
+    page_count: pdf.numPages,
+    duration_ms: performance.now() - pdfStartedAt,
+  });
 
   try {
     for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
+      const extractionStartedAt = performance.now();
       const page = await pdf.getPage(pageNumber);
       const content = await page.getTextContent();
       const viewport = page.getViewport({ scale: PDF_PROCESS_SCALE });
       const extracted = extractPdfTextPage(content, viewport, pdfjs, pageNumber);
-      if (hasUsablePdfText(extracted.text, extracted.words.length)) {
+      const usableText = hasUsablePdfText(extracted.text, extracted.words.length);
+      debugLog("pdf.page.text-layer.checked", {
+        file_name: file.name,
+        page_number: pageNumber,
+        page_count: pdf.numPages,
+        text_items: extracted.words.length,
+        extracted_characters: extracted.text.length,
+        usable: usableText,
+        duration_ms: performance.now() - extractionStartedAt,
+        rendered_width: Math.ceil(viewport.width),
+        rendered_height: Math.ceil(viewport.height),
+      });
+      if (usableText) {
         pages[pageNumber - 1] = {
           page_number: pageNumber,
           width: Math.ceil(viewport.width),
@@ -149,6 +171,13 @@ async function extractPdf(file, getOcrPool, onProgress) {
         };
       } else {
         ocrPageNumbers.push(pageNumber);
+        debugLog("pdf.page.routed-to-ocr", {
+          file_name: file.name,
+          page_number: pageNumber,
+          reason: "missing_or_insufficient_text_layer",
+          extracted_characters: extracted.text.length,
+          text_items: extracted.words.length,
+        });
       }
       page.cleanup();
     }
@@ -158,8 +187,20 @@ async function extractPdf(file, getOcrPool, onProgress) {
       let canvas = null;
       try {
         onProgress(`OCR 识别 PDF 第 ${pageNumber}/${pdf.numPages} 页`);
+        const renderStartedAt = performance.now();
         canvas = await renderPageForOcr(page);
-        const result = await (await getOcrPool()).recognize(canvas);
+        debugLog("pdf.page.rendered-for-ocr", {
+          file_name: file.name,
+          page_number: pageNumber,
+          width: canvas.width,
+          height: canvas.height,
+          duration_ms: performance.now() - renderStartedAt,
+        });
+        const result = await (await getOcrPool()).recognize(canvas, {
+          file_name: file.name,
+          page_number: pageNumber,
+          source_kind: "pdf",
+        });
         pages[pageNumber - 1] = {
           page_number: pageNumber,
           width: canvas.width,
@@ -171,6 +212,12 @@ async function extractPdf(file, getOcrPool, onProgress) {
           ocr_status: "completed",
           recognition_error: null,
         };
+        debugLog("pdf.page.ocr.completed", {
+          file_name: file.name,
+          page_number: pageNumber,
+          recognized_characters: result.text.length,
+          recognized_words: result.words.length,
+        });
       } catch (error) {
         const viewport = page.getViewport({ scale: PDF_PROCESS_SCALE });
         pages[pageNumber - 1] = {
@@ -184,6 +231,11 @@ async function extractPdf(file, getOcrPool, onProgress) {
           ocr_status: "failed",
           recognition_error: error instanceof Error ? error.message : String(error),
         };
+        debugLog("pdf.page.ocr.failed", {
+          file_name: file.name,
+          page_number: pageNumber,
+          error,
+        }, "error");
       } finally {
         if (canvas) {
           canvas.width = 0;
@@ -194,6 +246,14 @@ async function extractPdf(file, getOcrPool, onProgress) {
     });
   } finally {
     await pdf.destroy();
+    debugLog("pdf.processing.completed", {
+      file_name: file.name,
+      page_count: pages.length,
+      direct_text_pages: pages.filter((page) => page?.recognition_method === "pdf_text_layer").length,
+      ocr_pages: pages.filter((page) => page?.recognition_method === "ocr").length,
+      failed_pages: pages.filter((page) => page?.ocr_status === "failed").length,
+      duration_ms: performance.now() - pdfStartedAt,
+    });
   }
 
   return pages;
@@ -250,11 +310,11 @@ function summarizePdfRecognition(pages, fullText) {
   };
 }
 
-async function preprocessFile(file, index, getOcrPool, onProgress) {
+async function preprocessFile(file, index, getOcrPool, onProgress, debugLog) {
   const base = documentBase(file, index);
   try {
     if (base.kind === "pdf") {
-      const pages = await extractPdf(file, getOcrPool, onProgress);
+      const pages = await extractPdf(file, getOcrPool, onProgress, debugLog);
       const fullText = pages
         .map((page) => `[PAGE ${page.page_number}]\n${page.text}`)
         .join("\n\n");
@@ -267,7 +327,13 @@ async function preprocessFile(file, index, getOcrPool, onProgress) {
     }
 
     if (base.kind === "text") {
+      const startedAt = performance.now();
       const text = await file.text();
+      debugLog("text-file.read", {
+        file_name: file.name,
+        characters: text.length,
+        duration_ms: performance.now() - startedAt,
+      });
       return {
         ...base,
         full_text: text,
@@ -286,12 +352,24 @@ async function preprocessFile(file, index, getOcrPool, onProgress) {
     }
 
     if (base.kind === "image") {
+      const imageStartedAt = performance.now();
       const dimensions = await imageDimensions(file);
+      debugLog("image.decoded", {
+        file_name: file.name,
+        file_size: file.size,
+        width: dimensions.width,
+        height: dimensions.height,
+        duration_ms: performance.now() - imageStartedAt,
+      });
       onProgress("OCR 识别图片");
       const bitmap = await createImageBitmap(file);
       let result;
       try {
-        result = await (await getOcrPool()).recognize(bitmap);
+        result = await (await getOcrPool()).recognize(bitmap, {
+          file_name: file.name,
+          page_number: 1,
+          source_kind: "image",
+        });
       } finally {
         bitmap.close();
       }
@@ -303,6 +381,12 @@ async function preprocessFile(file, index, getOcrPool, onProgress) {
         description: "",
         ocr_text: result.text,
       };
+      debugLog("image.ocr.completed", {
+        file_name: file.name,
+        recognized_characters: result.text.length,
+        recognized_words: result.words.length,
+        duration_ms: performance.now() - imageStartedAt,
+      });
       return {
         ...base,
         full_text: result.text,
@@ -340,6 +424,12 @@ async function preprocessFile(file, index, getOcrPool, onProgress) {
       },
     };
   } catch (error) {
+    debugLog("file.processing.failed", {
+      file_name: file.name,
+      file_index: index,
+      kind: base.kind,
+      error,
+    }, "error");
     return {
       ...base,
       recognition: {
@@ -352,32 +442,77 @@ async function preprocessFile(file, index, getOcrPool, onProgress) {
   }
 }
 
-export async function preprocessFilesLocally(files, { onProgress = () => {} } = {}) {
+export async function preprocessFilesLocally(
+  files,
+  { onProgress = () => {}, debugLog = () => {} } = {},
+) {
+  const preprocessingStartedAt = performance.now();
   let ocrPoolPromise = null;
   let ocrPool = null;
   let completedFiles = 0;
   async function getOcrPool() {
     if (!ocrPoolPromise) {
       onProgress({ current: completedFiles, total: files.length, label: "正在加载双 Worker 本地 OCR" });
-      ocrPoolPromise = createOcrPool({ workerCount: DEFAULT_OCR_WORKER_COUNT });
+      ocrPoolPromise = createOcrPool({ workerCount: DEFAULT_OCR_WORKER_COUNT, debugLog });
     }
     ocrPool = await ocrPoolPromise;
     return ocrPool;
   }
+  debugLog("preprocessing.started", {
+    file_count: files.length,
+    files: Array.from(files, (file, index) => ({
+      index,
+      name: file.name,
+      relative_path: file.webkitRelativePath || file.name,
+      media_type: file.type || "application/octet-stream",
+      size: file.size,
+      last_modified: file.lastModified || null,
+    })),
+    file_concurrency: DEFAULT_OCR_WORKER_COUNT,
+    ocr_workers: DEFAULT_OCR_WORKER_COUNT,
+  });
   try {
     const indexedFiles = Array.from(files, (file, index) => ({ file, index }));
     const documents = await mapWithConcurrency(indexedFiles, DEFAULT_OCR_WORKER_COUNT, async ({ file, index }) => {
+      const fileStartedAt = performance.now();
+      debugLog("file.processing.started", {
+        file_name: file.name,
+        relative_path: file.webkitRelativePath || file.name,
+        file_index: index,
+        file_size: file.size,
+        media_type: file.type || "application/octet-stream",
+        kind: documentKind(file),
+      });
       onProgress({ current: completedFiles, total: files.length, label: `预处理第 ${index + 1} 个文件` });
       const document = await preprocessFile(file, index, getOcrPool, (label) => {
         onProgress({ current: completedFiles, total: files.length, label: `${file.name} · ${label}` });
-      });
+      }, debugLog);
       completedFiles += 1;
+      debugLog("file.processing.completed", {
+        file_name: file.name,
+        file_index: index,
+        kind: document.kind,
+        page_count: document.pages.length,
+        recognition: document.recognition,
+        extracted_characters: document.full_text.length,
+        duration_ms: performance.now() - fileStartedAt,
+      });
       onProgress({ current: completedFiles, total: files.length, label: `已完成 ${completedFiles}/${files.length} 个文件` });
       return document;
     });
     onProgress({ current: files.length, total: files.length, label: "本地文件预处理完成" });
+    debugLog("preprocessing.completed", {
+      file_count: files.length,
+      direct_text_pages: documents.flatMap((document) => document.pages)
+        .filter((page) => page.recognition_method === "pdf_text_layer").length,
+      ocr_pages: documents.flatMap((document) => document.pages)
+        .filter((page) => page.recognition_method === "ocr").length,
+      total_characters: documents.reduce((sum, document) => sum + document.full_text.length, 0),
+      duration_ms: performance.now() - preprocessingStartedAt,
+    });
     return {
       schema_version: "local-document-context/v1",
+      pipeline_version: LOCAL_RECOGNITION_PIPELINE_VERSION,
       created_at: new Date().toISOString(),
       processed_locally: true,
       raw_files_uploaded: false,

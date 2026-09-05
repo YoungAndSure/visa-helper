@@ -63,6 +63,7 @@ http://localhost:8000/ui
 | shared infra | `GET /healthz` | liveness + LLM 配置状态 |
 | shared infra | `GET /` | 服务信息 + endpoint 列表 |
 | shared infra | `GET /ui` | 材料审核前端静态页面 |
+| shared infra | `POST /debug/frontend-log` | 接收本地页面的实时处理事件并写入统一日志 |
 | form-assist | `POST /form-assist/suggest` | 字段推荐（form-fill） |
 | form-assist | `POST /form-assist/extract` | 从 PDF 路径抽 ApplicantContext |
 | material-audit | `POST /material-audit/verify` | 单条 LLM 内容核对（YES/NO/UNCERTAIN） |
@@ -75,6 +76,12 @@ http://localhost:8000/ui
 curl localhost:8000/healthz
 # {"status":"ok","llm_available":true|false}
 ```
+
+### 前端实时调试日志
+
+通过 `localhost` 打开页面时，文件预处理、本地审核、OCR Worker、隐私擦除和导出阶段会把
+时间戳、文件名、页码、任务进度及耗时实时写入 `backend/logs/backend.log`。日志不会包含
+OCR 正文或原始文件内容；线上非本机页面默认不发送，可用 `?debug=1` 显式开启。
 
 ### `POST /form-assist/suggest`
 

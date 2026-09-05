@@ -177,24 +177,55 @@ function reusableRecognition(page) {
     && page.ocr_status !== "failed";
 }
 
-export async function prepareRedactionWorkspace(localAudit, files, { onProgress = () => {} } = {}) {
+async function mapWithConcurrency(values, concurrency, mapper) {
+  const results = new Array(values.length);
+  let nextIndex = 0;
+  async function consume() {
+    while (nextIndex < values.length) {
+      const index = nextIndex;
+      nextIndex += 1;
+      results[index] = await mapper(values[index], index);
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(concurrency, values.length) }, consume));
+  return results;
+}
+
+export async function prepareRedactionWorkspace(
+  localAudit,
+  files,
+  { onProgress = () => {}, debugLog = () => {} } = {},
+) {
+  const workspaceStartedAt = performance.now();
   const documents = localAudit?.context?.documents || [];
-  const materials = [];
+  let materials = [];
   let ocrPoolPromise = null;
   let ocrPool = null;
   async function getOcrPool() {
     if (!ocrPoolPromise) {
       onProgress({ label: "正在加载双 Worker 本地 OCR", current: 0, total: files.length });
-      ocrPoolPromise = createOcrPool({ workerCount: DEFAULT_OCR_WORKER_COUNT });
+      ocrPoolPromise = createOcrPool({ workerCount: DEFAULT_OCR_WORKER_COUNT, debugLog });
     }
     ocrPool = await ocrPoolPromise;
     return ocrPool;
   }
+  debugLog("redaction-workspace.started", {
+    file_count: files.length,
+    reusable_document_count: documents.length,
+  });
   try {
-    for (let index = 0; index < files.length; index += 1) {
-      const file = files[index];
+    materials = await mapWithConcurrency(Array.from(files), DEFAULT_OCR_WORKER_COUNT, async (file, index) => {
       const source = documents[index] || {};
       const kind = redactionFileKind(file);
+      const fileStartedAt = performance.now();
+      debugLog("redaction-file.started", {
+        file_name: file.name,
+        relative_path: file.webkitRelativePath || file.name,
+        file_index: index,
+        file_size: file.size,
+        kind,
+        source_pages: source.pages?.length || 0,
+      });
       const material = {
         material_id: source.material_id || `material-${String(index + 1).padStart(3, "0")}`,
         source_ref: source.source_ref || `local-file-${String(index + 1).padStart(3, "0")}`,
@@ -206,9 +237,20 @@ export async function prepareRedactionWorkspace(localAudit, files, { onProgress 
       };
       if (kind !== "unsupported") {
         try {
+          const renderStartedAt = performance.now();
           const rendered = await renderSourcePages(file);
-          for (let pageIndex = 0; pageIndex < rendered.length; pageIndex += 1) {
-            const page = rendered[pageIndex];
+          debugLog("redaction-file.rendered", {
+            file_name: file.name,
+            page_count: rendered.length,
+            duration_ms: performance.now() - renderStartedAt,
+            pages: rendered.map((page) => ({
+              page_number: page.page_number,
+              width: page.width,
+              height: page.height,
+            })),
+          });
+          material.pages = await Promise.all(rendered.map(async (page, pageIndex) => {
+            const pageStartedAt = performance.now();
             const recognizedPage = source.pages?.[pageIndex];
             let redactions = [];
             let recognitionMethod = recognizedPage?.recognition_method || "ocr";
@@ -217,20 +259,47 @@ export async function prepareRedactionWorkspace(localAudit, files, { onProgress 
             if (reusableRecognition(recognizedPage)) {
               onProgress({ label: `复用本地识别 ${index + 1}/${files.length} · 第 ${pageIndex + 1}/${rendered.length} 页`, current: index, total: files.length });
               redactions = boxesForSensitiveWords(recognizedPage.words);
+              debugLog("redaction-page.reused-recognition", {
+                file_name: file.name,
+                page_number: page.page_number,
+                recognition_method: recognitionMethod,
+                recognized_words: recognizedPage.words.length,
+                redaction_count: redactions.length,
+                duration_ms: performance.now() - pageStartedAt,
+              });
             } else {
               onProgress({ label: `补充 OCR ${index + 1}/${files.length} · 第 ${pageIndex + 1}/${rendered.length} 页`, current: index, total: files.length });
               try {
-                const result = await (await getOcrPool()).recognize(page.canvas);
+                const result = await (await getOcrPool()).recognize(page.canvas, {
+                  file_name: file.name,
+                  page_number: page.page_number,
+                  source_kind: kind,
+                  purpose: "redaction_fallback",
+                });
                 redactions = boxesForSensitiveWords(result.words);
                 recognitionMethod = "ocr";
                 ocrStatus = "completed";
                 ocrError = null;
+                debugLog("redaction-page.fallback-ocr.completed", {
+                  file_name: file.name,
+                  page_number: page.page_number,
+                  recognized_characters: result.text.length,
+                  recognized_words: result.words.length,
+                  redaction_count: redactions.length,
+                  duration_ms: performance.now() - pageStartedAt,
+                });
               } catch (error) {
                 ocrStatus = "failed";
                 ocrError = error instanceof Error ? error.message : String(error);
+                debugLog("redaction-page.fallback-ocr.failed", {
+                  file_name: file.name,
+                  page_number: page.page_number,
+                  duration_ms: performance.now() - pageStartedAt,
+                  error,
+                }, "error");
               }
             }
-            material.pages.push({
+            return {
               page_number: page.page_number,
               width: page.width,
               height: page.height,
@@ -238,19 +307,46 @@ export async function prepareRedactionWorkspace(localAudit, files, { onProgress 
               recognition_method: recognitionMethod,
               ocr_status: ocrStatus,
               ocr_error: ocrError,
-            });
-          }
+            };
+          }));
+          debugLog("redaction-file.completed", {
+            file_name: file.name,
+            page_count: material.pages.length,
+            redaction_count: material.pages.reduce((sum, page) => sum + page.redactions.length, 0),
+            recognition_methods: material.pages.map((page) => page.recognition_method),
+            duration_ms: performance.now() - fileStartedAt,
+          });
         } catch (error) {
           material.review_status = "blocked";
           material.processing_error = error instanceof Error ? error.message : String(error);
+          debugLog("redaction-file.failed", {
+            file_name: file.name,
+            duration_ms: performance.now() - fileStartedAt,
+            error,
+          }, "error");
         }
+      } else {
+        debugLog("redaction-file.unsupported", {
+          file_name: file.name,
+          media_type: file.type,
+          duration_ms: performance.now() - fileStartedAt,
+        }, "warning");
       }
-      materials.push(material);
-    }
+      return material;
+    });
   } finally {
     if (ocrPool) await ocrPool.terminate();
   }
   onProgress({ label: "本地隐私识别完成", current: files.length, total: files.length });
+  debugLog("redaction-workspace.completed", {
+    file_count: files.length,
+    page_count: materials.reduce((sum, material) => sum + material.pages.length, 0),
+    redaction_count: materials.reduce(
+      (sum, material) => sum + material.pages.reduce((pageSum, page) => pageSum + page.redactions.length, 0),
+      0,
+    ),
+    duration_ms: performance.now() - workspaceStartedAt,
+  });
   return { schema_version: "local-redaction-workspace/v1", country: localAudit.context?.country || localAudit.country, visa_type: localAudit.context?.visa_type || "unknown", materials };
 }
 
@@ -269,29 +365,68 @@ async function renderedPagesWithRedactions(material, file) {
   return rendered;
 }
 
-export async function exportRedactedMaterial(material, file) {
+export async function exportRedactedMaterial(material, file, { debugLog = () => {} } = {}) {
   if (material.kind === "unsupported" || material.processing_error) throw new Error(material.processing_error || "此文件无法脱敏");
-  const pages = await renderedPagesWithRedactions(material, file);
-  let blob;
-  if (material.kind === "image") {
-    blob = await canvasToBlob(pages[0].canvas, "image/jpeg", 0.92);
-  } else {
-    const PDFLib = await loadPdfLib();
-    const pdf = await PDFLib.PDFDocument.create();
-    pdf.setTitle(""); pdf.setAuthor(""); pdf.setSubject(""); pdf.setKeywords([]);
-    pdf.setProducer("visa-helper local redaction"); pdf.setCreator("visa-helper local redaction");
-    for (const rendered of pages) {
-      const pageBlob = await canvasToBlob(rendered.canvas, "image/jpeg", 0.9);
-      const image = await pdf.embedJpg(await pageBlob.arrayBuffer());
-      const page = pdf.addPage([rendered.width, rendered.height]);
-      page.drawImage(image, { x: 0, y: 0, width: rendered.width, height: rendered.height });
+  const exportStartedAt = performance.now();
+  debugLog("redaction-export.started", {
+    file_name: file.name,
+    material_id: material.material_id,
+    kind: material.kind,
+    page_count: material.pages.length,
+    redaction_count: material.pages.reduce((sum, page) => sum + page.redactions.length, 0),
+  });
+  try {
+    const renderStartedAt = performance.now();
+    const pages = await renderedPagesWithRedactions(material, file);
+    debugLog("redaction-export.pages-rendered", {
+      file_name: file.name,
+      material_id: material.material_id,
+      page_count: pages.length,
+      duration_ms: performance.now() - renderStartedAt,
+    });
+    let blob;
+    if (material.kind === "image") {
+      blob = await canvasToBlob(pages[0].canvas, "image/jpeg", 0.92);
+    } else {
+      const rebuildStartedAt = performance.now();
+      const PDFLib = await loadPdfLib();
+      const pdf = await PDFLib.PDFDocument.create();
+      pdf.setTitle(""); pdf.setAuthor(""); pdf.setSubject(""); pdf.setKeywords([]);
+      pdf.setProducer("visa-helper local redaction"); pdf.setCreator("visa-helper local redaction");
+      for (const rendered of pages) {
+        const pageBlob = await canvasToBlob(rendered.canvas, "image/jpeg", 0.9);
+        const image = await pdf.embedJpg(await pageBlob.arrayBuffer());
+        const page = pdf.addPage([rendered.width, rendered.height]);
+        page.drawImage(image, { x: 0, y: 0, width: rendered.width, height: rendered.height });
+      }
+      blob = new Blob([await pdf.save({ useObjectStreams: true })], { type: "application/pdf" });
+      debugLog("redaction-export.pdf-rebuilt", {
+        file_name: file.name,
+        material_id: material.material_id,
+        duration_ms: performance.now() - rebuildStartedAt,
+      });
     }
-    blob = new Blob([await pdf.save({ useObjectStreams: true })], { type: "application/pdf" });
+    const redactionCount = material.pages.reduce((sum, page) => sum + page.redactions.length, 0);
+    material.sanitized_file = { media_type: material.media_type, content: await blobToDataUrl(blob), size: blob.size, page_count: pages.length, redaction_count: redactionCount };
+    material.review_status = "ready";
+    debugLog("redaction-export.completed", {
+      file_name: file.name,
+      material_id: material.material_id,
+      output_size: blob.size,
+      page_count: pages.length,
+      redaction_count: redactionCount,
+      duration_ms: performance.now() - exportStartedAt,
+    });
+    return material.sanitized_file;
+  } catch (error) {
+    debugLog("redaction-export.failed", {
+      file_name: file.name,
+      material_id: material.material_id,
+      duration_ms: performance.now() - exportStartedAt,
+      error,
+    }, "error");
+    throw error;
   }
-  const redactionCount = material.pages.reduce((sum, page) => sum + page.redactions.length, 0);
-  material.sanitized_file = { media_type: material.media_type, content: await blobToDataUrl(blob), size: blob.size, page_count: pages.length, redaction_count: redactionCount };
-  material.review_status = "ready";
-  return material.sanitized_file;
 }
 
 export function buildSafePackage(workspace, userReviewed = false) {

@@ -3,7 +3,7 @@ import test from "node:test";
 
 import { createLocalAuditContext, runLocalAuditRules } from "../../static/local-audit-engine.js";
 import { hasUsablePdfText, preprocessFilesLocally } from "../../static/local-recognition.js";
-import { DEFAULT_OCR_WORKER_COUNT, parseOcrTsv } from "../../static/ocr-pool.js";
+import { DEFAULT_OCR_WORKER_COUNT, parseOcrBlocks, parseOcrTsv } from "../../static/ocr-pool.js";
 import { boxesForSensitiveWords, buildSafePackage, detectSensitiveRanges, validateSafePackage } from "../../static/privacy.js";
 
 function preprocessing(documents) {
@@ -50,6 +50,7 @@ test("preprocessor creates normalized documents without raw File references", as
   };
   const result = await preprocessFilesLocally([source]);
   assert.equal(result.schema_version, "local-document-context/v1");
+  assert.equal(result.pipeline_version, "hybrid-ocr-v2");
   assert.equal(result.documents[0].full_text, "hello");
   assert.equal("file" in result.documents[0], false);
 });
@@ -69,6 +70,19 @@ test("OCR TSV output is normalized for downstream rules and redaction", () => {
   assert.equal(words.length, 1);
   assert.equal(words[0].line, "1:1:1:1");
   assert.equal(words[0].source, "ocr");
+});
+
+test("OCR block output is flattened into positioned words", () => {
+  const words = parseOcrBlocks([{
+    paragraphs: [{ lines: [{ words: [
+      { text: "AB1234567", confidence: 92, bbox: { x0: 10, y0: 20, x1: 110, y1: 45 } },
+      { text: "ignored", confidence: 8, bbox: { x0: 120, y0: 20, x1: 180, y1: 45 } },
+    ] }] }],
+  }]);
+  assert.deepEqual(words, [{
+    text: "AB1234567", line: "1:1:1", left: 10, top: 20,
+    width: 100, height: 25, confidence: 92, source: "ocr",
+  }]);
 });
 
 test("built-in rules discover candidates from the shared context", async () => {

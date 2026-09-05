@@ -5,7 +5,11 @@
  * can be sent to /material-audit/run.
  */
 import { createLocalAuditContext, runLocalAuditRules } from "./local-audit-engine.js?v=plugin-audit-v1";
-import { preprocessFilesLocally, renderPdfReadOnly } from "./local-recognition.js?v=document-context-v2";
+import {
+  LOCAL_RECOGNITION_PIPELINE_VERSION,
+  preprocessFilesLocally,
+  renderPdfReadOnly,
+} from "./local-recognition.js?v=document-context-v3";
 import {
   buildSafePackage,
   countRedactions,
@@ -16,6 +20,7 @@ import {
 } from "./privacy.js?v=visual-redaction-v2";
 import { filterSelectedFiles } from "./file-filter.js?v=ignored-files-v1";
 import { clearWorkspaceSession, restoreWorkspaceSession, saveWorkspaceFiles, saveWorkspaceState } from "./workspace-session.js?v=workspace-resume-v1";
+import { createFrontendDebugRun } from "./frontend-debug.js?v=realtime-debug-v2";
 
 const API = "";
 const $ = (selector) => document.querySelector(selector);
@@ -81,7 +86,37 @@ let activeTabName = "checklist";
 let auditResult = null;
 let restoringWorkspace = false;
 let saveTimer = null;
+let localDebugRun = null;
+let privacyDebugRun = null;
 const reviewedMaterialIds = new Set();
+
+const pageDebugRun = createFrontendDebugRun("page", {
+  url: window.location.href,
+  user_agent: navigator.userAgent,
+});
+window.addEventListener("error", (event) => {
+  pageDebugRun.log("window.error", {
+    message: event.message,
+    source: event.filename,
+    line: event.lineno,
+    column: event.colno,
+    error: event.error,
+  }, "error", event.message);
+});
+window.addEventListener("unhandledrejection", (event) => {
+  pageDebugRun.log("window.unhandledrejection", { reason: event.reason }, "error", String(event.reason || ""));
+});
+
+function selectedFileDebugDetails() {
+  return currentFiles.map((file, index) => ({
+    index,
+    name: file.name,
+    relative_path: file.webkitRelativePath || file.name,
+    media_type: file.type || "application/octet-stream",
+    size: file.size,
+    last_modified: file.lastModified || null,
+  }));
+}
 
 function escapeHtml(value) {
   return String(value).replace(/[&<>"]/g, (character) =>
@@ -377,6 +412,11 @@ function renderLevelOneAudit(audit) {
 
 async function runLevelOneAudit() {
   if (!currentFiles.length || levelOneProcessing) return;
+  localDebugRun = createFrontendDebugRun("local-audit", {
+    country: el.countrySelect.value,
+    file_count: currentFiles.length,
+    files: selectedFileDebugDetails(),
+  });
   levelOneProcessing = true;
   updateWorkflowSteps();
   el.levelOneStatus.textContent = "本地识别中…";
@@ -387,6 +427,7 @@ async function runLevelOneAudit() {
       onProgress: ({ current, total, label }) => {
         el.levelOneStatus.textContent = `${label} · ${current}/${total}`;
       },
+      debugLog: localDebugRun.log,
     });
     await checklistLoadPromise;
     const country = el.countrySelect.value;
@@ -401,10 +442,21 @@ async function runLevelOneAudit() {
         el.levelOneStatus.textContent = `${label} · ${current}/${total}`;
       },
     });
+    localDebugRun.log("rules.completed", {
+      summary: localAudit.summary,
+      rules: localAudit.rule_results.map((result) => ({
+        rule_id: result.rule_id,
+        status: result.status,
+        duration_ms: result.duration_ms,
+        reason: result.reason,
+      })),
+    });
     renderLevelOneAudit(localAudit);
     el.levelOneStatus.textContent = "本地审核完成，原始内容未离开本机。";
+    localDebugRun.finish({ summary: localAudit.summary });
     queueWorkspaceSave();
   } catch (error) {
+    localDebugRun.fail(error);
     localAudit = null;
     el.levelOneStatus.textContent = `本地审核失败：${error.message}`;
     el.levelOneStatus.classList.add("runstatus--err");
@@ -483,12 +535,29 @@ async function renderPrivacyMaterial(index) {
   const manual = material.pages.reduce((sum, page) => sum + page.redactions.filter((item) => item.source === "manual").length, 0);
   el.privacyRedactions.innerHTML = `<span class="redaction-chip">自动识别 <b>${automatic}</b></span><span class="redaction-chip">手动涂抹 <b>${manual}</b></span>`;
   el.privacyContent.innerHTML = `<div class="preview__placeholder">正在加载脱敏编辑器…</div>`;
+  const renderStartedAt = performance.now();
+  privacyDebugRun?.log("redaction-editor.render.started", {
+    file_name: file?.name,
+    file_index: index,
+    page_count: material.pages.length,
+  });
   try {
     await renderRedactionEditor(material, file, el.privacyContent, {
       onChange: markCurrentMaterialDirty,
       isCurrent: () => generation === redactionRenderGeneration,
     });
+    privacyDebugRun?.log("redaction-editor.render.completed", {
+      file_name: file?.name,
+      file_index: index,
+      duration_ms: performance.now() - renderStartedAt,
+    });
   } catch (error) {
+    privacyDebugRun?.log("redaction-editor.render.failed", {
+      file_name: file?.name,
+      file_index: index,
+      duration_ms: performance.now() - renderStartedAt,
+      error,
+    }, "error");
     if (generation === redactionRenderGeneration) {
       el.privacyContent.innerHTML = `<div class="privacy-content__empty">脱敏编辑器加载失败：${escapeHtml(error.message)}</div>`;
     }
@@ -523,7 +592,9 @@ async function confirmCurrentMaterial() {
   el.confirmMaterialBtn.disabled = true;
   el.privacyValidation.textContent = "正在把遮挡烧录进新的脱敏文件…";
   try {
-    await exportRedactedMaterial(material, currentFiles[activeFileIdx]);
+    await exportRedactedMaterial(material, currentFiles[activeFileIdx], {
+      debugLog: privacyDebugRun?.log,
+    });
     reviewedMaterialIds.add(material.material_id);
   } catch (error) {
     reviewedMaterialIds.delete(material.material_id);
@@ -547,6 +618,12 @@ async function confirmCurrentMaterial() {
 
   setPrivacyBadge(allConfirmed ? "ready" : "review", allConfirmed ? "全部确认，可发送" : `${reviewedMaterialIds.size}/${safePackage.materials.length} 已确认`);
   el.runBtn.disabled = !allConfirmed;
+  if (allConfirmed) {
+    privacyDebugRun?.finish({
+      material_count: redactionWorkspace.materials.length,
+      redaction_count: countRedactions(redactionWorkspace),
+    });
+  }
   renderPrivacySummary(redactionWorkspace);
   void renderPrivacyMaterial(activeFileIdx);
   renderFileList();
@@ -563,7 +640,9 @@ async function confirmAllMaterials() {
     const material = redactionWorkspace.materials[index];
     try {
       el.privacyStatus.textContent = `正在生成脱敏文件 ${index + 1}/${redactionWorkspace.materials.length}…`;
-      await exportRedactedMaterial(material, currentFiles[index]);
+      await exportRedactedMaterial(material, currentFiles[index], {
+        debugLog: privacyDebugRun?.log,
+      });
       reviewedMaterialIds.add(material.material_id);
     } catch (error) {
       safePackage = buildSafePackage(redactionWorkspace, false);
@@ -586,6 +665,10 @@ async function confirmAllMaterials() {
   }
   setPrivacyBadge("ready", "全部确认，可发送");
   el.privacyStatus.textContent = "所有脱敏副本已生成并确认。";
+  privacyDebugRun?.finish({
+    material_count: redactionWorkspace.materials.length,
+    redaction_count: countRedactions(redactionWorkspace),
+  });
   renderPrivacySummary(redactionWorkspace);
   void renderPrivacyMaterial(activeFileIdx);
   renderFileList();
@@ -595,6 +678,11 @@ async function confirmAllMaterials() {
 
 async function processPrivacy() {
   if (!localAudit || privacyProcessing) return;
+  privacyDebugRun = createFrontendDebugRun("privacy-redaction", {
+    country: el.countrySelect.value,
+    file_count: currentFiles.length,
+    files: selectedFileDebugDetails(),
+  });
   privacyProcessing = true;
   el.privacyBtn.disabled = true;
   el.runBtn.disabled = true;
@@ -606,6 +694,7 @@ async function processPrivacy() {
     el.privacyStatus.textContent = "正在本机识别 PDF/JPG 中的隐私区域…";
     redactionWorkspace = await prepareRedactionWorkspace(localAudit, currentFiles, {
       onProgress: ({ label }) => { el.privacyStatus.textContent = label; },
+      debugLog: privacyDebugRun.log,
     });
     safePackage = buildSafePackage(redactionWorkspace, false);
     reviewedMaterialIds.clear();
@@ -614,7 +703,12 @@ async function processPrivacy() {
     renderFileList();
     setPrivacyBadge("review", `0/${redactionWorkspace.materials.length} 已确认`);
     el.privacyStatus.textContent = "自动识别完成，请核对黑色遮挡并补充涂抹。";
+    privacyDebugRun.log("automatic-redaction.completed", {
+      material_count: redactionWorkspace.materials.length,
+      redaction_count: countRedactions(redactionWorkspace),
+    });
   } catch (error) {
+    privacyDebugRun.fail(error);
     redactionWorkspace = null;
     safePackage = null;
     setPrivacyBadge("error", "处理失败");
@@ -716,7 +810,9 @@ async function restoreSavedWorkspace() {
     const { state, files } = restored;
     currentFiles = filterSelectedFiles(files);
     const restoredAudit = state.localAudit || null;
-    const currentAuditSchema = restoredAudit?.schema_version === "local-audit-result/v1";
+    const staleRecognition = restoredAudit?.schema_version === "local-audit-result/v1"
+      && restoredAudit.context?.preprocessing?.pipeline_version !== LOCAL_RECOGNITION_PIPELINE_VERSION;
+    const currentAuditSchema = restoredAudit?.schema_version === "local-audit-result/v1" && !staleRecognition;
     localAudit = currentAuditSchema ? restoredAudit : null;
     redactionWorkspace = currentAuditSchema && state.redactionWorkspace?.schema_version === "local-redaction-workspace/v1"
       ? state.redactionWorkspace : null;
@@ -739,6 +835,9 @@ async function restoreSavedWorkspace() {
     if (localAudit) {
       renderLevelOneAudit(localAudit);
       el.levelOneStatus.textContent = "已恢复本地审核结果。";
+    } else if (staleRecognition) {
+      el.levelOneStatus.textContent = "识别模块已升级，请重新运行本地审核后再擦除隐私。";
+      el.levelOneStatus.classList.add("runstatus--err");
     }
     if (safePackage && redactionWorkspace) {
       renderPrivacySummary(redactionWorkspace);

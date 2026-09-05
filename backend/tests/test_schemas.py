@@ -36,6 +36,31 @@ def test_root_lists_endpoints(client):
     assert any("/form-assist/extract" in e for e in endpoints)
     assert any("/material-audit/verify" in e for e in endpoints)
     assert any("/material-audit/run" in e for e in endpoints)
+    assert any("/debug/frontend-log" in e for e in endpoints)
+
+
+def test_frontend_debug_event_is_written_with_client_timestamp(client, caplog):
+    with caplog.at_level(logging.INFO, logger="visa-helper.frontend"):
+        response = client.post("/debug/frontend-log", json={
+            "sequence": 7,
+            "client_timestamp": "2026-09-05T10:12:13.456Z",
+            "client_epoch_ms": 1788603133456,
+            "client_monotonic_ms": 1234.567,
+            "run_id": "local-audit-test-run",
+            "scope": "local-audit",
+            "event": "pdf.page.text-layer.checked",
+            "level": "info",
+            "message": "",
+            "details": {
+                "file_name": "lotus_new.pdf",
+                "page_number": 2,
+                "duration_ms": 18.25,
+            },
+        })
+    assert response.status_code == 204
+    assert "client_ts=2026-09-05T10:12:13.456Z" in caplog.text
+    assert "event=pdf.page.text-layer.checked" in caplog.text
+    assert "lotus_new.pdf" in caplog.text
 
 
 # ---------- form-assist ----------

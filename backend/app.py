@@ -31,6 +31,7 @@ from fastapi.staticfiles import StaticFiles
 
 from .modules.form_assist import router as form_assist_router
 from .modules.material_audit import router as material_audit_router
+from .shared.frontend_debug import router as frontend_debug_router
 
 # 日志格式: 人类可读 + 时间戳。Level: INFO 看 access log，DEBUG 看细节。
 # 所有日志（本服务 + uvicorn）统一写到一个文件 LOG_FILE（默认 backend/logs/backend.log），
@@ -69,6 +70,7 @@ SENSITIVE_BODY_PATHS = {
     "/material-audit/verify",
     "/form-assist/extract",
     "/form-assist/suggest",
+    "/debug/frontend-log",
 }
 
 app = FastAPI(title="visa-helper backend", version="0.1.0")
@@ -93,6 +95,7 @@ app.add_middleware(
 # 业务路由 — 每个 module 一个 prefix；module 内部自己写 endpoint。
 app.include_router(form_assist_router, prefix="/form-assist")
 app.include_router(material_audit_router, prefix="/material-audit")
+app.include_router(frontend_debug_router, prefix="/debug")
 
 # 静态前端 — 材料审核页面，同源挂在 /ui（html=True 使 /ui 直接返回 index.html）。
 # 用户浏览器访问 http://localhost:8000/ui 即可用，无需单独前端 server / 无 CORS。
@@ -162,6 +165,7 @@ def root() -> dict:
             "POST /material-audit/verify",
             "POST /material-audit/run",
             "GET  /material-audit/checklist?country=<IS|NO|...>",
+            "POST /debug/frontend-log",
         ],
     }
 

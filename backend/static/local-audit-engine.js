@@ -61,6 +61,7 @@ export function createLocalAuditContext({ country, visaType, checklist = [], pre
     checklist: [...checklist],
     documents: [...preprocessing.documents],
     preprocessing: {
+      pipeline_version: preprocessing.pipeline_version || null,
       created_at: preprocessing.created_at,
       processed_locally: preprocessing.processed_locally,
       raw_files_uploaded: preprocessing.raw_files_uploaded,
