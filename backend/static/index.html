@@ -88,7 +88,7 @@
           <div class="ws__crumb">
             <span class="ws__country" id="wsCountry">冰岛</span>
             <span class="ws__sep">·</span>
-            <span class="ws__hint">选择材料文件夹</span>
+            <span class="ws__hint">选择并预处理材料</span>
           </div>
           <button class="link-back" data-action="back-country">← 更换国家 / 重新开始</button>
         </div>
@@ -99,8 +99,9 @@
             <label id="pickerStep" class="workflow-step is-current">
               <input id="picker" type="file" webkitdirectory multiple hidden />
               <span class="workflow-step__number">1</span>
-              <span class="workflow-step__label">选择材料文件夹</span>
+              <span class="workflow-step__label">选择并预处理材料文件夹</span>
             </label>
+            <p id="preprocessingStatus" class="runstatus"></p>
             <div class="material-path" title="浏览器不会向网页提供本地绝对路径">
               <span>本地目录</span>
               <code id="materialsDir">尚未选择</code>
@@ -108,7 +109,7 @@
             <ul id="filelist" class="filelist" aria-live="polite"></ul>
             <button id="levelOneBtn" class="workflow-step" disabled>
               <span class="workflow-step__number">2</span>
-              <span class="workflow-step__label">本地识别并进行本地审核</span>
+              <span class="workflow-step__label">运行本地审核规则</span>
             </button>
             <p id="levelOneStatus" class="runstatus"></p>
             <button id="privacyBtn" class="workflow-step" disabled>
@@ -150,7 +151,7 @@
               <div id="levelOneSummary" class="summary"></div>
               <div id="levelOneResults" class="level-one-results"></div>
               <div id="levelOneEmpty" class="empty">
-                <span class="icon">①</span> 选择文件后，运行本地审核。
+                <span class="icon">①</span> 材料预处理完成后，运行本地审核规则。
               </div>
             </div>
 
@@ -202,6 +203,6 @@
     </section>
   </main>
 
-  <script src="./app.js?v=realtime-debug-v2" type="module"></script>
+  <script src="./app.js?v=preprocess-on-pick-v1" type="module"></script>
 </body>
 </html>

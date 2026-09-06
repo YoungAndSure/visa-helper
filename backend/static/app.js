@@ -31,6 +31,7 @@ const el = {
   wsCountry: $("#wsCountry"),
   picker: $("#picker"),
   pickerStep: $("#pickerStep"),
+  preprocessingStatus: $("#preprocessingStatus"),
   filelist: $("#filelist"),
   materialsDir: $("#materialsDir"),
   levelOneBtn: $("#levelOneBtn"),
@@ -75,9 +76,11 @@ let checklistLoadPromise = Promise.resolve();
 let currentFiles = [];
 let activeFileIdx = -1;
 let previewObjectUrl = null;
+let preprocessing = null;
 let localAudit = null;
 let redactionWorkspace = null;
 let safePackage = null;
+let preprocessingProcessing = false;
 let levelOneProcessing = false;
 let privacyProcessing = false;
 let previewGeneration = 0;
@@ -178,11 +181,12 @@ function goto(stageName) {
 
 function workspaceSnapshot() {
   return {
-    version: 2,
+    version: 3,
     country: el.countrySelect.value,
     activeTabName,
     activeFileIdx,
     materialsDir: el.materialsDir.textContent,
+    preprocessing,
     localAudit,
     redactionWorkspace,
     safePackage,
@@ -257,19 +261,20 @@ function setPrivacyBadge(mode, text) {
 }
 
 function updateWorkflowSteps() {
-  const hasFiles = currentFiles.length > 0;
+  const hasPreprocessing = Boolean(preprocessing);
   const hasLevelOneAudit = Boolean(localAudit);
   const hasSafePackage = Boolean(safePackage);
   const allConfirmed = Boolean(safePackage?.privacy?.user_reviewed);
-  el.pickerStep.classList.toggle("is-current", !hasFiles);
-  el.pickerStep.classList.toggle("is-complete", hasFiles);
-  el.levelOneBtn.classList.toggle("is-current", hasFiles && !hasLevelOneAudit && !levelOneProcessing);
+  el.pickerStep.classList.toggle("is-current", !hasPreprocessing);
+  el.pickerStep.classList.toggle("is-complete", hasPreprocessing);
+  el.levelOneBtn.classList.toggle("is-current", hasPreprocessing && !hasLevelOneAudit && !levelOneProcessing);
   el.levelOneBtn.classList.toggle("is-complete", hasLevelOneAudit);
   el.privacyBtn.classList.toggle("is-current", hasLevelOneAudit && !hasSafePackage && !privacyProcessing);
   el.privacyBtn.classList.toggle("is-complete", hasSafePackage);
   el.runBtn.classList.toggle("is-current", allConfirmed);
   el.runBtn.classList.toggle("is-complete", Boolean(el.results.innerHTML));
-  el.levelOneBtn.disabled = !hasFiles || levelOneProcessing || hasLevelOneAudit;
+  el.picker.disabled = preprocessingProcessing;
+  el.levelOneBtn.disabled = !hasPreprocessing || preprocessingProcessing || levelOneProcessing || hasLevelOneAudit;
   el.privacyBtn.disabled = !hasLevelOneAudit || privacyProcessing || hasSafePackage;
   el.confirmAllBtn.disabled = !hasSafePackage || allConfirmed;
   el.runBtn.disabled = !allConfirmed;
@@ -282,7 +287,8 @@ function revokePreviewUrl() {
   }
 }
 
-function resetPrivacyState() {
+function resetProcessingState() {
+  preprocessing = null;
   localAudit = null;
   redactionWorkspace = null;
   safePackage = null;
@@ -293,6 +299,8 @@ function resetPrivacyState() {
   el.privacyValidation.textContent = "";
   el.privacyValidation.className = "privacy-validation";
   el.privacyStatus.textContent = "";
+  el.preprocessingStatus.textContent = "";
+  el.preprocessingStatus.classList.remove("runstatus--err");
   el.levelOneStatus.textContent = "";
   el.levelOneStatus.classList.remove("runstatus--err");
   el.levelOneSummary.innerHTML = "";
@@ -331,7 +339,7 @@ function resetWorkspace() {
     pane.classList.toggle("tabpane--active", pane.id === "tab-checklist");
   });
   el.privacyStatusBar.hidden = true;
-  resetPrivacyState();
+  resetProcessingState();
 }
 
 async function onPick() {
@@ -340,7 +348,7 @@ async function onPick() {
   el.previewArea.innerHTML = "";
   el.previewEmpty.style.display = "";
   activeFileIdx = -1;
-  resetPrivacyState();
+  resetProcessingState();
   updateWorkflowSteps();
 
   if (!currentFiles.length) return;
@@ -359,6 +367,46 @@ async function onPick() {
     console.warn("无法保存本地文件会话", error);
   }
   queueWorkspaceSave();
+  await runLocalPreprocessing();
+}
+
+async function runLocalPreprocessing() {
+  if (!currentFiles.length || preprocessingProcessing) return;
+  const preprocessingDebugRun = createFrontendDebugRun("local-preprocessing", {
+    country: el.countrySelect.value,
+    file_count: currentFiles.length,
+    files: selectedFileDebugDetails(),
+  });
+  preprocessingProcessing = true;
+  preprocessing = null;
+  localAudit = null;
+  redactionWorkspace = null;
+  safePackage = null;
+  el.preprocessingStatus.textContent = "正在读取并预处理本地材料…";
+  el.preprocessingStatus.classList.remove("runstatus--err");
+  updateWorkflowSteps();
+  try {
+    preprocessing = await preprocessFilesLocally(currentFiles, {
+      onProgress: ({ current, total, label }) => {
+        el.preprocessingStatus.textContent = `${label} · ${current}/${total}`;
+      },
+      debugLog: preprocessingDebugRun.log,
+    });
+    el.preprocessingStatus.textContent = "材料预处理完成，可运行本地审核。";
+    preprocessingDebugRun.finish({
+      document_count: preprocessing.documents.length,
+      pipeline_version: preprocessing.pipeline_version,
+    });
+    queueWorkspaceSave();
+  } catch (error) {
+    preprocessingDebugRun.fail(error);
+    preprocessing = null;
+    el.preprocessingStatus.textContent = `材料预处理失败：${error.message}`;
+    el.preprocessingStatus.classList.add("runstatus--err");
+  } finally {
+    preprocessingProcessing = false;
+    updateWorkflowSteps();
+  }
 }
 
 function renderFileList() {
@@ -411,24 +459,18 @@ function renderLevelOneAudit(audit) {
 }
 
 async function runLevelOneAudit() {
-  if (!currentFiles.length || levelOneProcessing) return;
+  if (!preprocessing || levelOneProcessing) return;
   localDebugRun = createFrontendDebugRun("local-audit", {
     country: el.countrySelect.value,
-    file_count: currentFiles.length,
-    files: selectedFileDebugDetails(),
+    document_count: preprocessing.documents.length,
+    pipeline_version: preprocessing.pipeline_version,
   });
   levelOneProcessing = true;
   updateWorkflowSteps();
-  el.levelOneStatus.textContent = "本地识别中…";
+  el.levelOneStatus.textContent = "正在运行本地审核规则…";
   el.levelOneStatus.classList.remove("runstatus--err");
   switchTab("level-one");
   try {
-    const preprocessing = await preprocessFilesLocally(currentFiles, {
-      onProgress: ({ current, total, label }) => {
-        el.levelOneStatus.textContent = `${label} · ${current}/${total}`;
-      },
-      debugLog: localDebugRun.log,
-    });
     await checklistLoadPromise;
     const country = el.countrySelect.value;
     const context = createLocalAuditContext({
@@ -804,15 +846,19 @@ function renderResults(data) {
 
 async function restoreSavedWorkspace() {
   restoringWorkspace = true;
+  let restartPreprocessing = false;
   try {
     const restored = await restoreWorkspaceSession();
     if (!restored) return;
     const { state, files } = restored;
     currentFiles = filterSelectedFiles(files);
     const restoredAudit = state.localAudit || null;
-    const staleRecognition = restoredAudit?.schema_version === "local-audit-result/v1"
-      && restoredAudit.context?.preprocessing?.pipeline_version !== LOCAL_RECOGNITION_PIPELINE_VERSION;
-    const currentAuditSchema = restoredAudit?.schema_version === "local-audit-result/v1" && !staleRecognition;
+    const restoredPreprocessing = state.preprocessing || restoredAudit?.context?.preprocessing || null;
+    const currentPreprocessing = restoredPreprocessing?.schema_version === "local-document-context/v1"
+      && restoredPreprocessing.pipeline_version === LOCAL_RECOGNITION_PIPELINE_VERSION;
+    const staleRecognition = Boolean(restoredPreprocessing) && !currentPreprocessing;
+    preprocessing = currentPreprocessing ? restoredPreprocessing : null;
+    const currentAuditSchema = restoredAudit?.schema_version === "local-audit-result/v1" && currentPreprocessing;
     localAudit = currentAuditSchema ? restoredAudit : null;
     redactionWorkspace = currentAuditSchema && state.redactionWorkspace?.schema_version === "local-redaction-workspace/v1"
       ? state.redactionWorkspace : null;
@@ -832,12 +878,15 @@ async function restoreSavedWorkspace() {
     await checklistLoadPromise;
     goto("work");
     renderFileList();
+    if (preprocessing) {
+      el.preprocessingStatus.textContent = "已恢复材料预处理结果。";
+    } else if (staleRecognition) {
+      el.preprocessingStatus.textContent = "识别模块已升级，请重新选择材料文件夹并预处理。";
+      el.preprocessingStatus.classList.add("runstatus--err");
+    }
     if (localAudit) {
       renderLevelOneAudit(localAudit);
       el.levelOneStatus.textContent = "已恢复本地审核结果。";
-    } else if (staleRecognition) {
-      el.levelOneStatus.textContent = "识别模块已升级，请重新运行本地审核后再擦除隐私。";
-      el.levelOneStatus.classList.add("runstatus--err");
     }
     if (safePackage && redactionWorkspace) {
       renderPrivacySummary(redactionWorkspace);
@@ -854,11 +903,15 @@ async function restoreSavedWorkspace() {
     if (!currentFiles.length) {
       el.levelOneStatus.textContent = "审核页面已恢复，但浏览器未能恢复文件；请重新选择材料文件夹。";
       el.levelOneStatus.classList.add("runstatus--err");
+    } else if (!preprocessing) {
+      restartPreprocessing = true;
+      el.preprocessingStatus.textContent = "上次预处理未完成，正在从本地副本重新开始…";
     }
   } catch (error) {
     console.warn("无法恢复本地审核会话", error);
   } finally {
     restoringWorkspace = false;
+    if (restartPreprocessing) void runLocalPreprocessing();
   }
 }
 
