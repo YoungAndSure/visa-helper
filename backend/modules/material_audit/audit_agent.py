@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 import time
 
-from ...shared.llm import llm_available
+from ...shared.agent_runner import agent_available
 from ..audit_rules.store import RuleStore
 from .annotations import build_annotations
 from .rule_agent import Judge, LLMRuleAgent, validate_evidence
@@ -28,7 +28,7 @@ class AuditAgent:
             return self._empty(req, trace, "未找到该国家和签证类型的已发布规则。")
         rules = [rule for rule in ruleset.rules if rule.enabled and not rule.requires_private_data and rule.review_scope in req.review_scopes]
         trace.append(AgentStep(name="rule_load", status="completed", detail=f"版本 {ruleset.version}，选中 {len(rules)} 条规则"))
-        unavailable = not req.use_llm or not llm_available()
+        unavailable = not req.use_llm or not agent_available()
         warnings = []
         if unavailable:
             warnings.append("模型未启用或未配置：未执行远端判断，WARNING 不代表材料通过或不合格。")

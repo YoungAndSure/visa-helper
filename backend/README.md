@@ -34,6 +34,12 @@ backend/.venv/bin/python -m uvicorn backend.app:app --reload --host 127.0.0.1 --
 
 ## 材料审核前端页面
 
+全量远端审核与离线规则生成已改走可替换的 Agent 执行器：`run(prompt: str) -> str`，
+当前调用本机 Claude CLI；填表伴侣与旧 verify 接口仍保留原模型客户端。
+权限/命令白名单由 Claude settings 管理，工具/SQL 后续通过 Claude/MCP 配置加载。
+配置入口与临时脱敏文件清理机制见 [Agent CLI 设计](../docs/agent-cli.md)。
+本轮不修改本机认证或自动取消 `LOG_ONLY=1`。
+
 后端同源挂了一个纯 HTML+JS 的材料审核页面（`backend/static/`），起服务后浏览器直接开：
 
 ```
@@ -78,7 +84,7 @@ http://localhost:8000/ui
 
 ```bash
 curl localhost:8000/healthz
-# {"status":"ok","llm_available":true|false}
+# {"status":"ok","llm_available":false,"audit_agent_available":false,"log_only":true}
 ```
 
 ### 前端实时调试日志

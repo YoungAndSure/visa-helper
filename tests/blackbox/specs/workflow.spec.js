@@ -23,7 +23,10 @@ async function chooseTextFolder(page, testInfo) {
 test.beforeEach(async ({ page }) => {
   const health = await page.request.get("/healthz");
   expect(health.ok()).toBe(true);
-  expect((await health.json()).llm_available, "黑盒测试服务必须设置 LOG_ONLY=1，禁止付费模型调用").toBe(false);
+  const state = await health.json();
+  expect(state.log_only, "黑盒测试服务必须设置 LOG_ONLY=1，禁止付费模型调用").toBe(true);
+  expect(state.llm_available).toBe(false);
+  expect(state.audit_agent_available).toBe(false);
   // Debug logs are unrelated to the assertions and must not clutter the user's log.
   await page.route("**/debug/frontend-log", route => route.fulfill({ status: 204 }));
 });

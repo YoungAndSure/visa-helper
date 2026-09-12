@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from uuid import uuid4
 
-from ...shared.llm import call_content_json, llm_available
+from ...shared.agent_runner import agent_available, create_agent_runner, parse_json_object
 from ..audit_rules.schemas import RuleSet
 from ..audit_rules.store import RuleStore
 
@@ -60,15 +60,15 @@ def generate_from_directory(directory: Path, country: str, visa_type: str, store
     store.key(country, visa_type)
     sources = read_sources(directory)
     if generate is None:
-        if not llm_available():
-            raise ValueError("LLM is unavailable; no draft generated")
-        generate = call_content_json
+        if not agent_available():
+            raise ValueError("Agent is unavailable; no draft generated")
+        generate = create_agent_runner().run
     version = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ-") + uuid4().hex[:8]
     log.info("generation.started country=%s visa_type=%s sources=%d", country, visa_type, len(sources))
-    output = generate(system=SYSTEM, content=[{"type": "text", "text": json.dumps({
+    output = parse_json_object(generate(SYSTEM + "\n\n" + json.dumps({
         "country": country, "visa_type": visa_type, "version": version, "status": "draft",
         "sources": sources, "output_schema": RuleSet.model_json_schema(),
-    }, ensure_ascii=False)}], max_tokens=12000)
+    }, ensure_ascii=False)))
     ruleset = RuleSet.model_validate(output)
     if (ruleset.country, ruleset.visa_type, ruleset.version, ruleset.status) != (country, visa_type, version, "draft"):
         raise ValueError("generated rule set identity mismatch")

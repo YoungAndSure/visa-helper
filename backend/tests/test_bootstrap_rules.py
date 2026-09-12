@@ -40,7 +40,7 @@ def test_seed_installation_is_repeatable_and_preserves_other_rules(tmp_path):
 def test_six_rules_execute_through_real_orchestrator_with_fake_judge(tmp_path, monkeypatch):
     store = RuleStore(tmp_path / "rules", tmp_path / "checklists")
     install(store)
-    monkeypatch.setattr("backend.modules.material_audit.audit_agent.llm_available", lambda: True)
+    monkeypatch.setattr("backend.modules.material_audit.audit_agent.agent_available", lambda: True)
     judge = Mock()
     judge.evaluate.return_value = RuleDecision(
         status="WARNING", reason="Synthetic test: insufficient evidence", checked_items=["Synthetic check"], confidence=0,

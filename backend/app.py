@@ -146,9 +146,12 @@ async def access_log_middleware(
 def healthz() -> dict:
     """Liveness probe. 不调用 LLM。"""
     from .shared.llm import llm_available
+    from .shared.agent_runner import agent_available
     return {
         "status": "ok",
         "llm_available": llm_available(),
+        "audit_agent_available": agent_available(),
+        "log_only": os.environ.get("LOG_ONLY", "0") == "1",
     }
 
 

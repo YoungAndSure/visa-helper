@@ -53,8 +53,8 @@ def publish(store, rules, version="v1", country="IS", visa_type="schengen-touris
 
 @pytest.fixture(autouse=True)
 def prevent_live_llm(monkeypatch):
-    monkeypatch.setattr("backend.modules.material_audit.audit_agent.llm_available", lambda: True)
-    monkeypatch.setattr("backend.modules.rule_generation.service.llm_available", lambda: False)
+    monkeypatch.setattr("backend.modules.material_audit.audit_agent.agent_available", lambda: True)
+    monkeypatch.setattr("backend.modules.rule_generation.service.agent_available", lambda: False)
 
 
 def test_rule_selection_failure_isolation_and_annotations(store):
@@ -81,7 +81,7 @@ def test_model_disabled_never_calls_judge(store):
 
 
 def test_no_configuration_never_calls_judge(store, monkeypatch):
-    monkeypatch.setattr("backend.modules.material_audit.audit_agent.llm_available", lambda: False)
+    monkeypatch.setattr("backend.modules.material_audit.audit_agent.agent_available", lambda: False)
     publish(store, [rule()])
     judge = Mock()
     result = AuditAgent(store, judge).run(request())
@@ -171,32 +171,40 @@ def test_duplicate_material_ids_rejected():
         request(materials=materials * 2)
 
 
-def test_multimodal_adapter_sends_sanitized_content_and_rule(monkeypatch):
-    call = Mock(return_value=decision().model_dump())
-    monkeypatch.setattr("backend.modules.material_audit.rule_agent.call_content_json", call)
-    result = LLMRuleAgent().evaluate(rule(), request().materials)
+def test_agent_adapter_sends_sanitized_files_and_rule():
+    workdirs = []
+    def factory(workdir):
+        workdirs.append(workdir)
+        def run(prompt):
+            data = json.loads(prompt[prompt.index('{'):])
+            assert data["rule"]["id"] == "format"
+            assert data["materials"][0]["material_id"] == "material-001"
+            file = workdir / data["materials"][0]["file"]
+            assert file.read_bytes() == b"\xff\xd8\xffsynthetic-jpeg-test"
+            assert file.stat().st_mode & 0o777 == 0o600
+            assert "base64" not in prompt and "local-file-001" not in prompt
+            return decision().model_dump_json()
+        return SimpleNamespace(run=run)
+    result = LLMRuleAgent(factory).evaluate(rule(), request().materials)
     assert result.status == "FAIL"
-    content = call.call_args.kwargs["content"]
-    assert content[1]["type"] == "image" and content[1]["source"]["type"] == "base64"
-    assert json.loads(content[-1]["text"])["rule"]["id"] == "format"
+    assert not workdirs[0].exists()
 
 
-def test_multimodal_adapter_rejects_size_mismatch(monkeypatch):
+def test_agent_adapter_rejects_size_mismatch():
     materials = request().materials
     materials[0].sanitized_file.size = 1
     call = Mock()
-    monkeypatch.setattr("backend.modules.material_audit.rule_agent.call_content_json", call)
     with pytest.raises(ValueError):
-        LLMRuleAgent().evaluate(rule(), materials)
+        LLMRuleAgent(call).evaluate(rule(), materials)
     call.assert_not_called()
 
 
-def fake_generate(**kwargs):
-    prompt = json.loads(kwargs["content"][0]["text"])
+def fake_generate(text):
+    prompt = json.loads(text[text.index('{'):])
     source = prompt["sources"][0]
     item = rule().model_dump()
     item["sources"] = [{"file": source["file"], "sha256": source["sha256"], "excerpt": source["text"]}]
-    return {key: prompt[key] for key in ("country", "visa_type", "version", "status")} | {"rules": [item]}
+    return json.dumps({key: prompt[key] for key in ("country", "visa_type", "version", "status")} | {"rules": [item]})
 
 
 def test_generation_provenance_draft_then_publish(tmp_path, store):
@@ -211,14 +219,28 @@ def test_generation_provenance_draft_then_publish(tmp_path, store):
     assert store.load("IS", "schengen-tourism").version == parsed.version
 
 
+def test_generation_default_uses_shared_text_runner(tmp_path, store, monkeypatch):
+    sources = tmp_path / "sources"
+    sources.mkdir()
+    (sources / "official.md").write_text("Synthetic requirement", encoding="utf-8")
+    runner = Mock()
+    runner.run.side_effect = fake_generate
+    monkeypatch.setattr("backend.modules.rule_generation.service.agent_available", lambda: True)
+    monkeypatch.setattr("backend.modules.rule_generation.service.create_agent_runner", lambda: runner)
+    draft = generate_from_directory(sources, "IS", "schengen-tourism", store)
+    assert draft.exists()
+    runner.run.assert_called_once()
+    assert isinstance(runner.run.call_args.args[0], str)
+
+
 def test_generation_rejects_hallucinated_source(tmp_path, store):
     sources = tmp_path / "sources"
     sources.mkdir()
     (sources / "notes.txt").write_text("Only source")
-    def bad_generate(**kwargs):
-        output = fake_generate(**kwargs)
+    def bad_generate(text):
+        output = json.loads(fake_generate(text))
         output["rules"][0]["sources"][0]["excerpt"] = "Invented requirement"
-        return output
+        return json.dumps(output)
     with pytest.raises(ValueError):
         generate_from_directory(sources, "IS", "schengen-tourism", store, bad_generate)
     assert not (store.root / "drafts").exists()
@@ -228,7 +250,7 @@ def test_generation_without_model_writes_nothing(tmp_path, store):
     sources = tmp_path / "sources"
     sources.mkdir()
     (sources / "notes.txt").write_text("Only source")
-    with pytest.raises(ValueError, match="LLM"):
+    with pytest.raises(ValueError, match="Agent"):
         generate_from_directory(sources, "IS", "schengen-tourism", store)
     assert not store.root.exists()
 
