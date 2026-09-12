@@ -4,6 +4,12 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>visa-helper · 材料审核</title>
+  <script>
+    // File URLs cannot run the same-origin API and module workflow.
+    if (window.location.protocol === "file:") {
+      window.location.replace("http://127.0.0.1:8000/ui/" + window.location.search + window.location.hash);
+    }
+  </script>
   <link rel="stylesheet" href="./styles.css?v=visual-redaction-v1" />
 </head>
 <body>
@@ -137,6 +143,7 @@
 
             <div id="tab-checklist" class="tabpane tabpane--active">
               <div id="checklistMeta" class="meta"></div>
+              <button id="checklistRetry" class="btn btn--primary" type="button" hidden>重新加载清单</button>
               <ol id="checklist" class="checklist"></ol>
             </div>
 
@@ -203,6 +210,6 @@
     </section>
   </main>
 
-  <script src="./app.js?v=preprocess-on-pick-v1" type="module"></script>
+  <script src="./app.js?v=checklist-retry-selection-v1" type="module"></script>
 </body>
 </html>

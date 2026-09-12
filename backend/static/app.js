@@ -17,10 +17,11 @@ import {
   prepareRedactionWorkspace,
   renderRedactionEditor,
   validateSafePackage,
-} from "./privacy.js?v=visual-redaction-v2";
+} from "./privacy.js?v=selection-preview-v3";
 import { filterSelectedFiles } from "./file-filter.js?v=ignored-files-v1";
 import { clearWorkspaceSession, restoreWorkspaceSession, saveWorkspaceFiles, saveWorkspaceState } from "./workspace-session.js?v=workspace-resume-v1";
 import { createFrontendDebugRun } from "./frontend-debug.js?v=realtime-debug-v2";
+import { fetchChecklist } from "./checklist-loader.js";
 
 const API = "";
 const $ = (selector) => document.querySelector(selector);
@@ -43,6 +44,7 @@ const el = {
   runBtn: $("#runBtn"),
   runStatus: $("#runStatus"),
   checklistMeta: $("#checklistMeta"),
+  checklistRetry: $("#checklistRetry"),
   checklist: $("#checklist"),
   previewArea: $("#previewArea"),
   previewEmpty: $("#previewEmpty"),
@@ -73,6 +75,8 @@ const el = {
 let checklistIndex = new Map();
 let checklistItems = [];
 let checklistLoadPromise = Promise.resolve();
+let checklistController = null;
+let checklistReady = false;
 let currentFiles = [];
 let activeFileIdx = -1;
 let previewObjectUrl = null;
@@ -232,12 +236,25 @@ async function checkHealth() {
 }
 
 async function loadChecklist(country) {
+  checklistController?.abort();
+  const controller = new AbortController();
+  checklistController = controller;
+  checklistReady = false;
+  el.checklistRetry.hidden = true;
+  el.checklistRetry.disabled = true;
   el.checklist.innerHTML = "";
   el.checklistMeta.textContent = "加载中…";
   checklistIndex = new Map();
   checklistItems = [];
   try {
-    const data = await api(`/material-audit/checklist?country=${encodeURIComponent(country)}`);
+    const data = await fetchChecklist(country, {
+      signal: controller.signal,
+      onAttempt: (attempt, total) => {
+        el.checklistMeta.textContent = attempt === 1 ? "加载中…" : `清单暂未加载成功，正在重试（${attempt}/${total}）…`;
+      },
+    });
+    if (controller.signal.aborted) return;
+    checklistReady = true;
     checklistItems = data.items || [];
     el.checklistMeta.innerHTML =
       `<b>${escapeHtml(data.country)}</b> · 共 ${data.items.length} 项要求` +
@@ -251,7 +268,11 @@ async function loadChecklist(country) {
       el.checklist.appendChild(row);
     }
   } catch (error) {
-    el.checklistMeta.textContent = `加载清单失败：${error.message}`;
+    if (controller.signal.aborted) return;
+    el.checklistMeta.textContent = "尝试 3 次后仍无法加载清单，请确认后端服务在线，然后点击重试。";
+    el.checklistRetry.hidden = false;
+    el.checklistRetry.disabled = false;
+    pageDebugRun.log("checklist.failed", { country, error }, "warning");
   }
 }
 
@@ -472,6 +493,7 @@ async function runLevelOneAudit() {
   switchTab("level-one");
   try {
     await checklistLoadPromise;
+    if (!checklistReady) throw new Error("要求清单尚未加载成功，请在「要求清单」页点击重新加载清单。");
     const country = el.countrySelect.value;
     const context = createLocalAuditContext({
       country,
@@ -937,6 +959,9 @@ document.querySelectorAll("[data-action]").forEach((button) => {
 });
 
 el.picker.addEventListener("change", onPick);
+el.checklistRetry.addEventListener("click", () => {
+  checklistLoadPromise = loadChecklist(el.countrySelect.value);
+});
 el.levelOneBtn.addEventListener("click", runLevelOneAudit);
 el.privacyBtn.addEventListener("click", processPrivacy);
 el.confirmAllBtn.addEventListener("click", confirmAllMaterials);

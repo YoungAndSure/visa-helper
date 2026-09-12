@@ -503,22 +503,57 @@ export async function renderRedactionEditor(material, file, container, { onChang
     overlay.className = "redaction-page__overlay"; overlay.width = page.width; overlay.height = page.height;
     overlays.push(overlay); surface.append(page.canvas, overlay); wrap.append(label, surface); pageHost.appendChild(wrap);
     let start = null;
-    overlay.addEventListener("pointerdown", (event) => {
+    let activePointer = null;
+    function point(event) {
       const rect = overlay.getBoundingClientRect();
-      start = { x: (event.clientX - rect.left) * overlay.width / rect.width, y: (event.clientY - rect.top) * overlay.height / rect.height };
+      return {
+        x: Math.max(0, Math.min(overlay.width, (event.clientX - rect.left) * overlay.width / rect.width)),
+        y: Math.max(0, Math.min(overlay.height, (event.clientY - rect.top) * overlay.height / rect.height)),
+      };
+    }
+    function selection(end) {
+      return { x: Math.min(start.x, end.x), y: Math.min(start.y, end.y),
+        width: Math.abs(end.x - start.x), height: Math.abs(end.y - start.y) };
+    }
+    function cancelSelection() {
+      start = null;
+      activePointer = null;
+      redraw();
+    }
+    overlay.addEventListener("pointerdown", (event) => {
+      if (event.button !== 0 || activePointer !== null) return;
+      event.preventDefault();
+      start = point(event);
+      activePointer = event.pointerId;
       overlay.setPointerCapture(event.pointerId);
     });
+    overlay.addEventListener("pointermove", (event) => {
+      if (!start || event.pointerId !== activePointer) return;
+      const box = selection(point(event));
+      redraw();
+      const context = overlay.getContext("2d");
+      const scale = overlay.width / overlay.getBoundingClientRect().width;
+      context.save();
+      context.lineWidth = 2 * scale;
+      context.setLineDash([6 * scale, 4 * scale]);
+      context.strokeStyle = "#fff";
+      context.strokeRect(box.x, box.y, box.width, box.height);
+      context.lineDashOffset = 6 * scale;
+      context.strokeStyle = "#1769aa";
+      context.strokeRect(box.x, box.y, box.width, box.height);
+      context.restore();
+    });
     overlay.addEventListener("pointerup", (event) => {
-      if (!start) return;
-      const rect = overlay.getBoundingClientRect();
-      const end = { x: (event.clientX - rect.left) * overlay.width / rect.width, y: (event.clientY - rect.top) * overlay.height / rect.height };
-      const x = Math.max(0, Math.min(start.x, end.x)); const y = Math.max(0, Math.min(start.y, end.y));
-      const width = Math.min(overlay.width - x, Math.abs(end.x - start.x)); const height = Math.min(overlay.height - y, Math.abs(end.y - start.y));
-      start = null;
+      if (!start || event.pointerId !== activePointer) return;
+      const { x, y, width, height } = selection(point(event));
+      cancelSelection();
+      if (overlay.hasPointerCapture(event.pointerId)) overlay.releasePointerCapture(event.pointerId);
       if (width < 5 || height < 5) return;
       material.pages[index].redactions.push({ id: crypto.randomUUID(), type: "manual", source: "manual", x, y, width, height });
       material.sanitized_file = null; material.review_status = "needs_review"; redraw(); onChange(material);
     });
+    overlay.addEventListener("pointercancel", cancelSelection);
+    overlay.addEventListener("lostpointercapture", cancelSelection);
   });
   undo.addEventListener("click", () => {
     for (let index = material.pages.length - 1; index >= 0; index -= 1) {
