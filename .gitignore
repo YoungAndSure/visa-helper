@@ -19,3 +19,11 @@ extension/node_modules/
 extension/.vite-cache/
 *.log
 .DS_Store
+
+# Administrator rule sources / generated drafts may contain licensed reference text.
+data/rules/sources/**
+!data/rules/sources/**/
+!data/rules/sources/**/.gitkeep
+data/rules/drafts/
+data/rules/versions/
+data/rules/published/

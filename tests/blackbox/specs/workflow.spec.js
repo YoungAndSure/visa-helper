@@ -21,6 +21,9 @@ async function chooseTextFolder(page, testInfo) {
 }
 
 test.beforeEach(async ({ page }) => {
+  const health = await page.request.get("/healthz");
+  expect(health.ok()).toBe(true);
+  expect((await health.json()).llm_available, "黑盒测试服务必须设置 LOG_ONLY=1，禁止付费模型调用").toBe(false);
   // Debug logs are unrelated to the assertions and must not clutter the user's log.
   await page.route("**/debug/frontend-log", route => route.fulfill({ status: 204 }));
 });
@@ -130,9 +133,11 @@ test("JPG 预处理、隐私页卡保持、拖动预览和撤销、确认后发�
   await page.locator("#confirmAllBtn").click();
   await expect(page.locator("#runBtn")).toBeEnabled();
   const requestPromise = page.waitForRequest("**/material-audit/run");
+  const responsePromise = page.waitForResponse("**/material-audit/run");
   await page.locator("#runBtn").click();
   const payload = (await requestPromise).postDataJSON();
   expect(payload.schema_version).toBe("privacy-files/v1");
+  expect(payload.use_llm).toBe(true);
   expect(payload.privacy.user_reviewed).toBe(true);
   expect(payload.materials[0].sanitized_file.content).toMatch(/^data:image\/jpeg;base64,/);
   expect(payload.materials[0].sanitized_file.content).not.toBe(dataUrl);
@@ -146,5 +151,9 @@ test("JPG 预处理、隐私页卡保持、拖动预览和撤销、确认后发�
   }, payload.materials[0].sanitized_file.content);
   expect(exportedPixel[3]).toBe(255);
   expect(exportedPixel.slice(0, 3).every(channel => channel < 16)).toBe(true);
-  await expect(page.locator("#runStatus")).toContainText("完成");
+  const report = await (await responsePromise).json();
+  expect(report.rule_set_version).toBeTruthy();
+  expect(report.results.length).toBeGreaterThan(0);
+  expect(report.results.every(result => result.rule_id && result.execution_status === "skipped" && result.status === "WARNING")).toBe(true);
+  await expect(page.locator("#runStatus")).toContainText("审核未全部完成");
 });

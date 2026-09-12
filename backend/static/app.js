@@ -226,7 +226,7 @@ function switchTab(name) {
 async function checkHealth() {
   try {
     const health = await api("/healthz");
-    const llm = health.llm_available ? "LLM 已配置" : "LLM 未配置（走 mock）";
+    const llm = health.llm_available ? "LLM 已配置" : "LLM 未启用（不执行远端判断）";
     el.healthText.textContent = `后端在线 · ${llm}`;
     el.health.className = "health health--ok";
   } catch {
@@ -808,12 +808,14 @@ async function runAudit() {
         materials: safePackage.materials,
         privacy: safePackage.privacy,
         review_scopes: ["checklist", "risk"],
-        use_llm: false,
+        use_llm: true,
       }),
     });
     renderResults(data);
     auditResult = data;
-    el.runStatus.textContent = `完成 · 共 ${data.summary.total} 项`;
+    const incomplete = data.agent_trace?.some(step => step.status === "failed")
+      || data.results?.some(result => result.execution_status !== "completed");
+    el.runStatus.textContent = `${incomplete ? "报告已返回，审核未全部完成" : "完成"} · 共 ${data.summary.total} 项`;
     queueWorkspaceSave();
   } catch (error) {
     el.runStatus.textContent = `审核失败：${error.message}`;
@@ -841,12 +843,13 @@ function renderResults(data) {
     `<span class="chip">警告 <b>${summary.WARNING}</b></span>`,
     `<span class="chip">未通过 <b>${summary.FAIL}</b></span>`,
     `<span class="chip">不适用 <b>${summary.N_A}</b></span>`,
+    `<span class="chip">执行失败 <b>${summary.ERROR || 0}</b></span>`,
   ].join("");
   el.warnings.innerHTML = (summary.warnings || [])
     .map((warning) => `<div class="banner">${escapeHtml(warning)}</div>`).join("");
   el.results.innerHTML = (data.results || []).map((result) => {
     const checklistItem = checklistIndex.get(result.item_id);
-    const description = checklistItem ? shortDesc(checklistItem.description) : `第 ${result.item_id} 项`;
+    const description = result.title || (checklistItem ? shortDesc(checklistItem.description) : `第 ${result.item_id} 项`);
     const files = result.matched?.length
       ? `<span class="files">📎 ${result.matched.map(escapeHtml).join(", ")}</span>` : "";
     const llm = (result.llm_checks || []).map((check) =>
@@ -854,7 +857,7 @@ function renderResults(data) {
     ).join("");
     const badgeClass = result.status === "N/A" ? "NA" : result.status;
     return `<div class="row"><div class="row__id">${result.item_id}</div>` +
-      `<div class="row__desc">${escapeHtml(description)}${files}${llm}</div>` +
+      `<div class="row__desc">${escapeHtml(description)}${files}${llm}<div>${escapeHtml(result.details || "")}</div></div>` +
       `<span class="badge badge--${badgeClass}">${escapeHtml(result.status)}</span></div>`;
   }).join("");
 

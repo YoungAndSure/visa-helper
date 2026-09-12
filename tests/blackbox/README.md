@@ -14,7 +14,7 @@ npm test
 npm run test:headed
 ```
 
-默认访问 `http://127.0.0.1:8000`，使用已安装的 Google Chrome。可通过 `BLACKBOX_BASE_URL` 改测试服务器，`BLACKBOX_BROWSER=msedge` 改用已安装的 Edge。不要指向生产环境：发送测试会真实调用审核接口（目前返回 fake 结果）。
+默认访问 `http://127.0.0.1:8000`，使用已安装的 Google Chrome。可通过 `BLACKBOX_BASE_URL` 改测试服务器，`BLACKBOX_BROWSER=msedge` 改用已安装的 Edge。不要指向生产环境：发送测试会真实调用审核接口，测试服务必须设置 `LOG_ONLY=1`，避免产生模型费用。
 
 ## 覆盖范围
 

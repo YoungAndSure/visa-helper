@@ -107,3 +107,22 @@ def call_json(
         raw = "\n".join(lines[1:-1]) if len(lines) >= 2 else raw
     import json
     return json.loads(raw)
+
+
+def call_content_json(*, system: str, content: list[dict[str, Any]], max_tokens: int = 3000) -> dict[str, Any]:
+    """Bounded multimodal call; no file upload API or persistent model session."""
+    import json
+    with _client() as client:
+        message = client.with_options(timeout=60.0, max_retries=0).messages.create(
+            model=default_model(), max_tokens=max_tokens, system=system,
+            messages=[{"role": "user", "content": content}],
+        )
+    if message.stop_reason != "end_turn":
+        raise ValueError("model response incomplete")
+    raw = "\n".join(block.text for block in message.content if getattr(block, "type", None) == "text").strip()
+    if raw.startswith("```") and raw.endswith("```"):
+        raw = "\n".join(raw.splitlines()[1:-1])
+    result = json.loads(raw)
+    if not isinstance(result, dict):
+        raise ValueError("expected a JSON object")
+    return result

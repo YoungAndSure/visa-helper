@@ -7,6 +7,7 @@ from __future__ import annotations
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
+from .decisions import Annotation, Evidence
 
 
 # ---------- verify (单条 LLM 内容核对) ----------
@@ -90,9 +91,9 @@ class SafeMaterial(BaseModel):
 class RunRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    country: str = Field(description="国家短码 e.g. IS / NO")
+    country: str = Field(pattern=r"^[A-Z]{2}$", description="国家短码 e.g. IS / NO")
     schema_version: Literal["privacy-files/v1"] | None = None
-    visa_type: str = Field(default="schengen-tourism", max_length=100)
+    visa_type: str = Field(default="schengen-tourism", pattern=r"^[a-z0-9][a-z0-9-]{0,79}$")
     materials: list[SafeMaterial] = Field(default_factory=list, max_length=100)
     privacy: PrivacyMetadata = Field(default_factory=PrivacyMetadata)
     review_scopes: list[Literal["checklist", "risk"]] = Field(
@@ -103,10 +104,16 @@ class RunRequest(BaseModel):
         default=None,
         description="旧版兼容字段；新前端不再发送本地目录",
     )
-    use_llm: bool = Field(default=False, description="是否对每项调用 LLM 二次核对")
+    use_llm: bool = Field(default=True, description="逐规则调用模型；false 仅检查编排，不生成审核结论")
 
     @model_validator(mode="after")
     def validate_privacy_boundary(self) -> "RunRequest":
+        if len({material.material_id for material in self.materials}) != len(self.materials):
+            raise ValueError("duplicate material IDs")
+        if len({material.source_ref for material in self.materials}) != len(self.materials):
+            raise ValueError("duplicate source references")
+        if sum(len(material.sanitized_file.content) for material in self.materials) > 24_000_000:
+            raise ValueError("combined sanitized payload exceeds 24 MB; split the request")
         if self.materials and self.schema_version != "privacy-files/v1":
             raise ValueError("sanitized materials require schema_version=privacy-files/v1")
         if self.materials and not (
@@ -122,7 +129,16 @@ class RunRequest(BaseModel):
 
 class RunItemResult(BaseModel):
     item_id: int
-    status: str  # PASS | FAIL | WARNING | N/A
+    status: Literal["PASS", "FAIL", "WARNING", "N/A", "ERROR"]
+    rule_id: str = ""
+    title: str = ""
+    review_scope: str = "checklist"
+    execution_status: Literal["completed", "skipped", "failed"] = "completed"
+    checked_items: list[str] = Field(default_factory=list)
+    confidence: float | None = None
+    evidence: list[Evidence] = Field(default_factory=list)
+    annotations: list[Annotation] = Field(default_factory=list)
+    duration_ms: float = 0
     matched: list[str] = Field(default_factory=list)
     llm_checks: list[VerifyResponse] = Field(default_factory=list)
     details: str = ""
@@ -134,6 +150,7 @@ class RunSummary(BaseModel):
     FAIL: int = 0
     WARNING: int = 0
     N_A: int = 0
+    ERROR: int = 0
     warnings: list[str] = Field(default_factory=list)
 
 
@@ -145,6 +162,8 @@ class AgentStep(BaseModel):
 
 class RunResponse(BaseModel):
     country: str
+    visa_type: str = "schengen-tourism"
+    rule_set_version: str | None = None
     results: list[RunItemResult]
     summary: RunSummary
     markdown_report: str | None = Field(default=None, description="整份审核报告（可选）")

@@ -955,7 +955,7 @@ body {
 }
 .badge--PASS   { background: var(--pass-bg); color: var(--pass); }
 .badge--WARNING{ background: var(--warn-bg); color: var(--warn); }
-.badge--FAIL   { background: var(--fail-bg); color: var(--fail); }
+.badge--FAIL, .badge--ERROR { background: var(--fail-bg); color: var(--fail); }
 .badge--NA     { background: var(--na-bg);   color: var(--na); }
 
 .report { margin-top: 18px; font-size: 13px; }

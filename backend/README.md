@@ -49,13 +49,12 @@ http://localhost:8000/ui
 - 手动涂抹拖动时显示虚线选框，松开后填黑；取消拖动不增加遮挡。确认材料时把遮挡烧录进新文件，原文件保持不变。
 - 用户确认时把遮挡烧录进新 PDF/JPG；逐份确认后，才允许把匿名脱敏文件发给 `/material-audit/run` 进行远端审核
 - 桌面工作区固定在一屏内，材料内容在右侧卡片内部滚动；隐私处理汇总仅在底部状态条展示
-- 图片默认不进入 JSON 内容，只生成 `pending_manual_redaction` 对象
 - 审核中的页面刷新后会恢复当前国家、文件、页卡和审核进度；恢复数据仅存放在当前
   浏览器的本地会话中，点击「更换国家 / 重新开始」时清除，新会话打开时也会清理旧副本
 
 > ⚠️ 本地审核插件框架已经接入，目前只有材料可用性、可读性、OCR 能力缺口和护照候选定位等基础规则；
-> 隐私擦除已接入本地 OCR 与 PDF/JPG 手动涂抹框架，完整隐私识别、签证规则和 `/material-audit/run` 真实远端审核仍需继续完善。
-> 页面会显式标注「示例数据」。
+> 隐私擦除已接入本地 OCR 与 PDF/JPG 手动涂抹框架。远端审核已接入按规则调用模型的框架；
+> 完整规则、知识库检索和模型准确率仍需完善。模型未配置时会明确显示未执行，不再生成 FAKE 通过结果。
 
 浏览器端端到端回归测试单独放在 [`tests/blackbox`](../tests/blackbox/README.md)，使用独立 Chrome 会话和虚构材料，覆盖清单重试、文件过滤、步骤状态、本地 OCR、手动涂抹和脱敏文件发送。
 
@@ -73,7 +72,7 @@ http://localhost:8000/ui
 | form-assist | `POST /form-assist/extract` | 从 PDF 路径抽 ApplicantContext |
 | material-audit | `POST /material-audit/verify` | 单条 LLM 内容核对（YES/NO/UNCERTAIN） |
 | material-audit | `GET /material-audit/checklist?country=<IS>` | 拉某国要求清单 |
-| material-audit | `POST /material-audit/run` | 跑全量材料审核（当前返回 FAKE 示例结果，真实逻辑待实装） |
+| material-audit | `POST /material-audit/run` | 按国家/签证类型加载规则，逐条模型校验，返回结果、证据与标注 |
 
 ### `GET /healthz`
 
@@ -172,11 +171,29 @@ curl -X POST localhost:8000/material-audit/run \
     "review_scopes": ["checklist", "risk"],
     "use_llm": false
   }'
-# → 当前返回 FAKE results + agent_trace；真实审核步骤待实现
+# → use_llm=false 只联调报告结构，各条标记 skipped/WARNING；真实文件 + true 才请求模型
 ```
 
-> ⚠️ 当前 Audit Agent 已有 intake/checklist/knowledge/model/report 编排骨架，但后三项仍是
-> stub/FAKE。请求 Schema 已强制执行隐私标记，并只接受匿名、已确认的脱敏 PDF/JPG。
+> 上述 Base64 是协议占位示例，真实调用应由前端生成合法文件。`use_llm` 默认 true；
+> 本机 `LOG_ONLY=1` 仍强制禁用模型。请使用支持 PDF/JPG 多模态消息的模型和供应商接口；
+> 仅兼容文本消息的代理不一定支持此审核。调用失败返回 ERROR，不伪造审核结论。
+
+## 规则生成与发布
+
+参考资料放在 `data/rules/sources/IS/schengen-tourism/`，不要放用户材料。
+从仓库根目录执行（generate 会把管理员参考资料发送给配置的模型）：
+
+```bash
+backend/.venv/bin/python tools/rules/manage.py generate \
+  --country IS --visa-type schengen-tourism \
+  --input data/rules/sources/IS/schengen-tourism
+
+# 查看并修订生成的草稿后，用实际文件路径替换占位符：
+backend/.venv/bin/python tools/rules/manage.py publish --draft <草稿JSON路径>
+```
+
+支持 UTF-8 TXT/MD/JSON、带文字层的 PDF。草稿不参与审核，发布后下一次请求生效，保留版本历史。
+没有模型时生成命令明确失败，不写虚构规则。架构、格式、标注边界见 [远端规则审核设计](../docs/remote-rule-audit.md)。
 
 ## 设计要点
 
@@ -186,7 +203,7 @@ curl -X POST localhost:8000/material-audit/run \
   在送 prompt 前过滤 passport / ID / 卡号 / 手机 / email；Chrome 扩展仍持有
   真实值用于 fill-back，LLM 看不到
 - **CORS allowlist**：`http://localhost:5173/3000`（dev）+ `chrome-extension://<id>`
-- **错误策略**：LLM 失败降级为 mock/unknown 而不是 500，前端能继续跑
+- **错误策略**：远端单条规则失败返回 ERROR，其他规则继续；未配置模型返回 skipped/WARNING
 
 文件脱敏契约详见 [`../docs/privacy-safe-materials.md`](../docs/privacy-safe-materials.md)。
 
@@ -195,8 +212,8 @@ curl -X POST localhost:8000/material-audit/run \
 - Checklist 官方源文件放在 `data/checklists/sources/<COUNTRY>/`。
 - `tools/checklist/import_checklist.py` 生成 `data/checklists/parsed/` 下的 JSON。
 - 后端 `checklist_store.py` 按国家到默认签证类型的显式映射加载 JSON。
-- 旧版 `tools/material_audit/audit.py` 仅作为离线参考工具，真实在线审核后续在
-  `modules/material_audit/` 内实现。
+- 旧版 `tools/material_audit/audit.py` 仅作为离线参考工具，在线编排在 `modules/material_audit/`。
+- `modules/audit_rules/` 维护发布规则，`modules/rule_generation/` 负责离线资料分析与草稿生成。
 
 ## 测试
 
@@ -208,3 +225,4 @@ node --experimental-default-type=module --test backend/tests/js/test_local_audit
 Phase 0 覆盖：
 - `test_redact.py` — PII 脱敏（id / 护照 / 卡号 / 手机 / email）
 - `test_schemas.py` — /healthz / /suggest / form-fill & audit-verify 两种模式 + 无 LLM 降级
+- `test_rule_pipeline.py` — 规则选择/版本隔离、模型协议、错误隔离、标注校验、目录生成与发布；全部使用假模型，零付费调用

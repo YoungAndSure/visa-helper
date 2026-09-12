@@ -13,7 +13,7 @@ agent = AuditAgent()
 def run_audit(req: RunRequest) -> RunResponse:
     """把隐私安全请求交给可替换的 Agent 编排器。"""
     log.warning(
-        "/material-audit/run Agent scaffold invoked: country=%s materials=%d use_llm=%s",
+        "/material-audit/run rule audit: country=%s materials=%d use_llm=%s",
         req.country,
         len(req.materials),
         req.use_llm,

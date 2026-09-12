@@ -152,12 +152,8 @@ def test_material_audit_checklist_unknown_country_404(client):
     assert r.status_code == 404
 
 
-def test_material_audit_run_returns_fake_results(client):
-    """/run 当前返回基于 checklist 的 FAKE 示例结果（真实逻辑待实装）。
-
-    校验：结构完整（total == checklist 项数、逐项有 status）、
-    summary 各状态计数自洽、且带 FAKE 提示 warning。
-    """
+def test_material_audit_run_without_model_does_not_invent_verdicts(client):
+    """Disabled model preserves report shape without fabricating PASS/FAIL."""
     r = client.post("/material-audit/run", json={
         "country": "IS",
         "materials_dir": "/tmp/iceland",
@@ -175,8 +171,8 @@ def test_material_audit_run_returns_fake_results(client):
     assert summary["PASS"] + summary["FAIL"] + summary["WARNING"] + summary["N_A"] == total
     # 每条结果都有合法 status
     assert all(item["status"] in {"PASS", "FAIL", "WARNING", "N/A"} for item in body["results"])
-    # 明确标注为示例数据
-    assert any("FAKE" in w or "示例" in w for w in summary["warnings"])
+    assert all(item["status"] == "WARNING" and item["execution_status"] == "skipped" for item in body["results"])
+    assert any("未执行" in w for w in summary["warnings"])
 
 
 def test_material_audit_run_accepts_reviewed_privacy_safe_materials(client):
@@ -209,16 +205,16 @@ def test_material_audit_run_accepts_reviewed_privacy_safe_materials(client):
     })
     assert response.status_code == 200
     body = response.json()
-    assert body["results"][0]["matched"] == ["local-file-001"]
+    assert body["results"][0]["matched"] == []  # no model => no invented evidence
     assert [step["name"] for step in body["agent_trace"]] == [
         "privacy_intake",
-        "checklist_review",
-        "knowledge_retrieval",
-        "model_review",
+        "rule_load",
+        "rule_review",
+        "annotations",
         "report",
     ]
     assert body["agent_trace"][0]["status"] == "completed"
-    assert body["agent_trace"][2]["status"] == "pending"
+    assert body["agent_trace"][2]["status"] == "skipped"
 
 
 def test_material_audit_rejects_unreviewed_materials(client):
