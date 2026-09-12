@@ -425,6 +425,7 @@ body {
 .btn--lg { padding: 14px 22px; font-size: 15px; border-radius: 10px; }
 .btn--small { padding: 7px 11px; font-size: 12px; }
 .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn[hidden] { display: none; }
 
 .workflow-step {
   display: flex;
@@ -800,6 +801,7 @@ body {
 /* ---------- checklist ---------- */
 .meta { font-size: 13px; color: var(--text-2); margin-bottom: 12px; }
 .meta b { color: var(--text); font-weight: 600; }
+#checklistRetry { margin-bottom: 12px; }
 .checklist { margin: 0; padding: 0; list-style: none; counter-reset: item; }
 .checklist li {
   position: relative;
