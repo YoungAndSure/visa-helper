@@ -57,6 +57,8 @@ http://localhost:8000/ui
 > 隐私擦除已接入本地 OCR 与 PDF/JPG 手动涂抹框架，完整隐私识别、签证规则和 `/material-audit/run` 真实远端审核仍需继续完善。
 > 页面会显式标注「示例数据」。
 
+浏览器端端到端回归测试单独放在 [`tests/blackbox`](../tests/blackbox/README.md)，使用独立 Chrome 会话和虚构材料，覆盖清单重试、文件过滤、步骤状态、本地 OCR、手动涂抹和脱敏文件发送。
+
 ## Endpoints
 
 按业务模块拆 namespace（Phase A2 起）：
