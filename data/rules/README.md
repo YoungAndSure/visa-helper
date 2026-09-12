@@ -1,5 +1,8 @@
 # 远端审核规则库
 
+首次本地测试可安装已核对的 [欧盟通用规则子集](bootstrap/ec-schengen-general/README.md)：
+`backend/.venv/bin/python tools/rules/bootstrap_general.py`。这是六条测试种子，不是完整规则库。
+
 原始参考资料放在 `sources/<国家>/<签证类型>/`，例如 `sources/IS/schengen-tourism/`。
 只放管理员收集的规则来源，不要放用户签证材料。`generate` 会将参考资料正文发送给配置的模型。
 
