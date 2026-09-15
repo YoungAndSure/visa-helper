@@ -29,8 +29,9 @@ backend/.venv/bin/python -m uvicorn backend.app:app --reload --host 127.0.0.1 --
 异常退出时自动拉起。LaunchAgent 使用项目内的 Python 虚拟环境，所有输出统一写入
 `backend/logs/backend.log`。
 
-当前配置设置了 `LOG_ONLY=1`，因此开发阶段不会调用远端模型；需要联调真实模型时，
-应删除该环境变量并在安全的本机环境中配置模型凭据。
+后台使用项目专用的 `backend/config/claude.settings.local.json`。该文件已被 Git 忽略；
+只需填写 `env.ANTHROPIC_AUTH_TOKEN`，Claude 审核就会启用，无需重启后台。
+不要把 Key 写进可提交的 example 文件。测试服务仍应设置 `LOG_ONLY=1`。
 
 ## 材料审核前端页面
 
@@ -38,7 +39,7 @@ backend/.venv/bin/python -m uvicorn backend.app:app --reload --host 127.0.0.1 --
 当前调用本机 Claude CLI；填表伴侣与旧 verify 接口仍保留原模型客户端。
 权限/命令白名单由 Claude settings 管理，工具/SQL 后续通过 Claude/MCP 配置加载。
 配置入口与临时脱敏文件清理机制见 [Agent CLI 设计](../docs/agent-cli.md)。
-本轮不修改本机认证或自动取消 `LOG_ONLY=1`。
+本机 GLM 地址、模型映射和只读权限已预置；API Key 留给管理员本地填写。
 
 后端同源挂了一个纯 HTML+JS 的材料审核页面（`backend/static/`），起服务后浏览器直接开：
 
@@ -84,7 +85,8 @@ http://localhost:8000/ui
 
 ```bash
 curl localhost:8000/healthz
-# {"status":"ok","llm_available":false,"audit_agent_available":false,"log_only":true}
+# 未填 Claude API Key：audit_agent_available=false；填入后为 true
+# {"status":"ok","llm_available":false,"audit_agent_available":false,"log_only":false}
 ```
 
 ### 前端实时调试日志
@@ -181,7 +183,7 @@ curl -X POST localhost:8000/material-audit/run \
 ```
 
 > 上述 Base64 是协议占位示例，真实调用应由前端生成合法文件。`use_llm` 默认 true；
-> 本机 `LOG_ONLY=1` 仍强制禁用模型。请使用支持 PDF/JPG 多模态消息的模型和供应商接口；
+> 专用配置中的 API Key 为空时仍强制禁用 Claude Agent。请使用支持 PDF/JPG 视觉审核的模型；
 > 仅兼容文本消息的代理不一定支持此审核。调用失败返回 ERROR，不伪造审核结论。
 
 ## 规则生成与发布

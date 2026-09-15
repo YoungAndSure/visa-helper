@@ -42,7 +42,26 @@ def agent_available() -> bool:
     """Local readiness only; does not probe login, network or vision capabilities."""
     return (os.environ.get("LOG_ONLY", "0") != "1"
             and os.environ.get("AGENT_PROVIDER", "claude") == "claude"
-            and _executable() is not None)
+            and _executable() is not None
+            and _required_auth_configured())
+
+
+def _required_auth_configured() -> bool:
+    """Optionally require a real token before advertising the Agent as ready."""
+    if os.environ.get("CLAUDE_REQUIRE_AUTH_TOKEN", "0") != "1":
+        return True
+    direct = os.environ.get("ANTHROPIC_AUTH_TOKEN", "").strip()
+    if direct and direct != "YOUR_API_KEY":
+        return True
+    settings = os.environ.get("CLAUDE_SETTINGS_FILE")
+    if not settings:
+        return False
+    try:
+        payload = json.loads(Path(settings).read_text(encoding="utf-8"))
+        token = payload.get("env", {}).get("ANTHROPIC_AUTH_TOKEN", "")
+        return isinstance(token, str) and bool(token.strip()) and token.strip() != "YOUR_API_KEY"
+    except (OSError, ValueError, AttributeError):
+        return False
 
 
 def _config_path(variable: str) -> str | None:
@@ -87,6 +106,8 @@ class ClaudeRunner:
             raise AgentError("Agent disabled by LOG_ONLY")
         if not isinstance(prompt, str) or not prompt.strip():
             raise AgentError("Prompt must be non-empty text")
+        if not _required_auth_configured():
+            raise AgentError("Claude API key is not configured")
         if self.workdir is None:
             with TemporaryDirectory(prefix="visa-agent-") as directory:
                 return self._run(prompt, Path(directory))
@@ -102,13 +123,15 @@ class ClaudeRunner:
                 raise ValueError()
         except ValueError:
             raise AgentError("AGENT_TIMEOUT_SECONDS must be within 1..3600") from None
-        args = [executable, "--print", "--output-format", "json", "--no-session-persistence",
-                "--setting-sources", "user"]
+        args = [executable, "--bare", "--print", "--output-format", "json",
+                "--no-session-persistence", "--permission-mode", "dontAsk"]
         # No permission bypass, command allowlist, SQL or tool policy in Python.
         for variable, flag in (("CLAUDE_SETTINGS_FILE", "--settings"), ("CLAUDE_MCP_CONFIG", "--mcp-config")):
             path = _config_path(variable)
             if path:
                 args.extend([flag, path])
+        if os.environ.get("CLAUDE_MCP_CONFIG"):
+            args.append("--strict-mcp-config")
         if os.environ.get("AGENT_MODEL"):
             args.extend(["--model", os.environ["AGENT_MODEL"]])
         started = time.monotonic()

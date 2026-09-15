@@ -51,7 +51,8 @@ def cli(tmp_path, monkeypatch):
     executable.write_text(f"#!{sys.executable}\n" + FAKE_CLI)
     executable.chmod(0o700)
     capture = tmp_path / "capture.json"
-    for key in ("CLAUDE_SETTINGS_FILE", "CLAUDE_MCP_CONFIG", "AGENT_MODEL", "FAKE_MODE"):
+    for key in ("CLAUDE_SETTINGS_FILE", "CLAUDE_MCP_CONFIG", "CLAUDE_REQUIRE_AUTH_TOKEN",
+                "ANTHROPIC_AUTH_TOKEN", "ANTHROPIC_API_KEY", "AGENT_MODEL", "FAKE_MODE"):
         monkeypatch.delenv(key, raising=False)
     monkeypatch.setenv("LOG_ONLY", "0")
     monkeypatch.setenv("AGENT_PROVIDER", "claude")
@@ -67,6 +68,8 @@ def test_prompt_text_contract_stdin_no_shell_and_cleanup(cli):
     capture = json.loads(cli.read_text())
     assert capture["prompt"] == prompt and prompt not in capture["args"]
     assert "--no-session-persistence" in capture["args"]
+    assert "--bare" in capture["args"]
+    assert capture["args"][capture["args"].index("--permission-mode") + 1] == "dontAsk"
     assert "--dangerously-skip-permissions" not in capture["args"]
     assert "--allowedTools" not in capture["args"]
     assert not Path(capture["cwd"]).exists()
@@ -113,6 +116,27 @@ def test_missing_cli_and_unsupported_provider(cli, monkeypatch):
     with pytest.raises(AgentError, match="Unsupported"):
         create_agent_runner()
     assert not cli.exists()
+
+
+@pytest.mark.parametrize("token", ["", "YOUR_API_KEY", "   "])
+def test_required_token_blocks_agent_before_execution(cli, monkeypatch, tmp_path, token):
+    settings = tmp_path / "settings.json"
+    settings.write_text(json.dumps({"env": {"ANTHROPIC_AUTH_TOKEN": token}}))
+    monkeypatch.setenv("CLAUDE_SETTINGS_FILE", str(settings))
+    monkeypatch.setenv("CLAUDE_REQUIRE_AUTH_TOKEN", "1")
+    assert not agent_available()
+    with pytest.raises(AgentError, match="API key"):
+        ClaudeRunner().run("test")
+    assert not cli.exists()
+
+
+def test_required_token_enables_agent(cli, monkeypatch, tmp_path):
+    settings = tmp_path / "settings.json"
+    settings.write_text('{"env":{"ANTHROPIC_AUTH_TOKEN":"configured-test-token"}}')
+    monkeypatch.setenv("CLAUDE_SETTINGS_FILE", str(settings))
+    monkeypatch.setenv("CLAUDE_REQUIRE_AUTH_TOKEN", "1")
+    assert agent_available()
+    assert ClaudeRunner().run("test") == "output text"
 
 
 @pytest.mark.parametrize("value", ["0", "nan", "inf", "oops", "3601"])

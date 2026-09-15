@@ -24,8 +24,18 @@
   <dict>
     <key>LOG_FILE</key>
     <string></string>
-    <key>LOG_ONLY</key>
+    <key>AGENT_PROVIDER</key>
+    <string>claude</string>
+    <key>CLAUDE_CLI_PATH</key>
+    <string>/opt/homebrew/bin/claude</string>
+    <key>CLAUDE_SETTINGS_FILE</key>
+    <string>/Users/yangshuo/Code/visa-helper/backend/config/claude.settings.local.json</string>
+    <key>CLAUDE_REQUIRE_AUTH_TOKEN</key>
     <string>1</string>
+    <key>AGENT_MODEL</key>
+    <string>sonnet</string>
+    <key>AGENT_TIMEOUT_SECONDS</key>
+    <string>300</string>
     <key>PYTHONUNBUFFERED</key>
     <string>1</string>
   </dict>

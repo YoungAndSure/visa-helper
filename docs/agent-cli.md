@@ -26,18 +26,24 @@ Claude（模型、工具执行循环）→ 返回文本 → 业务层校验判�
 
 本机已有 Claude Code 2.1.201；通过本机 `--version` 和 `--help` 核验参数，没有重复安装或升级。
 
+本机实际配置文件是 `backend/config/claude.settings.local.json`，已设置为仅当前用户可读写并被
+Git 忽略。管理员只需填写 `env.ANTHROPIC_AUTH_TOKEN` 的空字符串；GLM 地址、模型映射、
+超时和权限均已配置。文件会在每次任务启动时重新读取，填 Key 后无需重启后台。
+`backend/config/claude.settings.example.json` 是可提交的无密钥模板，不要把真实 Key 写进去。
+
 | 环境变量 | 作用 |
 | --- | --- |
 | `AGENT_PROVIDER` | 默认 `claude`，未知实现明确拒绝 |
 | `CLAUDE_CLI_PATH` | 可选可执行文件路径；默认检查 PATH、用户 `.local/bin` 和常见 Homebrew 目录 |
 | `CLAUDE_SETTINGS_FILE` | 可选 Claude settings JSON 的绝对路径，权限和命令限制由此管理 |
+| `CLAUDE_REQUIRE_AUTH_TOKEN` | `1` 时，密钥为空或仍为占位符则禁止启动 Agent |
 | `CLAUDE_MCP_CONFIG` | 可选 MCP JSON 的绝对路径，后续 SQL/知识库工具在此加载 |
 | `AGENT_MODEL` | 可选模型覆盖；否则使用 Claude 自身模型配置 |
 | `AGENT_TIMEOUT_SECONDS` | 默认 300 秒，允许 1..3600 秒，每条规则独立计时 |
 | `LOG_ONLY=1` | 强制禁止启动 Agent，包括直接调用 runner |
 
-后端不复制/修改 Claude 的登录凭据、模型地址或用户配置。默认只自动发现用户级 settings，
-不加载项目 project/local settings；额外配置由上面的绝对路径显式传入。launchd 不继承终端
+本项目后台使用 `--bare`，不自动发现个人或仓库中的 Claude 配置，只读取
+`CLAUDE_SETTINGS_FILE` 显式指定的专用配置。launchd 不继承终端
 环境变量，因此需要在服务运行环境单独配置这些路径，不能仅在终端 export。
 
 Python 里不硬编码命令白名单，不传权限跳过参数。权限、工具、SQL 后续在 Claude 配置维护。
@@ -76,7 +82,8 @@ Python 里不硬编码命令白名单，不传权限跳过参数。权限、工�
 
 `/healthz` 的 `audit_agent_available` 只表示开关允许且找到 CLI，不验证登录、网络、配置或
 视觉能力。旧 `llm_available` 仍表示填表/verify 直连模型配置；`log_only` 用于黑盒测试防付费。
-当前本机服务继续 `LOG_ONLY=1`，本轮不修改权限配置、不启用真实调用。
+本机启动配置要求专用 settings 中存在非空 API Key；未填写时 Agent 显示不可用且不会发起调用。
+测试服务仍使用 `LOG_ONLY=1` 强制阻止真实调用。
 
 ## 验证
 
