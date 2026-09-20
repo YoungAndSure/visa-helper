@@ -10,6 +10,7 @@ backend/__pycache__/
 backend/**/__pycache__/
 backend/.pytest_cache/
 backend/config/*.local.json
+deploy/.env
 *.pyc
 
 # extension/ — Vite output and node_modules
