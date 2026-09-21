@@ -23,9 +23,7 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/* \
     && python -m venv /opt/venv
 
-COPY --from=claude /usr/local/bin/node /usr/local/bin/node
-COPY --from=claude /usr/local/lib/node_modules /usr/local/lib/node_modules
-RUN ln -s /usr/local/lib/node_modules/@anthropic-ai/claude-code/cli.js /usr/local/bin/claude
+COPY --from=claude /usr/local/lib/node_modules/@anthropic-ai/claude-code/bin/claude.exe /usr/local/bin/claude
 
 WORKDIR /app
 COPY backend/requirements.txt /app/backend/requirements.txt
