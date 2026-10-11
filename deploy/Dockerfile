@@ -15,7 +15,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     CLAUDE_CLI_PATH=/usr/local/bin/claude \
     CLAUDE_SETTINGS_FILE=/app/deploy/claude.settings.container.json \
     CLAUDE_REQUIRE_AUTH_TOKEN=1 \
-    AGENT_MODEL=MiniMax-M3 \
+    AGENT_MODEL=sonnet \
     AGENT_TIMEOUT_SECONDS=300
 
 RUN apt-get update \
@@ -26,8 +26,11 @@ RUN apt-get update \
 COPY --from=claude /usr/local/lib/node_modules/@anthropic-ai/claude-code/bin/claude.exe /usr/local/bin/claude
 
 WORKDIR /app
-COPY backend/requirements.txt /opt/visa-helper-requirements.txt
-RUN pip install --no-cache-dir --requirement /opt/visa-helper-requirements.txt
+COPY backend/requirements.txt /app/backend/requirements.txt
+RUN pip install --no-cache-dir --requirement /app/backend/requirements.txt
+
+# The server's .env overrides this default for every provider switch.
+ENV AGENT_MODEL=MiniMax-M3
 
 # Application code and Claude policy are read-only bind mounts at runtime.
 # Only the dependency environment and startup helper belong in the image.
