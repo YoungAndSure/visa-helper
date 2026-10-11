@@ -1,3 +1,5 @@
+import { randomId } from "./random-id.js";
+
 const DATABASE_NAME = "visa-helper-workspace-session-v1";
 const DATABASE_VERSION = 1;
 const STORE_NAME = "session";
@@ -6,7 +8,7 @@ const TOKEN_KEY = "visa-helper.workspace-session-token";
 function sessionToken(create = false) {
   let token = sessionStorage.getItem(TOKEN_KEY);
   if (!token && create) {
-    token = crypto.randomUUID();
+    token = randomId();
     sessionStorage.setItem(TOKEN_KEY, token);
   }
   return token;

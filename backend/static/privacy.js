@@ -1,6 +1,7 @@
 /** Browser-only visual privacy redaction for PDF/JPG copies. */
 
 import { createOcrPool, DEFAULT_OCR_WORKER_COUNT } from "./ocr-pool.js";
+import { randomId } from "./random-id.js";
 
 const PDFJS_URL = "./vendor/pdfjs/pdf.min.mjs";
 const PDFJS_WORKER_URL = new URL("./vendor/pdfjs/pdf.worker.min.mjs", import.meta.url).href;
@@ -161,7 +162,7 @@ export function boxesForSensitiveWords(words) {
         const left = word.left + word.width * startRatio;
         const right = word.left + word.width * Math.max(startRatio, endRatio);
         boxes.push({
-          id: crypto.randomUUID(), type: range.type, source: "automatic",
+          id: randomId(), type: range.type, source: "automatic",
           x: Math.max(0, left - 5), y: Math.max(0, word.top - 3),
           width: right - left + 10, height: word.height + 6,
         });
@@ -549,7 +550,7 @@ export async function renderRedactionEditor(material, file, container, { onChang
       cancelSelection();
       if (overlay.hasPointerCapture(event.pointerId)) overlay.releasePointerCapture(event.pointerId);
       if (width < 5 || height < 5) return;
-      material.pages[index].redactions.push({ id: crypto.randomUUID(), type: "manual", source: "manual", x, y, width, height });
+      material.pages[index].redactions.push({ id: randomId(), type: "manual", source: "manual", x, y, width, height });
       material.sanitized_file = null; material.review_status = "needs_review"; redraw(); onChange(material);
     });
     overlay.addEventListener("pointercancel", cancelSelection);

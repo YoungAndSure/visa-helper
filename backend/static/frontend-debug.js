@@ -1,4 +1,5 @@
 /** Real-time browser debug events forwarded to the localhost backend log. */
+import { randomId } from "./random-id.js";
 
 const ENDPOINT = "/debug/frontend-log";
 const LOCAL_HOSTS = new Set(["127.0.0.1", "localhost", "[::1]"]);
@@ -39,7 +40,7 @@ function emit(payload) {
 }
 
 export function createFrontendDebugRun(scope, initialDetails = {}) {
-  const runId = `${scope}-${Date.now()}-${crypto.randomUUID().slice(0, 8)}`;
+  const runId = `${scope}-${Date.now()}-${randomId().slice(0, 8)}`;
   const startedAt = performance.now();
 
   function log(event, details = {}, level = "info", message = "") {
