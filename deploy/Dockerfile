@@ -15,7 +15,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     CLAUDE_CLI_PATH=/usr/local/bin/claude \
     CLAUDE_SETTINGS_FILE=/app/deploy/claude.settings.container.json \
     CLAUDE_REQUIRE_AUTH_TOKEN=1 \
-    AGENT_MODEL=sonnet \
+    AGENT_MODEL=MiniMax-M3 \
     AGENT_TIMEOUT_SECONDS=300
 
 RUN apt-get update \

@@ -46,6 +46,12 @@ Git 忽略。管理员只需填写 `env.ANTHROPIC_AUTH_TOKEN` 的空字符串；
 `CLAUDE_SETTINGS_FILE` 显式指定的专用配置。launchd 不继承终端
 环境变量，因此需要在服务运行环境单独配置这些路径，不能仅在终端 export。
 
+容器部署中，模型供应商地址、密钥和模型名称统一放在服务器的 `deploy/.env`，不写入镜像中的
+`claude.settings.container.json`；该 JSON 只保留通用超时与工具权限。MiniMax 中国区示例见
+`deploy/.env.example`。更换 `.env` 后需执行 `docker compose up -d --force-recreate`，仅
+`docker compose restart` 不会重新读取环境变量。`/healthz` 的可用状态不验证密钥是否真的能
+访问所选供应商，仍需用匿名测试材料执行一次端到端调用。
+
 Python 里不硬编码命令白名单，不传权限跳过参数。权限、工具、SQL 后续在 Claude 配置维护。
 没有人在场批准的工具调用可能被拒绝，runner 会将权限拒绝视为任务未完成，不能自动放权。
 临时工作目录不是操作系统沙箱；正式启用需通过服务账号/容器隔离、Claude 权限配置及只读
