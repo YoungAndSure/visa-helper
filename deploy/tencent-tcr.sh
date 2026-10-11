@@ -14,7 +14,7 @@ fi
 
 repo_root="$(git rev-parse --show-toplevel)"
 tag="${IMAGE_TAG:-$(git -C "$repo_root" rev-parse --short=12 HEAD)}"
-local_image="visa-helper:${tag}"
+local_image="visa-helper-runtime:${tag}"
 
 docker build --platform "$platform" --file "$repo_root/deploy/Dockerfile" --tag "$local_image" "$repo_root"
 

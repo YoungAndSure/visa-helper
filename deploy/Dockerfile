@@ -26,19 +26,18 @@ RUN apt-get update \
 COPY --from=claude /usr/local/lib/node_modules/@anthropic-ai/claude-code/bin/claude.exe /usr/local/bin/claude
 
 WORKDIR /app
-COPY backend/requirements.txt /app/backend/requirements.txt
-RUN pip install --no-cache-dir --requirement /app/backend/requirements.txt
+COPY backend/requirements.txt /opt/visa-helper-requirements.txt
+RUN pip install --no-cache-dir --requirement /opt/visa-helper-requirements.txt
 
-COPY backend /app/backend
-COPY tools /app/tools
-COPY data/checklists /app/data/checklists
-COPY data/rules/bootstrap /app/data/rules/bootstrap
-COPY deploy /app/deploy
+# Application code and Claude policy are read-only bind mounts at runtime.
+# Only the dependency environment and startup helper belong in the image.
+COPY deploy/entrypoint.sh /usr/local/bin/visa-helper-entrypoint
 
 RUN useradd --create-home --uid 10001 visahelper \
-    && mkdir -p /app/runtime/logs /app/runtime/rules /app/runtime/tmp \
+    && mkdir -p /app/backend /app/tools /app/data/checklists /app/data/rules/bootstrap \
+        /app/deploy /app/runtime/logs /app/runtime/rules /app/runtime/tmp \
     && chown -R visahelper:visahelper /app/runtime \
-    && chmod +x /app/deploy/entrypoint.sh /app/deploy/tencent-tcr.sh
+    && chmod +x /usr/local/bin/visa-helper-entrypoint
 
 USER visahelper
 EXPOSE 8000
@@ -46,5 +45,5 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
   CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/healthz', timeout=3)" || exit 1
 
-ENTRYPOINT ["/usr/bin/tini", "--", "/app/deploy/entrypoint.sh"]
+ENTRYPOINT ["/usr/bin/tini", "--", "/usr/local/bin/visa-helper-entrypoint"]
 CMD ["uvicorn", "backend.app:app", "--host", "0.0.0.0", "--port", "8000"]

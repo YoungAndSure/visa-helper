@@ -1,6 +1,6 @@
 services:
   visa-helper:
-    image: ${IMAGE_REF:-visa-helper:local}
+    image: ${IMAGE_REF:-visa-helper-runtime:local}
     build:
       context: ..
       dockerfile: deploy/Dockerfile
@@ -19,6 +19,11 @@ services:
       CLAUDE_SETTINGS_FILE: /app/deploy/claude.settings.container.json
       CLAUDE_REQUIRE_AUTH_TOKEN: "1"
     volumes:
+      - ../backend:/app/backend:ro
+      - ../tools:/app/tools:ro
+      - ../data/checklists:/app/data/checklists:ro
+      - ../data/rules/bootstrap:/app/data/rules/bootstrap:ro
+      - ./claude.settings.container.json:/app/deploy/claude.settings.container.json:ro
       - visa-helper-rules:/app/runtime/rules
       - visa-helper-logs:/app/runtime/logs
     tmpfs:

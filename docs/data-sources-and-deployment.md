@@ -91,18 +91,18 @@ MVP 可以先让静态页面与 API 同源运行在一个容器中。正式上�
 
 ## 5. 镜像、密钥和运行数据
 
-镜像包含后端代码、前端静态资源、解析后的 Checklist、规则种子、固定版本 Python 依赖、Claude CLI 和 PDF 渲染工具。镜像不包含：
+镜像只包含固定版本 Python 依赖、Claude CLI、PDF 渲染工具和启动脚本。后端代码、前端静态资源、Checklist、规则种子及 Claude 权限配置存放在服务器 Git 工作区，并分别只读挂载到容器的 `/app` 对应目录。镜像不包含：
 
 - `ANTHROPIC_AUTH_TOKEN` 或任何云账号凭据；
 - `backend/config/*.local.json`；
 - 用户原文件、脱敏文件和浏览器本地数据库；
 - 后端日志、报告、规则草稿或管理员下载的受限来源文件。
 
-API Key 通过服务器上的 `.env` 或云密钥服务注入。容器内 `/tmp` 使用内存文件系统，停止容器即清空；持久卷只保存已发布规则和服务日志，不保存用户材料。
+API Key 通过服务器上 Git 忽略的 `deploy/.env` 或云密钥服务注入；不要挂载整个 `deploy` 目录，避免把密钥文件暴露为普通文件。容器内临时目录使用内存文件系统，停止容器即清空；持久卷只保存已发布规则和服务日志，不保存用户材料。
 
 ## 6. TCR 构建与发布
 
-本仓库的 `deploy/Dockerfile` 默认构建 `linux/amd64` 生产镜像。腾讯云个人版 TCR 的基本流程是：初始化服务、创建全局唯一命名空间、创建私有仓库，然后登录、标记并推送镜像。
+本仓库的 `deploy/Dockerfile` 默认构建 `linux/amd64` 环境镜像。只有 Python/Node/PDF 依赖变化时才需重建镜像；普通代码更新只需 Git 拉取并重启服务。腾讯云个人版 TCR 的基本流程是：初始化服务、创建全局唯一命名空间、创建私有仓库，然后登录、标记并推送镜像。
 
 ```bash
 cp deploy/.env.example deploy/.env
@@ -112,12 +112,23 @@ docker login ccr.ccs.tencentyun.com --username='<腾讯云账号 ID>'
 TCR_NAMESPACE='<命名空间>' deploy/tencent-tcr.sh push
 ```
 
-脚本用当前 Git 提交短哈希作为不可变镜像标签，并在推送前先本地构建和健康检查。部署服务器再执行：
+脚本用当前 Git 提交短哈希作为不可变环境镜像标签。服务器首次部署时将仓库克隆到 `/home/ubuntu/visa-helper/source`，在其 `deploy/.env` 中配置密钥及 `IMAGE_REF`，然后执行：
 
 ```bash
-IMAGE_REF='ccr.ccs.tencentyun.com/<命名空间>/visa-helper:<提交哈希>' \
-  docker compose -f deploy/docker-compose.yml up -d
+cd /home/ubuntu/visa-helper/source
+docker compose -f deploy/docker-compose.yml up -d
 ```
+
+普通代码更新：
+
+```bash
+cd /home/ubuntu/visa-helper/source
+git pull --ff-only
+docker compose -f deploy/docker-compose.yml restart visa-helper
+curl --fail http://127.0.0.1:18080/healthz
+```
+
+变更 `.env`、挂载或 Compose 配置时使用 `docker compose -f deploy/docker-compose.yml up -d --force-recreate`；`restart` 不会重新读取环境变量。正式发布前确认 Git 工作区无未提交修改，拉取完整提交后立即重启。依赖变化必须重建环境镜像。
 
 个人版 TCR 适合首期；仓库应设为私有。轻量服务器控制台的“容器管理”只便捷选择个人版公开镜像，不适合私有业务代码；私有镜像应在服务器上登录 TCR 后用 Compose 拉取。需要源码自动构建、跨地域复制、镜像扫描和细粒度权限时再升级企业版。
 
