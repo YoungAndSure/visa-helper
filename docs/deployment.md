@@ -85,3 +85,22 @@ app/scripts/start-private-test.sh
 ChatGPT 首次添加时曾提示无法连接。排查发现 tunnel-client 仍处于 `ready`/`polling`，腾讯云 MCP 本机返回 200，但开发机的 SSH 转发端口只接受连接、不返回响应。重新建立 SSH 转发并增加 `ServerAliveInterval=15`、`ServerAliveCountMax=2` 后，开发机的 `tools/list` 再次成功。启动脚本已加入保活参数。当前恢复用的 SSH 进程独立于用户启动脚本；测试结束后应关闭该转发进程，之后重新运行启动脚本即可使用更新后的参数。
 
 用户确认 ChatGPT 连接成功；当前会话出现 `visa-helper` 的四个工具。连接器调用只读工具 `open_visa_helper` 成功，返回“中国护照 · 居住中国 · 冰岛旅游”路径及 `pending_verification` 规则状态。用户在 ChatGPT 中看到独立 UI，点击“创建申请”后出现申请 ID，继续用虚构日期完成“确认并继续”→“保存并继续”→“完成交互演示”，并在新对话中用申请 ID 成功恢复已完成状态。服务器数据文件的只读汇总显示 1 条记录，状态为 `walkthrough_complete`。当前测试连接已实际跑通本原型的 UI 展示、创建、步骤写入、持久化和跨对话恢复。
+
+### 下次复测操作清单
+
+以下命令在**开发机**运行。腾讯云上的 `visa-helper-mcp.service` 须已启动，且开发机的 `app/.local/` 中保留 tunnel-client、profile 和 SSH 主机密钥文件。运行密钥需要具备 Tunnels Read + Use 权限。
+
+1. 检查本机 `18081` 是否已经被旧 SSH 转发占用：`ss -ltnp '( sport = :18081 )'`。若有旧进程，先确认它属于本次测试并结束该进程，再启动脚本；否则脚本无法绑定端口。不要关闭正在使用的其他服务。
+2. 在交互式终端运行：
+
+   ```bash
+   cd /home/youngsure/Code/visa-helper
+   app/scripts/start-private-test.sh
+   ```
+
+   按提示在本机输入 Platform 运行 API key，输入不会显示。看到 `RESULT ok` 和“Tunnel 检查通过”后，保持终端运行。该脚本同时建立到腾讯云的 SSH 本地转发，运行 `doctor`，并启动持续轮询的 tunnel-client。`doctor` 对 `/mcp` 返回 HTTP 406 的检查结果是正常的：普通 GET 缺少 MCP 请求所需的头部。
+3. 在 ChatGPT 已添加的 Visa Helper 应用中新开对话，发送“打开 Visa Helper”。若需重新添加，到 [ChatGPT Plugins](https://chatgpt.com/plugins) 添加自定义 MCP 服务，Connection 选 **Tunnel**，选择与本地 profile 相同的 tunnel；认证选无认证。Tunnel ID 不是 Server URL。等待工具扫描完成，应看到四个工具和独立 UI。
+4. 在 UI 中点“创建申请”，记下界面上的申请 ID；点“确认并继续”，用虚构日期（如 `2027-06-01` 至 `2027-06-10`）点“保存并继续”，再点“完成交互演示”。新开一个 ChatGPT 对话，选择 Visa Helper，发送“打开 Visa Helper”，把刚才的 ID 填入“已有申请 ID”，点“恢复申请”。应显示已完成状态。不要填真实个人信息或上传真实材料。
+5. 测试结束后用 `Ctrl-C` 停止启动脚本；脚本会清理它启动的 SSH 转发。若使用过独立启动的 SSH 转发，需单独确认并结束其进程。
+
+如果 ChatGPT 提示“无法连接到 MCP 服务器”，按请求路径逐段检查：先看脚本终端中的 tunnel-client 是否仍在轮询；再在开发机执行 `curl --max-time 5 http://127.0.0.1:18081/`，应立即返回服务响应；最后检查腾讯云上的 `visa-helper-mcp.service`。本机端口能建立 TCP 连接却迟迟没有 HTTP 响应时，优先检查 SSH 转发是否失效，并重新建立转发。连接成功但没有 UI 时，重新扫描工具并调用 `open_visa_helper`。
