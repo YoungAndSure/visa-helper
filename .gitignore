@@ -17,5 +17,11 @@ form/backend/.pytest_cache/
 extension/dist-zip/
 extension/node_modules/
 extension/.vite-cache/
+archive/extension/node_modules/
+archive/extension/.vite-cache/
+archive/form/backend/.venv/
+app/node_modules/
+app/data/
+app/.local/
 *.log
 .DS_Store

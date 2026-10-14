@@ -1,0 +1,26 @@
+services:
+  visa-helper-mcp:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    image: visa-helper-mcp:local
+    restart: unless-stopped
+    init: true
+    ports:
+      - "127.0.0.1:18081:8787"
+    volumes:
+      - visa-helper-mcp-data:/app/data
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8787/').then(r => { if (!r.ok) process.exit(1) }).catch(() => process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+volumes:
+  visa-helper-mcp-data:

@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Visa Helper</title>
+  <style>
+    :root { color-scheme: light dark; font-family: system-ui, sans-serif; }
+    * { box-sizing: border-box; }
+    body { margin: 0; padding: 18px; background: #f4f7fa; color: #152534; }
+    main { max-width: 600px; margin: auto; background: #fff; border: 1px solid #d9e3ea; border-radius: 18px; padding: 22px; }
+    header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    h1 { font-size: 1.45rem; margin: 0; }
+    h2 { font-size: 1.15rem; margin: 20px 0 8px; }
+    p { line-height: 1.55; }
+    .badge { border-radius: 999px; padding: 5px 10px; background: #e5f3ef; color: #126b54; font-size: .8rem; white-space: nowrap; }
+    .muted { color: #607284; font-size: .9rem; }
+    .notice { background: #fff6dc; border: 1px solid #efdca5; border-radius: 12px; padding: 12px; font-size: .9rem; }
+    .panel { background: #f7f9fb; border-radius: 12px; padding: 14px; margin-top: 14px; }
+    .steps { display: flex; flex-wrap: wrap; gap: 6px; margin: 18px 0; }
+    .step { font-size: .8rem; background: #eef2f6; color: #627386; border-radius: 999px; padding: 6px 10px; }
+    .step.current { background: #176e65; color: white; }
+    .step.done { background: #d8eee8; color: #176e65; }
+    label { display: block; margin: 12px 0; font-size: .9rem; font-weight: 600; }
+    input { display: block; width: 100%; padding: 10px; margin-top: 6px; border: 1px solid #b9c9d5; border-radius: 9px; font: inherit; }
+    button { background: #176e65; border: 0; border-radius: 10px; color: white; padding: 10px 16px; font: inherit; font-weight: 600; cursor: pointer; }
+    button:disabled { opacity: .55; cursor: wait; }
+    .secondary { background: #eaf0f3; color: #213848; }
+    .row { display: flex; gap: 8px; align-items: center; }
+    .row input { margin: 0; }
+    #error { color: #a13227; min-height: 1.4em; }
+    @media (prefers-color-scheme: dark) {
+      body { background: #111b22; color: #e7eff3; }
+      main { background: #1a2831; border-color: #35505f; }
+      .muted { color: #a8bdc9; }
+      .panel { background: #213641; }
+      .notice { background: #3a3321; border-color: #796637; }
+      input { background: #13232c; color: white; border-color: #526c79; }
+      .secondary, .step { background: #354b57; color: #e7eff3; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header><h1>Visa Helper</h1><span class="badge">申请流程原型</span></header>
+    <p class="muted">由服务端决定当前步骤，ChatGPT 可以辅助解释。</p>
+    <div class="notice">官方材料规则尚未核实。本原型只验证申请流程交互，不表示已完成签证申请准备。</div>
+    <div id="content"></div>
+    <p id="error" role="alert"></p>
+  </main>
+  <script type="module">
+    const content = document.querySelector("#content");
+    const errorEl = document.querySelector("#error");
+    let application = null;
+    let busy = false;
+    let rpcId = 0;
+    const pending = new Map();
+    const notify = (method, params) => window.parent.postMessage({ jsonrpc: "2.0", method, params }, "*");
+    const request = (method, params) => new Promise((resolve, reject) => {
+      const id = ++rpcId;
+      pending.set(id, { resolve, reject });
+      window.parent.postMessage({ jsonrpc: "2.0", id, method, params }, "*");
+    });
+    function applyResult(result) {
+      const data = result?.structuredContent;
+      if (data?.application) {
+        application = data.application;
+        try { localStorage.setItem("visa-helper-application-id", application.id); } catch {}
+      }
+      if (data?.error) errorEl.textContent = data.error.message;
+      render();
+    }
+    window.addEventListener("message", (event) => {
+      if (event.source !== window.parent || event.data?.jsonrpc !== "2.0") return;
+      const message = event.data;
+      if (typeof message.id === "number") {
+        const waiting = pending.get(message.id);
+        if (!waiting) return;
+        pending.delete(message.id);
+        message.error ? waiting.reject(message.error) : waiting.resolve(message.result);
+      } else if (message.method === "ui/notifications/tool-result") {
+        applyResult(message.params);
+      }
+    });
+    const ready = request("ui/initialize", {
+      appInfo: { name: "visa-helper-ui", version: "0.1.0" },
+      appCapabilities: {},
+      protocolVersion: "2026-01-26",
+    }).then(() => notify("ui/notifications/initialized", {}));
+
+    async function call(name, args) {
+      if (busy) return;
+      busy = true;
+      errorEl.textContent = "";
+      render();
+      try {
+        await ready;
+        applyResult(await request("tools/call", { name, arguments: args }));
+      } catch (error) {
+        errorEl.textContent = error?.message ?? "操作失败，请稍后重试。";
+      } finally {
+        busy = false;
+        render();
+      }
+    }
+
+    function render() {
+      content.replaceChildren();
+      if (!application) {
+        const title = document.createElement("h2");
+        title.textContent = "开始一次申请";
+        const path = document.createElement("p");
+        path.textContent = "当前开发路径：中国护照 · 居住中国 · 冰岛旅游";
+        const start = button("创建申请", () => call("create_application", {}));
+        const resume = document.createElement("form");
+        resume.className = "panel";
+        resume.innerHTML = '<label>已有申请 ID<input name="applicationId" autocomplete="off" placeholder="粘贴申请 ID" required></label><button class="secondary" type="submit">恢复申请</button>';
+        resume.addEventListener("submit", (event) => {
+          event.preventDefault();
+          call("get_application", { applicationId: resume.elements.applicationId.value.trim() });
+        });
+        try { resume.elements.applicationId.value = localStorage.getItem("visa-helper-application-id") ?? ""; } catch {}
+        content.append(title, path, start, resume);
+        return;
+      }
+      const id = document.createElement("p");
+      id.className = "muted";
+      id.textContent = `申请 ID：${application.id}`;
+      const steps = document.createElement("div");
+      steps.className = "steps";
+      application.steps.forEach((step) => {
+        const chip = document.createElement("span");
+        chip.className = `step ${application.completedSteps.includes(step.id) ? "done" : step.id === application.currentStep ? "current" : ""}`;
+        chip.textContent = step.title;
+        steps.append(chip);
+      });
+      content.append(id, steps);
+      if (application.status === "walkthrough_complete") {
+        const done = document.createElement("div");
+        done.className = "panel";
+        done.textContent = "交互流程已走通。正式材料清单、文件生成和递交前检查将在官方规则核实后开放。";
+        content.append(done);
+        return;
+      }
+      const title = document.createElement("h2");
+      title.textContent = application.steps.find((step) => step.id === application.currentStep)?.title ?? "当前步骤";
+      content.append(title);
+      if (application.currentStep === "scenario") {
+        const detail = document.createElement("div");
+        detail.className = "panel";
+        detail.textContent = "请确认：你持有中国护照、目前居住在中国，计划赴冰岛旅游。其他情况目前不受支持。";
+        content.append(detail, button("确认并继续", () => call("submit_step", {
+          applicationId: application.id, stepId: "scenario",
+          data: { nationality: "CN", residence: "CN", destination: "IS", purpose: "tourism" },
+        })));
+      } else if (application.currentStep === "trip") {
+        const form = document.createElement("form");
+        form.className = "panel";
+        form.innerHTML = '<label>预计入境日期<input name="arrivalDate" type="date" required></label><label>预计离境日期<input name="departureDate" type="date" required></label><button type="submit">保存并继续</button>';
+        form.addEventListener("submit", (event) => {
+          event.preventDefault();
+          call("submit_step", { applicationId: application.id, stepId: "trip", data: {
+            arrivalDate: form.elements.arrivalDate.value,
+            departureDate: form.elements.departureDate.value,
+          }});
+        });
+        content.append(form);
+      } else if (application.currentStep === "review") {
+        const summary = document.createElement("div");
+        summary.className = "panel";
+        summary.textContent = `申请场景已确认；旅行时间：${application.data.trip?.arrivalDate ?? "—"} 至 ${application.data.trip?.departureDate ?? "—"}。官方规则尚未发布，不能进行材料合规判断。`;
+        content.append(summary, button("完成交互演示", () => call("submit_step", {
+          applicationId: application.id, stepId: "review", data: {},
+        })));
+      }
+    }
+    function button(label, action) {
+      const el = document.createElement("button");
+      el.type = "button";
+      el.textContent = label;
+      el.disabled = busy;
+      el.addEventListener("click", action);
+      return el;
+    }
+    render();
+  </script>
+</body>
+</html>
