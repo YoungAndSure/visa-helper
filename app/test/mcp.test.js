@@ -20,33 +20,47 @@ test("MCP exposes question groups and produces the file-task queue", async () =>
     assert.ok(tools.tools.some((tool) => tool.name === "get_questions"));
     assert.ok(tools.tools.some((tool) => tool.name === "submit_answers"));
     assert.ok(tools.tools.some((tool) => tool.name === "get_task_queue"));
-    const opener = tools.tools.find((tool) => tool.name === "open_visa_helper");
-    assert.equal(opener._meta.ui.resourceUri, "ui://visa-helper/application-v2.html");
-    const resource = await client.readResource({ uri: opener._meta.ui.resourceUri });
-    assert.match(resource.contents[0].text, /文件任务队列/);
+    for (const name of ["open_visa_helper", "create_application", "get_application", "get_questions", "submit_answers"]) {
+      assert.equal(tools.tools.find((tool) => tool.name === name)._meta?.ui?.resourceUri, undefined, `${name} must not load interview UI`);
+    }
+    const workspace = tools.tools.find((tool) => tool.name === "get_task_queue");
+    assert.equal(workspace._meta.ui.resourceUri, "ui://visa-helper/task-workspace-v3.html");
+    const resource = await client.readResource({ uri: workspace._meta.ui.resourceUri });
+    assert.match(resource.contents[0].text, /全部材料/);
 
     const opened = await client.callTool({ name: "open_visa_helper", arguments: {} });
     assert.equal(opened.structuredContent.application, null);
-    assert.match(opened.content[0].text, /逐题回答.*旅行计划/);
-    assert.match(opened.structuredContent.assistantGuidance, /Do not enumerate/);
+    assert.equal(opened.structuredContent.nextAction.tool, "create_application");
 
     const created = await client.callTool({ name: "create_application", arguments: {} });
-    assert.match(created.structuredContent.assistantGuidance, /Do not enumerate/);
+    assert.equal(created.structuredContent.nextAction.type, "answer_or_ask");
+    assert.equal(created.structuredContent.nextAction.question.id, "nationality");
     const id = created.structuredContent.application.id;
     const premature = await client.callTool({ name: "get_task_queue", arguments: { applicationId: id } });
     assert.equal(premature.structuredContent.error.code, "QUESTIONS_INCOMPLETE");
     const questions = await client.callTool({ name: "get_questions", arguments: { applicationId: id } });
     assert.equal(questions.structuredContent.application.questionGroup.id, "basic");
+    const partial = await client.callTool({ name: "submit_answers", arguments: { applicationId: id, answers: { nationality: "CN" } } });
+    assert.equal(partial.structuredContent.nextAction.question.id, "residence");
+    assert.equal(partial.structuredContent.nextAction.pendingCount, 8);
     const answered = await client.callTool({ name: "submit_answers", arguments: { applicationId: id, answers: {
       nationality: "CN", residence: "CN", applicationCity: "北京", destination: "IS",
       purpose: "tourism", arrivalDate: "2027-06-01", departureDate: "2027-06-10",
       ageGroup: "adult", otherSchengenCountries: "no",
     } } });
     assert.equal(answered.structuredContent.application.questionGroup.id, "adult");
-    await client.callTool({ name: "submit_answers", arguments: { applicationId: id, answers: { occupation: "employed" } } });
+    const leaf = await client.callTool({ name: "submit_answers", arguments: { applicationId: id, answers: { occupation: "employed" } } });
+    assert.equal(leaf.structuredContent.nextAction.tool, "get_task_queue");
+    assert.equal(leaf.structuredContent.application.taskCount, 12);
+    assert.equal(leaf.structuredContent.application.tasks, undefined);
     const queue = await client.callTool({ name: "get_task_queue", arguments: { applicationId: id } });
     assert.equal(queue.structuredContent.application.status, "tasks_ready");
-    assert.ok(queue.structuredContent.application.tasks.some((task) => task.id === "employment_letter"));
+    assert.equal(queue.structuredContent.nextAction.type, "choose_task");
+    assert.ok(queue._meta.application.tasks.some((task) => task.id === "employment_letter"));
+    const started = await client.callTool({ name: "start_task", arguments: { applicationId: id, taskId: "employment_letter" } });
+    assert.equal(started.structuredContent.nextAction.type, "work_on_task");
+    assert.equal(started._meta.application.activeTask.id, "employment_letter");
+    assert.equal(started._meta.application.activeTask.status, "in_progress");
   } finally {
     await client.close();
     await server.close();

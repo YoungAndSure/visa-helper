@@ -27,6 +27,8 @@ test("one adult applicant answers groups and receives an ordered file-task queue
   assert.equal(created.questions.length, 9);
   const partial = await store.submitAnswers(created.id, { nationality: "CN", residence: "CN" });
   assert.equal(partial.questionGroup.id, "basic");
+  assert.equal(partial.nextQuestion.id, "applicationCity");
+  assert.equal(partial.pendingQuestions.length, 7);
   const next = await store.submitAnswers(created.id, Object.fromEntries(Object.entries(basic).filter(([key]) => !["nationality", "residence"].includes(key))));
   assert.equal(next.questionGroup.id, "adult");
   const ready = await store.submitAnswers(created.id, { occupation: "employed" });
@@ -92,6 +94,20 @@ test("answer validation rejects unknown values without changing stored answers",
   await assert.rejects(store.submitAnswers(id, { occupation: "student" }), { code: "INVALID_ANSWERS" });
   await assert.rejects(store.submitAnswers(id, { arrivalDate: "2027-02-30" }), { code: "INVALID_ANSWERS" });
   assert.deepEqual((await store.get(id)).answers, {});
+});
+
+test("task selection persists and cannot start an inapplicable material", async () => {
+  const store = await newStore();
+  const { id } = await store.create();
+  await assert.rejects(store.startTask(id, "passport"), { code: "QUESTIONS_INCOMPLETE" });
+  await store.submitAnswers(id, { ...basic, occupation: "employed" });
+  const selected = await store.startTask(id, "employment_letter");
+  assert.equal(selected.activeTask.status, "in_progress");
+  assert.equal((await store.get(id)).activeTask.id, "employment_letter");
+  const changed = await store.submitAnswers(id, { occupation: "retired" });
+  assert.equal(changed.activeTask, null);
+  assert.ok(!ids(changed).includes("employment_letter"));
+  await assert.rejects(store.startTask(id, "employment_letter"), { code: "TASK_NOT_FOUND" });
 });
 
 test("legacy walkthrough record remains readable", async () => {

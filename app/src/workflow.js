@@ -26,6 +26,10 @@ export function publicState(record, configDir = DEFAULT_CONFIG_DIR) {
   }
   const result = evaluateChecklist(record.answers, record.ruleVersion, configDir);
   const questionCatalog = loadRulePack(record.ruleVersion, configDir).questionGroups.flatMap((group) => group.questions);
+  const pendingQuestions = result.status === "questions"
+    ? result.questions.filter((question) => record.answers[question.id] === undefined)
+    : result.questions;
+  const tasks = result.tasks.map((task) => ({ ...task, status: record.taskProgress?.[task.id]?.status ?? "todo" }));
   return {
     id: record.id,
     path: PATH,
@@ -34,8 +38,11 @@ export function publicState(record, configDir = DEFAULT_CONFIG_DIR) {
     answers: record.answers,
     questionGroup: result.group ? { id: result.group.id, title: result.group.title, total: result.group.questions.length } : null,
     questions: result.questions,
+    pendingQuestions,
+    nextQuestion: result.status === "questions" ? pendingQuestions[0] ?? null : null,
     questionCatalog,
-    tasks: result.tasks,
+    tasks,
+    activeTask: tasks.find((task) => task.id === record.activeTaskId) ?? null,
     reviewNotes: result.reviewNotes ?? [],
     reason: result.reason ?? null,
     updatedAt: record.updatedAt,
@@ -107,6 +114,21 @@ export class ApplicationStore {
         throw new WorkflowError("INVALID_ANSWERS", error.message);
       }
       record.answers = { ...record.answers, ...patch };
+      record.updatedAt = new Date().toISOString();
+      return publicState(record, this.configDir);
+    });
+  }
+
+  async startTask(id, taskId) {
+    return this.mutate((records) => {
+      const record = records[id];
+      if (!record) throw new WorkflowError("NOT_FOUND", "找不到该申请。");
+      const state = publicState(record, this.configDir);
+      if (state.status !== "tasks_ready") throw new WorkflowError("QUESTIONS_INCOMPLETE", "请先在对话中补齐申请信息。");
+      if (!state.tasks.some((task) => task.id === taskId)) throw new WorkflowError("TASK_NOT_FOUND", "这项材料不在当前清单中，请刷新清单。");
+      record.taskProgress ??= {};
+      record.taskProgress[taskId] = { status: "in_progress" };
+      record.activeTaskId = taskId;
       record.updatedAt = new Date().toISOString();
       return publicState(record, this.configDir);
     });

@@ -3,81 +3,66 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Visa Helper</title>
+  <title>Visa Helper · 材料清单</title>
   <style>
     :root { color-scheme: light dark; font-family: system-ui, sans-serif; }
     * { box-sizing: border-box; }
-    body { margin: 0; padding: 16px; background: #f4f7fa; color: #152534; }
-    main { max-width: 650px; margin: auto; background: #fff; border: 1px solid #d9e3ea; border-radius: 18px; padding: 22px; }
-    header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-    h1 { font-size: 1.4rem; margin: 0; }
-    h2 { font-size: 1.1rem; margin: 22px 0 8px; }
+    body { margin: 0; padding: 16px; color: #172d36; background: #fff; }
+    main { max-width: 720px; margin: auto; }
+    h1 { margin: 0; font-size: 1.3rem; }
+    h2 { font-size: 1.1rem; margin: 0 0 12px; }
     p { line-height: 1.55; }
-    .badge { border-radius: 999px; padding: 5px 10px; background: #e5f3ef; color: #126b54; font-size: .8rem; white-space: nowrap; }
-    .muted { color: #607284; font-size: .88rem; }
-    .notice { background: #fff6dc; border: 1px solid #efdca5; border-radius: 12px; padding: 12px; font-size: .9rem; }
-    .panel { background: #f7f9fb; border-radius: 12px; padding: 14px; margin-top: 14px; }
-    .task { border-bottom: 1px solid #d9e3ea; padding: 12px 0; }
+    .muted { color: #617480; font-size: .88rem; }
+    .notice { background: #fff6dc; border-radius: 10px; padding: 10px 12px; font-size: .85rem; }
+    .panel { border: 1px solid #dce5e9; border-radius: 12px; padding: 16px; margin-top: 16px; }
+    .task { display: flex; align-items: center; gap: 12px; border-bottom: 1px solid #e1e8ec; padding: 12px 0; }
     .task:last-child { border-bottom: 0; }
-    .task strong { display: block; }
-    .task small { display: block; margin-top: 4px; color: #607284; line-height: 1.45; }
-    label { display: block; margin: 12px 0; font-size: .9rem; font-weight: 600; }
-    input, select { display: block; width: 100%; padding: 10px; margin-top: 6px; border: 1px solid #b9c9d5; border-radius: 9px; font: inherit; }
-    .actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
-    button { background: #176e65; border: 0; border-radius: 10px; color: white; padding: 10px 16px; font: inherit; font-weight: 600; cursor: pointer; }
+    .task-text { flex: 1; }
+    .task small { display: block; margin-top: 4px; color: #617480; }
+    button { border: 0; border-radius: 9px; background: #176e65; color: white; padding: 10px 14px; font: inherit; font-size: .9rem; cursor: pointer; }
     button:disabled { opacity: .55; cursor: wait; }
-    .secondary { background: #eaf0f3; color: #213848; }
-    #error { color: #a13227; min-height: 1.4em; }
+    .secondary { background: #edf2f4; color: #203b45; }
+    #error { color: #a13227; }
+    #status { min-height: 1em; }
     @media (prefers-color-scheme: dark) {
-      body { background: #111b22; color: #e7eff3; }
-      main { background: #1a2831; border-color: #35505f; }
+      body { background: #1a2831; color: #e7eff3; }
       .muted, .task small { color: #a8bdc9; }
-      .panel { background: #213641; }
-      .notice { background: #3a3321; border-color: #796637; }
-      input, select { background: #13232c; color: white; border-color: #526c79; }
+      .notice { background: #3a3321; }
+      .panel, .task { border-color: #35505f; }
       .secondary { background: #354b57; color: #e7eff3; }
-      .task { border-color: #35505f; }
     }
   </style>
 </head>
 <body>
   <main>
-    <header><h1>Visa Helper</h1><span class="badge">冰岛旅游模拟</span></header>
-    <p class="muted">聊聊你的出行计划，我们会据此整理需要准备的材料。</p>
-    <div class="notice">使用 2025 年审核表的模拟规则，尚未核实为现行要求。请勿输入真实个人资料或用于正式申请。</div>
-    <div id="content"></div>
+    <h1>你的签证材料清单</h1>
+    <div id="content"><p class="muted">正在读取材料清单…</p></div>
+    <p id="status" class="muted" role="status"></p>
     <p id="error" role="alert"></p>
   </main>
   <script type="module">
     const content = document.querySelector("#content");
     const errorEl = document.querySelector("#error");
+    const statusEl = document.querySelector("#status");
     let application = null;
-    let activeQuestionId = null;
     let busy = false;
     let rpcId = 0;
     const pending = new Map();
     const notify = (method, params) => window.parent.postMessage({ jsonrpc: "2.0", method, params }, "*");
     const request = (method, params) => new Promise((resolve, reject) => {
       const id = ++rpcId;
-      pending.set(id, { resolve, reject });
+      const timeout = setTimeout(() => {
+        pending.delete(id);
+        reject(new Error("连接超时，请稍后重试。"));
+      }, 30000);
+      pending.set(id, { resolve, reject, timeout });
       window.parent.postMessage({ jsonrpc: "2.0", id, method, params }, "*");
     });
+
     function applyResult(result) {
-      const data = result?.structuredContent;
-      if (data?.application) {
-        const previousQuestionId = activeQuestionId;
-        application = data.application;
-        if (application.status === "questions") {
-          const remaining = application.questions.filter((question) => application.answers?.[question.id] === undefined);
-          activeQuestionId = remaining.find((question) => question.id !== previousQuestionId)?.id ?? remaining[0]?.id ?? null;
-        } else if (application.status === "needs_correction") {
-          activeQuestionId = previousQuestionId;
-        } else {
-          activeQuestionId = null;
-        }
-        try { localStorage.setItem("visa-helper-application-id", application.id); } catch {}
-      }
-      if (data?.error) errorEl.textContent = data.error.message;
+      const fullState = result?._meta?.application ?? result?.structuredContent?.application;
+      if (fullState?.id) application = fullState;
+      if (result?.isError) throw new Error(result?.structuredContent?.error?.message ?? "操作失败，请重试。");
       render();
     }
     window.addEventListener("message", (event) => {
@@ -86,37 +71,47 @@
       if (typeof message.id === "number") {
         const waiting = pending.get(message.id);
         if (!waiting) return;
+        clearTimeout(waiting.timeout);
         pending.delete(message.id);
         message.error ? waiting.reject(message.error) : waiting.resolve(message.result);
       } else if (message.method === "ui/notifications/tool-result") {
-        applyResult(message.params);
+        try { applyResult(message.params); } catch (error) { errorEl.textContent = error.message; }
       }
     });
     const ready = request("ui/initialize", {
-      appInfo: { name: "visa-helper-ui", version: "0.2.0" },
-      appCapabilities: {},
-      protocolVersion: "2026-01-26",
+      appInfo: { name: "visa-helper-task-workspace", version: "0.3.0" },
+      appCapabilities: {}, protocolVersion: "2026-01-26",
     }).then(() => notify("ui/notifications/initialized", {}));
+    ready.catch((error) => { errorEl.textContent = error.message; });
 
-    async function call(name, args) {
+    async function perform(action) {
       if (busy) return;
       busy = true;
       errorEl.textContent = "";
+      statusEl.textContent = "";
       render();
-      try {
-        await ready;
-        applyResult(await request("tools/call", { name, arguments: args }));
-      } catch (error) {
-        errorEl.textContent = error?.message ?? "操作失败，请稍后重试。";
-      } finally {
-        busy = false;
-        render();
-      }
+      try { await ready; await action(); }
+      catch (error) { errorEl.textContent = error?.message ?? "操作失败，请稍后重试。"; }
+      finally { busy = false; render(); }
     }
-
-    function element(tag, value, className = "") {
+    function startTask(task) {
+      return perform(async () => applyResult(await request("tools/call", {
+        name: "start_task", arguments: { applicationId: application.id, taskId: task.id },
+      })));
+    }
+    function continueInChat(task) {
+      return perform(async () => {
+        const result = await request("ui/message", {
+          role: "user", content: [{ type: "text", text:
+            `请继续协助我准备“${task.title}”。申请 ID：${application.id}；材料任务 ID：${task.id}。请先调用 start_task 读取当前要求，仅处理这一项，告诉我现在需要提供或准备什么。` }],
+        });
+        if (result?.isError) throw new Error("未能在对话中继续。请在聊天中说明要准备的材料名称。");
+        statusEl.textContent = "已在当前对话中继续，请查看聊天回复。";
+      });
+    }
+    function element(tag, text, className = "") {
       const node = document.createElement(tag);
-      node.textContent = value;
+      node.textContent = text;
       node.className = className;
       return node;
     }
@@ -128,98 +123,51 @@
       return node;
     }
     function render() {
+      if (!application) return;
       content.replaceChildren();
-      if (!application) {
-        content.append(element("h2", "开始一次模拟申请"));
-        content.append(element("p", "每次只处理一位申请人。你可以按页卡逐个回答问题，也可以在当前对话中一口气说出旅行计划；我们会根据你提供的信息查缺补漏。"));
-        content.append(element("p", "例如可以说明护照国籍、居住地、递交城市、目的地、日期、年龄和职业。只说你确定的信息即可。", "muted"));
-        content.append(button("按页卡逐题回答", () => call("create_application", {})));
-        content.append(element("p", "想一次说完？直接在当前 ChatGPT 对话中写出旅行计划即可，无需先填页卡。", "muted"));
-        const resume = document.createElement("form");
-        resume.className = "panel";
-        const label = element("label", "已有申请 ID");
-        const input = document.createElement("input");
-        input.name = "applicationId";
-        input.placeholder = "粘贴申请 ID";
-        input.required = true;
-        label.append(input);
-        const submit = element("button", "恢复申请", "secondary");
-        submit.type = "submit";
-        resume.append(label, submit);
-        resume.addEventListener("submit", (event) => {
-          event.preventDefault();
-          call("get_application", { applicationId: input.value.trim() });
-        });
-        try { input.value = localStorage.getItem("visa-helper-application-id") ?? ""; } catch {}
-        content.append(resume);
+      if (application.status !== "tasks_ready") {
+        content.append(element("p", "申请信息需要补充或更正。请继续在对话中回答问题，完成后会更新材料清单。"));
         return;
       }
-      content.append(element("p", `申请 ID：${application.id}`, "muted"));
-      if (application.status === "legacy_walkthrough") {
-        content.append(element("div", application.notice, "panel"));
-        content.append(button("新建模拟申请", () => call("create_application", {})));
+      if (!Array.isArray(application.tasks)) {
+        content.append(element("p", "请重新打开材料清单以载入完整任务。"));
+        content.append(button("重新读取", () => perform(async () => applyResult(await request("tools/call", {
+          name: "get_task_queue", arguments: { applicationId: application.id },
+        })))));
         return;
       }
-      if (application.reason) content.append(element("div", application.reason, "panel"));
-      if (application.status === "questions" || application.status === "needs_correction") {
-        const group = application.questionGroup;
-        const questions = application.questions;
-        const question = questions.find((item) => item.id === activeQuestionId) ?? questions.find((item) => application.answers?.[item.id] === undefined) ?? questions[0];
-        const position = questions.findIndex((item) => item.id === question.id);
-        const answered = questions.filter((item) => application.answers?.[item.id] !== undefined).length;
-        content.append(element("h2", group.title));
-        content.append(element("p", `本组已回答 ${answered}/${group.total} 题 · 当前第 ${position + 1} 题`, "muted"));
-        content.append(element("p", "也可以在当前对话中一次写出旅行计划；我们只会追问缺少的信息。", "muted"));
-        const form = document.createElement("form");
-        form.className = "panel";
-        const label = element("label", question.title);
-        let input;
-        if (question.type === "choice") {
-          input = document.createElement("select");
-          input.append(new Option("请选择", ""));
-          question.options.forEach((option) => input.append(new Option(option.label, option.value)));
+      content.append(element("p", `共 ${application.tasks.length} 项材料。选择一项开始准备，每项对应一份文件。`));
+      content.append(element("p", "冰岛旅游模拟 · 依据用户提供的 2025 年审核表，尚未核实为现行要求。", "notice"));
+      const activeTask = application.activeTask;
+      const recommended = activeTask ?? application.tasks[0];
+      if (recommended) {
+        const next = element("section", "", "panel");
+        next.append(element("h2", activeTask ? `正在准备：${activeTask.title}` : `下一步：${recommended.title}`));
+        if (activeTask) {
+          const method = { form: "填写并核对表格，按要求整理成文件。", collect: "取得或整理这份材料，核对后保留所需文件。", draft: "根据已确认的行程资料起草并核对文件。" }[activeTask.handling];
+          if (method) next.append(element("p", method));
+          if (activeTask.note) next.append(element("p", activeTask.note));
+          next.append(element("p", "下一步在对话中继续准备这项材料。文件上传、生成和完成验收尚未开放。", "muted"));
+          next.append(button("在对话中继续准备", () => continueInChat(activeTask)));
         } else {
-          input = document.createElement("input");
-          input.type = question.type === "date" ? "date" : "text";
+          next.append(button("开始准备", () => startTask(recommended)));
         }
-        input.name = question.id;
-        input.value = application.answers?.[question.id] ?? "";
-        input.required = true;
-        label.append(input);
-        form.append(label);
-        const actions = document.createElement("div");
-        actions.className = "actions";
-        const submit = element("button", "保存并继续");
-        submit.type = "submit";
-        actions.append(submit);
-        if (position > 0) actions.append(button("上一题", () => { activeQuestionId = questions[position - 1].id; render(); }, "secondary"));
-        if (position < questions.length - 1) actions.append(button("下一题", () => { activeQuestionId = questions[position + 1].id; render(); }, "secondary"));
-        form.append(actions);
-        form.addEventListener("submit", (event) => {
-          event.preventDefault();
-          call("submit_answers", { applicationId: application.id, answers: { [question.id]: input.value.trim() } });
-        });
-        content.append(form);
-        return;
+        content.append(next);
       }
-      if (application.status === "tasks_ready") {
-        content.append(element("h2", `文件任务队列（${application.tasks.length} 项）`));
-        content.append(element("p", "这是根据你的回答整理出的材料。逐项准备文件的功能将在下一阶段开放。", "muted"));
-        const list = document.createElement("div");
-        list.className = "panel";
-        for (const task of application.tasks) {
-          const row = document.createElement("div");
-          row.className = "task";
-          row.append(element("strong", `${task.title} · 原表第 ${task.checklistItem} 项`));
-          if (task.note) row.append(element("small", task.note));
-          list.append(row);
-        }
-        content.append(list);
-        for (const note of application.reviewNotes) content.append(element("p", `待核实：${note}`, "notice"));
-        content.append(element("p", "如需更正情况，请在对话中说明，助手会更新答案并重新生成队列。", "muted"));
-      }
+      const list = element("section", "", "panel");
+      list.append(element("h2", "全部材料"));
+      application.tasks.forEach((task, index) => {
+        const row = element("div", "", "task");
+        const text = element("div", "", "task-text");
+        text.append(element("strong", `${index + 1}. ${task.title}`));
+        text.append(element("small", task.status === "in_progress" ? "准备中" : "待准备"));
+        row.append(text, button(task.id === activeTask?.id ? "查看当前项" : "开始准备", () => startTask(task), "secondary"));
+        list.append(row);
+      });
+      content.append(list);
+      for (const note of application.reviewNotes ?? []) content.append(element("p", `待核实：${note}`, "notice"));
+      content.append(element("p", "情况有变化？直接在对话中说明，材料清单会随答案重新计算。", "muted"));
     }
-    render();
   </script>
 </body>
 </html>

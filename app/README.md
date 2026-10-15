@@ -1,6 +1,6 @@
 # Visa Helper MCP App
 
-首版目标是在 ChatGPT 中通过对话完成一位申请人的材料决策树，再在独立 MCP Apps UI 中查看文件任务队列。当前实现使用用户提供的 **2025 年冰岛旅游审核表**作为模拟规则：服务返回当前问题组和完整问题目录，页卡每次展示一题；用户也可以在 ChatGPT 对话中一次写出旅行计划，由 ChatGPT 提取明确的答案并通过 `submit_answers` 保存，随后只追问缺失项。规则按年龄、职业、担保和多国行程生成文件任务。规则尚未核实为现行官方要求，不进行真实申请的材料合规判断，也尚未实现第二阶段的文件收集和制作。
+首版在 ChatGPT 对话中完成一位申请人的材料决策树，走到叶子节点后才展示 MCP App 材料工作台。当前规则来自用户提供的 **2025 年冰岛旅游审核表**，仅供模拟。问答阶段没有自建网页或表单；ChatGPT 可以逐题询问，也可以从整段旅行计划提取明确的事实，调用 `submit_answers` 推进决策树，直到缺少信息才继续问用户。材料工作台支持选择材料、记录「准备中」并回到对话准备这一项；文件上传、生成和完成验收尚未实现。
 
 ## 本地运行
 
@@ -11,7 +11,7 @@ npm install
 npm start
 ```
 
-服务默认监听 `127.0.0.1:8787/mcp`。运行 `npm test` 验证问题分支、任务生成和 MCP 工具。可以用 MCP Inspector 连接本地端点，调用 `open_visa_helper` 查看 UI 资源和工具结果。
+服务默认监听 `127.0.0.1:8787/mcp`。运行 `npm test` 验证问题分支、任务生成和 MCP 工具。用 MCP Inspector 连接本地端点，从 `create_application` 开始；答案完整后调用 `get_task_queue` 查看 UI 资源和工具结果。
 
 `deploy/compose.yml` 提供与旧版服务隔离的 Docker 部署：容器内监听 `8787`，宿主机仅在 `127.0.0.1:18081` 暴露原型。若服务器无法访问 Docker Hub，也可使用 `deploy/visa-helper-mcp.service` 在独立目录运行 Node；该服务同样仅监听本机 `18081`。两种方式都只用于远程运行验证，不能作为公开的 ChatGPT 连接地址。
 
@@ -19,14 +19,17 @@ npm start
 
 | 工具 | 用途 |
 | --- | --- |
-| `open_visa_helper` | 展示 MCP Apps UI，可选申请 ID |
+| `open_visa_helper` | 兼容旧入口，返回继续对话的下一步，不加载 UI |
 | `create_application` | 为一位申请人创建模拟申请，返回第一组问题 |
 | `get_application` | 读取服务端状态并恢复申请 |
-| `get_questions` | 返回当前决策树问题组及选项 |
-| `submit_answers` | 保存用户回答，返回下一组问题或文件任务队列；可更正答案 |
-| `get_task_queue` | 问题回答完成后读取文件任务队列 |
+| `get_questions` | 返回下一题、当前缺失问题和完整问题目录，不加载 UI |
+| `submit_answers` | 提交一个或多个明确答案，推进到缺少信息的位置或叶子节点；可更正答案 |
+| `get_task_queue` | 仅在叶子节点展示 MCP App 材料清单和任务入口 |
+| `start_task` | 选择一项适用材料，保存准备中状态并返回该材料的原表说明 |
 
-UI 使用 MCP Apps 的 `ui/initialize`、`ui/notifications/tool-result` 和 `tools/call` 桥。状态写入 `app/data/applications.json`，该路径已忽略提交。
+每次结果中的 `nextAction` 明确下一步：`answer_or_ask` 先用对话中已知事实代答、否则提问；`clarify` 澄清矛盾；`call_tool` 在叶子调用 `get_task_queue`；`choose_task` 提示用户从工作台选择任务。完整清单通过工具结果 `_meta.application` 提供给 UI，模型只收到数量和下一步，避免在聊天中重复长清单。
+
+UI 使用 MCP Apps 的 `ui/initialize`、`ui/notifications/tool-result`、`tools/call` 和 `ui/message` 桥；后者由用户点击「在对话中继续准备」触发，带上申请和材料任务 ID。状态写入 `app/data/applications.json`，该路径已忽略提交。
 
 ## 当前私有测试与公开接入
 
