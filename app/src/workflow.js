@@ -6,7 +6,7 @@ import { DEFAULT_CONFIG_DIR, evaluateChecklist, getActiveRuleVersion, loadRulePa
 export const PATH = Object.freeze({
   id: "cn-passport-cn-resident-is-tourism",
   label: "中国护照 · 居住中国 · 冰岛旅游",
-  ruleStatus: "simulation_draft",
+  ruleStatus: "pending_verification",
 });
 
 export class WorkflowError extends Error {
@@ -25,7 +25,8 @@ export function publicState(record, configDir = DEFAULT_CONFIG_DIR) {
     };
   }
   const result = evaluateChecklist(record.answers, record.ruleVersion, configDir);
-  const questionCatalog = loadRulePack(record.ruleVersion, configDir).questionGroups.flatMap((group) => group.questions);
+  const pack = loadRulePack(record.ruleVersion, configDir);
+  const questionCatalog = pack.questionGroups.flatMap((group) => group.questions);
   const pendingQuestions = result.status === "questions"
     ? result.questions.filter((question) => record.answers[question.id] === undefined)
     : result.questions;
@@ -44,9 +45,11 @@ export function publicState(record, configDir = DEFAULT_CONFIG_DIR) {
     tasks,
     activeTask: tasks.find((task) => task.id === record.activeTaskId) ?? null,
     reviewNotes: result.reviewNotes ?? [],
-    reason: result.reason ?? null,
+    reason: result.reason?.replaceAll("本模拟", "当前流程").replaceAll("当前模拟", "当前版本") ?? null,
     updatedAt: record.updatedAt,
-    notice: result.notice,
+    notice: pack.source?.status === "user_supplied_unverified"
+      ? `材料依据：你提供的 ${pack.source.createdDate.slice(0, 4)} 年签证材料审核表，尚待与现行官方要求核对。`
+      : result.notice,
   };
 }
 

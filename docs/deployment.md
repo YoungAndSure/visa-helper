@@ -1,8 +1,22 @@
 # ChatGPT MCP App 部署与测试
 
-当前版本为 `0.3.0`：问答全程在 ChatGPT 对话中进行，MCP 保存答案并推进决策树，直到叶子节点才展示材料任务工作台。部署和验证状态见下一节。尚不能公开处理真实用户申请。
+当前版本为 `0.4.0`：MCP 推进决策树，缺少答案时实际请求原生问题表单，叶子节点使用独立入口展示材料工作台。材料来源复核与用户申请记录分别处理，界面不再标为「模拟」。
 
-## 2026-10-15：对话推进决策树，叶子节点展示 App
+## 2026-10-15：原生表单与独立清单入口
+
+用户已反复刷新，工具列表也已出现 `start_task`，但展示内容仍是旧问卷全文（包括「开始一次模拟申请」「已有申请 ID／恢复申请」），因此不能归因于未刷新。当前清单源码没有这些控件；旧 UI 的具体缓存位置未能从分享链接确认。新版移除旧 `open_visa_helper` 工具，以新工具 `show_material_checklist` 和资源 `ui://visa-helper/material-checklist-v4.html` 展示最终清单；`get_task_queue` 仅供 App 自动读取完整状态。工作台兼容完整工具通知、初始输出已存在、仅工具输入已存在三种宿主载入时序，均自动关联当前申请。
+
+原先「如可用则用原生问题卡」只是模型指引，未发起表单请求。新版升级官方 MCP 服务端 2.x，使用 `@openai/mcp-extensions` 的 `requestFormInput` 实现 `ask_next_question`，通过 MRTR 的 `input_required` 请求一道题；接收答案后仍运行同一决策树。只在当前请求声明 MCP 2026-07-28 及 `elicitation.form`、`openai/elicitation.form` 时请求原生表单，否则明确返回聊天回退，不伪称已展示。[官方表单说明](https://developers.openai.com/plugins/build/extensions)、[官方平台支持表](https://github.com/openai/mcp-extensions/blob/main/docs/spec.md#platform-support)。后者明确 Web 指 Work 浏览器，Classic ChatGPT 不在该扩展支持范围；因此原生问题框应在 Work 网页或桌面测试，代码更新本身不要求 Work。
+
+移除用户界面和工具说明中的「模拟」标签，API 路径状态改为 `pending_verification`。旧申请仍保留其规则版本，输出端按实际申请准备呈现；材料来源单独写明为用户提供的 2025 年审核表、现行官方要求待复核，不把未核实来源描述为已验证规则。
+
+本地测试已验证原生表单的逐题多轮请求、答案保存、取消保留缺失项、不支持时明确回退，以及走到叶子后的清单动作。无头浏览器验证上述三种初始状态来源均能显示完整清单、选择材料并回到对话，且没有「模拟」「恢复申请」文案。原生表单在 ChatGPT Work 宿主中的实际展示仍需部署后验收。
+
+0.4.0 已部署到现有腾讯云服务，更新前备份代码和依赖，申请数据保留。实际部署的 HTTP 已验证八个工具、旧入口移除、v4 清单资源，以及原生表单的请求—答案—下一题一轮交互。经现有 OpenAI Tunnel 连接的兼容读取调用成功，返回新清单动作及 `pending_verification` 来源状态。后台 Tunnel 健康且就绪。上述验证不等于已在 ChatGPT Work 中看到弹框；这部分仍需使用支持的宿主验收。
+
+新版工具应有八个：`create_application`、`get_application`、`get_questions`、`submit_answers`、`ask_next_question`、`show_material_checklist`、`get_task_queue`（App 可见）、`start_task`。验收时应看到新增的 `ask_next_question` 和 `show_material_checklist`，并不再调用旧 `open_visa_helper`；仅核对 `start_task` 不足以确认本次更新。
+
+## 历史：0.3.0 对话推进决策树，叶子节点展示 App
 
 用户反馈此前问卷网页与聊天同时提问、没有继续补齐信息、清单后缺少明确下一步。新版把问答接口与 UI 分开：`create_application`、`get_questions`、`submit_answers` 和兼容入口 `open_visa_helper` 都没有 UI 关联。`submit_answers` 接收一题或从用户整段话提取的多个答案，返回 `nextQuestion`、`pendingQuestions` 和 `nextAction`。GPT 优先使用原话中的明确事实推进，遇到信息缺口或冲突再追问，直到 `tasks_ready` 后调用 `get_task_queue`。
 

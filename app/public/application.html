@@ -34,7 +34,7 @@
   </style>
 </head>
 <body>
-  <main>
+  <main data-build="material-checklist-v4">
     <h1>你的签证材料清单</h1>
     <div id="content"><p class="muted">正在读取材料清单…</p></div>
     <p id="status" class="muted" role="status"></p>
@@ -46,6 +46,7 @@
     const statusEl = document.querySelector("#status");
     let application = null;
     let busy = false;
+    let hydrationStartedFor = null;
     let rpcId = 0;
     const pending = new Map();
     const notify = (method, params) => window.parent.postMessage({ jsonrpc: "2.0", method, params }, "*");
@@ -61,9 +62,21 @@
 
     function applyResult(result) {
       const fullState = result?._meta?.application ?? result?.structuredContent?.application;
-      if (fullState?.id) application = fullState;
+      if (fullState?.id) {
+        application = fullState.id === application?.id && fullState.status === "tasks_ready" && !Array.isArray(fullState.tasks)
+          ? { ...application, ...fullState }
+          : fullState;
+      }
       if (result?.isError) throw new Error(result?.structuredContent?.error?.message ?? "操作失败，请重试。");
       render();
+      if (application?.status === "tasks_ready" && !Array.isArray(application.tasks)) hydrate(application.id);
+    }
+    function hydrate(applicationId) {
+      if (!applicationId || hydrationStartedFor === applicationId) return;
+      hydrationStartedFor = applicationId;
+      ready.then(async () => applyResult(await request("tools/call", {
+        name: "get_task_queue", arguments: { applicationId },
+      }))).catch((error) => { hydrationStartedFor = null; errorEl.textContent = error.message; });
     }
     window.addEventListener("message", (event) => {
       if (event.source !== window.parent || event.data?.jsonrpc !== "2.0") return;
@@ -76,13 +89,25 @@
         message.error ? waiting.reject(message.error) : waiting.resolve(message.result);
       } else if (message.method === "ui/notifications/tool-result") {
         try { applyResult(message.params); } catch (error) { errorEl.textContent = error.message; }
+      } else if (message.method === "ui/notifications/tool-input") {
+        hydrate(message.params?.arguments?.applicationId);
       }
     });
     const ready = request("ui/initialize", {
-      appInfo: { name: "visa-helper-task-workspace", version: "0.3.0" },
+      appInfo: { name: "visa-helper-material-checklist", version: "0.4.0" },
       appCapabilities: {}, protocolVersion: "2026-01-26",
     }).then(() => notify("ui/notifications/initialized", {}));
     ready.catch((error) => { errorEl.textContent = error.message; });
+    // Some ChatGPT mounts already have the initial result instead of replaying
+    // a tool-result notification. Hydrate by the supplied ID, never ask for it.
+    function readInitialHostState() {
+      const state = window.openai;
+      if (state?.toolOutput?.application) applyResult({ structuredContent: state.toolOutput,
+        _meta: state.toolResponseMetadata?._meta ?? state.toolResponseMetadata });
+      if (!application) hydrate(state?.toolInput?.applicationId);
+    }
+    window.addEventListener("openai:set_globals", readInitialHostState);
+    ready.then(readInitialHostState).catch(() => {});
 
     async function perform(action) {
       if (busy) return;
@@ -137,7 +162,7 @@
         return;
       }
       content.append(element("p", `共 ${application.tasks.length} 项材料。选择一项开始准备，每项对应一份文件。`));
-      content.append(element("p", "冰岛旅游模拟 · 依据用户提供的 2025 年审核表，尚未核实为现行要求。", "notice"));
+      content.append(element("p", application.notice, "muted"));
       const activeTask = application.activeTask;
       const recommended = activeTask ?? application.tasks[0];
       if (recommended) {
