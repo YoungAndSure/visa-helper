@@ -100,15 +100,23 @@ ChatGPT → OpenAI Secure MCP Tunnel → 开发机 tunnel-client
 
 ### 当前账号的实际准备状态
 
-用户已创建用于私有测试的 Tunnel；其 ID 保存在未提交的本地配置中。开发机已下载并校验 `tunnel-client v0.0.16`，二进制与配置位于已忽略提交的 `app/.local/`。`app/scripts/start-private-test.sh` 会启动 SSH 转发、检查 MCP 可达性、无回显读取运行 API key、执行 `doctor`，然后前台运行 tunnel-client。脚本已通过语法与无密钥路径测试；用户随后提供运行密钥并完成端到端测试。
+用户已创建用于私有测试的 Tunnel；其 ID 保存在未提交的本地配置中。开发机已下载并校验 `tunnel-client v0.0.16`，二进制与配置位于已忽略提交的 `app/.local/`。`app/scripts/start-private-test.sh` 默认在后台管理 SSH 转发与 tunnel-client，启动前检查 MCP 可达性并执行 `doctor`。2026-10-15 已增加后台管理，具体命令见下文。
 
-再次测试时，在开发机**交互式终端**运行：
+在开发机准备 `CONTROL_PLANE_API_KEY` 环境变量后运行：
 
 ```bash
-app/scripts/start-private-test.sh
+app/scripts/start-private-test.sh start
+app/scripts/start-private-test.sh status
+app/scripts/start-private-test.sh stop
 ```
 
-密钥只在本机提示符输入，不发到聊天、不写入仓库。保持终端运行后，在 ChatGPT 中选择该应用。当前使用个人 Pro 套餐；[OpenAI 帮助中心](https://help.openai.com/en/articles/12584461-developer-mode-and-mcp-apps-in-chatgpt)对 Pro 的完整可写 MCP 支持有限制说明；下述实测结果仅描述当前测试连接，不代表所有 Pro 账号均受支持。
+`start` 读取继承的环境变量；未设置时，可从本机 `app/.local/tunnel.env` 读取 `CONTROL_PLANE_API_KEY=运行密钥`。该文件位于忽略目录，脚本把权限设为 `600`，不打印内容。若仍无密钥且在交互终端中，则无回显询问。另一个终端中新执行的 `export` 不会改变已经启动的 Codex 进程环境；需要由 Codex 代启动时，使用本机环境文件即可，不把密钥发到聊天。
+
+后台日志为 `app/.local/private-test.log`，进程信息为同目录的 `private-test.pid`。重复 `start` 不会重复启动；`stop` 只停止本脚本管理的进程，并清理它新建的 SSH 转发；启动时若复用已有转发，不会停止该外部转发。既有的手动前台 tunnel-client 需要先退出，才能把 `8080` 交给后台进程；脚本不会杀死外部服务。后台使用独立会话并忽略终端挂断，启动成功后可以关闭终端；需要排查时使用 `foreground` 子命令。后台运行仍使用 `127.0.0.1:18081` 和 `127.0.0.1:8080` 端口，不提供开机自启。
+
+新增进程测试使用模拟客户端与转发，验证私密读取密钥、重复启动、就绪状态、停止清理，以及密钥不进入命令参数或日志；该测试不使用实际运行密钥。
+
+在 ChatGPT 中选择该应用进行测试。当前使用个人 Pro 套餐；[OpenAI 帮助中心](https://help.openai.com/en/articles/12584461-developer-mode-and-mcp-apps-in-chatgpt)对 Pro 的完整可写 MCP 支持有限制说明；下述实测结果仅描述当前测试连接，不代表所有 Pro 账号均受支持。
 
 2026-10-14 复核：用户已在本机输入运行密钥，`doctor` 结果为 `ok`。本机 tunnel-client `/healthz` 返回 `live`、`/readyz` 返回 `ready`，控制平面状态为 `polling`。新版 MCP 已把 `open_visa_helper` 和 `get_application` 标为只读，`create_application` 和 `submit_step` 标为写入，远程服务重启后从 SSH 转发端口读取工具列表确认生效。
 
