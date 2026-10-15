@@ -42,7 +42,7 @@
 <body>
   <main>
     <header><h1>Visa Helper</h1><span class="badge">冰岛旅游模拟</span></header>
-    <p class="muted">先回答材料决策树的问题，再查看个人文件任务队列。</p>
+    <p class="muted">聊聊你的出行计划，我们会据此整理需要准备的材料。</p>
     <div class="notice">使用 2025 年审核表的模拟规则，尚未核实为现行要求。请勿输入真实个人资料或用于正式申请。</div>
     <div id="content"></div>
     <p id="error" role="alert"></p>
@@ -120,7 +120,7 @@
       content.replaceChildren();
       if (!application) {
         content.append(element("h2", "开始一次模拟申请"));
-        content.append(element("p", "每次只处理一位申请人。你可以在对话中回答整组问题，也可以在这里填写。"));
+        content.append(element("p", "每次只处理一位申请人。你可以在对话中回答问题，也可以在这里填写。"));
         content.append(button("开始", () => call("create_application", {})));
         const resume = document.createElement("form");
         resume.className = "panel";
@@ -187,7 +187,7 @@
       }
       if (application.status === "tasks_ready") {
         content.append(element("h2", `文件任务队列（${application.tasks.length} 项）`));
-        content.append(element("p", "这是决策树筛选结果。收集、填写和生成文件属于下一阶段。", "muted"));
+        content.append(element("p", "这是根据你的回答整理出的材料。逐项准备文件的功能将在下一阶段开放。", "muted"));
         const list = document.createElement("div");
         list.className = "panel";
         for (const task of application.tasks) {

@@ -50,18 +50,18 @@ export function createVisaServer(store = defaultStore) {
 
   registerAppTool(server, "open_visa_helper", {
     title: "Open Visa Helper",
-    description: "Open the Visa Helper UI for a simulated Iceland tourism application. If the user has no application, call create_application, then get_questions. Rules are an unverified 2025 checklist draft.",
+    description: "Show the Visa Helper UI for an Iceland tourism visa checklist. If the user wants to start preparing an application and has none yet, use create_application to begin and present the returned questions naturally. Rules are an unverified 2025 checklist draft.",
     inputSchema: { applicationId: z.string().uuid().optional() },
     annotations: { readOnlyHint: true, openWorldHint: false, destructiveHint: false },
     _meta: { ui: { resourceUri } },
   }, async ({ applicationId }) => safely(async () => reply(applicationId ? await store.get(applicationId) : null)));
 
   server.registerTool("create_application", {
-    title: "Create visa application",
-    description: "Start one simulated Iceland tourism application for one person. Returns the first complete question group. Ask the user the group together, accepting natural language answers. Do not request passport numbers or files.",
+    title: "Start Iceland tourism visa checklist",
+    description: "Use when a user naturally asks for help with an Iceland tourist visa, such as what documents to prepare or how to start. Create one simulated application for one person, then ask the returned first group of questions together in plain Chinese. Do not require a special prompt or invent answers. Do not request passport numbers or files.",
     inputSchema: {},
     annotations: { readOnlyHint: false, openWorldHint: false, destructiveHint: false },
-  }, async () => reply(await store.create(), "已创建模拟申请。请一次询问当前问题组中的所有问题。"));
+  }, async () => reply(await store.create(), "已开始准备材料清单。请用自然语言一次询问当前问题组中的所有问题。"));
 
   server.registerTool("get_application", {
     title: "Get visa application",
