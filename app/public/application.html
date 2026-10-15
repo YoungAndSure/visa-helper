@@ -7,44 +7,43 @@
   <style>
     :root { color-scheme: light dark; font-family: system-ui, sans-serif; }
     * { box-sizing: border-box; }
-    body { margin: 0; padding: 18px; background: #f4f7fa; color: #152534; }
-    main { max-width: 600px; margin: auto; background: #fff; border: 1px solid #d9e3ea; border-radius: 18px; padding: 22px; }
+    body { margin: 0; padding: 16px; background: #f4f7fa; color: #152534; }
+    main { max-width: 650px; margin: auto; background: #fff; border: 1px solid #d9e3ea; border-radius: 18px; padding: 22px; }
     header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-    h1 { font-size: 1.45rem; margin: 0; }
-    h2 { font-size: 1.15rem; margin: 20px 0 8px; }
+    h1 { font-size: 1.4rem; margin: 0; }
+    h2 { font-size: 1.1rem; margin: 22px 0 8px; }
     p { line-height: 1.55; }
     .badge { border-radius: 999px; padding: 5px 10px; background: #e5f3ef; color: #126b54; font-size: .8rem; white-space: nowrap; }
-    .muted { color: #607284; font-size: .9rem; }
+    .muted { color: #607284; font-size: .88rem; }
     .notice { background: #fff6dc; border: 1px solid #efdca5; border-radius: 12px; padding: 12px; font-size: .9rem; }
     .panel { background: #f7f9fb; border-radius: 12px; padding: 14px; margin-top: 14px; }
-    .steps { display: flex; flex-wrap: wrap; gap: 6px; margin: 18px 0; }
-    .step { font-size: .8rem; background: #eef2f6; color: #627386; border-radius: 999px; padding: 6px 10px; }
-    .step.current { background: #176e65; color: white; }
-    .step.done { background: #d8eee8; color: #176e65; }
+    .task { border-bottom: 1px solid #d9e3ea; padding: 12px 0; }
+    .task:last-child { border-bottom: 0; }
+    .task strong { display: block; }
+    .task small { display: block; margin-top: 4px; color: #607284; line-height: 1.45; }
     label { display: block; margin: 12px 0; font-size: .9rem; font-weight: 600; }
-    input { display: block; width: 100%; padding: 10px; margin-top: 6px; border: 1px solid #b9c9d5; border-radius: 9px; font: inherit; }
+    input, select { display: block; width: 100%; padding: 10px; margin-top: 6px; border: 1px solid #b9c9d5; border-radius: 9px; font: inherit; }
     button { background: #176e65; border: 0; border-radius: 10px; color: white; padding: 10px 16px; font: inherit; font-weight: 600; cursor: pointer; }
     button:disabled { opacity: .55; cursor: wait; }
     .secondary { background: #eaf0f3; color: #213848; }
-    .row { display: flex; gap: 8px; align-items: center; }
-    .row input { margin: 0; }
     #error { color: #a13227; min-height: 1.4em; }
     @media (prefers-color-scheme: dark) {
       body { background: #111b22; color: #e7eff3; }
       main { background: #1a2831; border-color: #35505f; }
-      .muted { color: #a8bdc9; }
+      .muted, .task small { color: #a8bdc9; }
       .panel { background: #213641; }
       .notice { background: #3a3321; border-color: #796637; }
-      input { background: #13232c; color: white; border-color: #526c79; }
-      .secondary, .step { background: #354b57; color: #e7eff3; }
+      input, select { background: #13232c; color: white; border-color: #526c79; }
+      .secondary { background: #354b57; color: #e7eff3; }
+      .task { border-color: #35505f; }
     }
   </style>
 </head>
 <body>
   <main>
-    <header><h1>Visa Helper</h1><span class="badge">申请流程原型</span></header>
-    <p class="muted">由服务端决定当前步骤，ChatGPT 可以辅助解释。</p>
-    <div class="notice">官方材料规则尚未核实。本原型只验证申请流程交互，不表示已完成签证申请准备。</div>
+    <header><h1>Visa Helper</h1><span class="badge">冰岛旅游模拟</span></header>
+    <p class="muted">先回答材料决策树的问题，再查看个人文件任务队列。</p>
+    <div class="notice">使用 2025 年审核表的模拟规则，尚未核实为现行要求。请勿输入真实个人资料或用于正式申请。</div>
     <div id="content"></div>
     <p id="error" role="alert"></p>
   </main>
@@ -83,7 +82,7 @@
       }
     });
     const ready = request("ui/initialize", {
-      appInfo: { name: "visa-helper-ui", version: "0.1.0" },
+      appInfo: { name: "visa-helper-ui", version: "0.2.0" },
       appCapabilities: {},
       protocolVersion: "2026-01-26",
     }).then(() => notify("ui/notifications/initialized", {}));
@@ -104,83 +103,104 @@
       }
     }
 
+    function element(tag, value, className = "") {
+      const node = document.createElement(tag);
+      node.textContent = value;
+      node.className = className;
+      return node;
+    }
+    function button(label, action, className = "") {
+      const node = element("button", label, className);
+      node.type = "button";
+      node.disabled = busy;
+      node.addEventListener("click", action);
+      return node;
+    }
     function render() {
       content.replaceChildren();
       if (!application) {
-        const title = document.createElement("h2");
-        title.textContent = "开始一次申请";
-        const path = document.createElement("p");
-        path.textContent = "当前开发路径：中国护照 · 居住中国 · 冰岛旅游";
-        const start = button("创建申请", () => call("create_application", {}));
+        content.append(element("h2", "开始一次模拟申请"));
+        content.append(element("p", "每次只处理一位申请人。你可以在对话中回答整组问题，也可以在这里填写。"));
+        content.append(button("开始", () => call("create_application", {})));
         const resume = document.createElement("form");
         resume.className = "panel";
-        resume.innerHTML = '<label>已有申请 ID<input name="applicationId" autocomplete="off" placeholder="粘贴申请 ID" required></label><button class="secondary" type="submit">恢复申请</button>';
+        const label = element("label", "已有申请 ID");
+        const input = document.createElement("input");
+        input.name = "applicationId";
+        input.placeholder = "粘贴申请 ID";
+        input.required = true;
+        label.append(input);
+        const submit = element("button", "恢复申请", "secondary");
+        submit.type = "submit";
+        resume.append(label, submit);
         resume.addEventListener("submit", (event) => {
           event.preventDefault();
-          call("get_application", { applicationId: resume.elements.applicationId.value.trim() });
+          call("get_application", { applicationId: input.value.trim() });
         });
-        try { resume.elements.applicationId.value = localStorage.getItem("visa-helper-application-id") ?? ""; } catch {}
-        content.append(title, path, start, resume);
+        try { input.value = localStorage.getItem("visa-helper-application-id") ?? ""; } catch {}
+        content.append(resume);
         return;
       }
-      const id = document.createElement("p");
-      id.className = "muted";
-      id.textContent = `申请 ID：${application.id}`;
-      const steps = document.createElement("div");
-      steps.className = "steps";
-      application.steps.forEach((step) => {
-        const chip = document.createElement("span");
-        chip.className = `step ${application.completedSteps.includes(step.id) ? "done" : step.id === application.currentStep ? "current" : ""}`;
-        chip.textContent = step.title;
-        steps.append(chip);
-      });
-      content.append(id, steps);
-      if (application.status === "walkthrough_complete") {
-        const done = document.createElement("div");
-        done.className = "panel";
-        done.textContent = "交互流程已走通。正式材料清单、文件生成和递交前检查将在官方规则核实后开放。";
-        content.append(done);
+      content.append(element("p", `申请 ID：${application.id}`, "muted"));
+      if (application.status === "legacy_walkthrough") {
+        content.append(element("div", application.notice, "panel"));
+        content.append(button("新建模拟申请", () => call("create_application", {})));
         return;
       }
-      const title = document.createElement("h2");
-      title.textContent = application.steps.find((step) => step.id === application.currentStep)?.title ?? "当前步骤";
-      content.append(title);
-      if (application.currentStep === "scenario") {
-        const detail = document.createElement("div");
-        detail.className = "panel";
-        detail.textContent = "请确认：你持有中国护照、目前居住在中国，计划赴冰岛旅游。其他情况目前不受支持。";
-        content.append(detail, button("确认并继续", () => call("submit_step", {
-          applicationId: application.id, stepId: "scenario",
-          data: { nationality: "CN", residence: "CN", destination: "IS", purpose: "tourism" },
-        })));
-      } else if (application.currentStep === "trip") {
+      if (application.reason) content.append(element("div", application.reason, "panel"));
+      if (application.status === "questions" || application.status === "needs_correction") {
+        const group = application.questionGroup;
+        content.append(element("h2", `${group.title}（${group.total} 题）`));
+        content.append(element("p", "可一次回答这一组；已有答案可以修改。", "muted"));
         const form = document.createElement("form");
         form.className = "panel";
-        form.innerHTML = '<label>预计入境日期<input name="arrivalDate" type="date" required></label><label>预计离境日期<input name="departureDate" type="date" required></label><button type="submit">保存并继续</button>';
+        for (const question of application.questions) {
+          const label = element("label", question.title);
+          let input;
+          if (question.type === "choice") {
+            input = document.createElement("select");
+            input.append(new Option("请选择", ""));
+            question.options.forEach((option) => input.append(new Option(option.label, option.value)));
+          } else {
+            input = document.createElement("input");
+            input.type = question.type === "date" ? "date" : "text";
+          }
+          input.name = question.id;
+          input.value = application.answers?.[question.id] ?? "";
+          label.append(input);
+          form.append(label);
+        }
+        const submit = element("button", "保存本组回答");
+        submit.type = "submit";
+        form.append(submit);
         form.addEventListener("submit", (event) => {
           event.preventDefault();
-          call("submit_step", { applicationId: application.id, stepId: "trip", data: {
-            arrivalDate: form.elements.arrivalDate.value,
-            departureDate: form.elements.departureDate.value,
-          }});
+          const answers = Object.fromEntries(application.questions.map((question) => [question.id, form.elements[question.id].value.trim()]).filter(([, value]) => value));
+          if (!Object.keys(answers).length) {
+            errorEl.textContent = "请至少回答一个问题。";
+            return;
+          }
+          call("submit_answers", { applicationId: application.id, answers });
         });
         content.append(form);
-      } else if (application.currentStep === "review") {
-        const summary = document.createElement("div");
-        summary.className = "panel";
-        summary.textContent = `申请场景已确认；旅行时间：${application.data.trip?.arrivalDate ?? "—"} 至 ${application.data.trip?.departureDate ?? "—"}。官方规则尚未发布，不能进行材料合规判断。`;
-        content.append(summary, button("完成交互演示", () => call("submit_step", {
-          applicationId: application.id, stepId: "review", data: {},
-        })));
+        return;
       }
-    }
-    function button(label, action) {
-      const el = document.createElement("button");
-      el.type = "button";
-      el.textContent = label;
-      el.disabled = busy;
-      el.addEventListener("click", action);
-      return el;
+      if (application.status === "tasks_ready") {
+        content.append(element("h2", `文件任务队列（${application.tasks.length} 项）`));
+        content.append(element("p", "这是决策树筛选结果。收集、填写和生成文件属于下一阶段。", "muted"));
+        const list = document.createElement("div");
+        list.className = "panel";
+        for (const task of application.tasks) {
+          const row = document.createElement("div");
+          row.className = "task";
+          row.append(element("strong", `${task.title} · 原表第 ${task.checklistItem} 项`));
+          if (task.note) row.append(element("small", task.note));
+          list.append(row);
+        }
+        content.append(list);
+        for (const note of application.reviewNotes) content.append(element("p", `待核实：${note}`, "notice"));
+        content.append(element("p", "如需更正情况，请在对话中说明，助手会更新答案并重新生成队列。", "muted"));
+      }
     }
     render();
   </script>

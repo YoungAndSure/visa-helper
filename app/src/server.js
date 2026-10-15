@@ -15,7 +15,7 @@ import { ApplicationStore, PATH, WorkflowError } from "./workflow.js";
 const here = dirname(fileURLToPath(import.meta.url));
 const widgetHtml = readFileSync(join(here, "../public/application.html"), "utf8");
 const defaultStore = new ApplicationStore(process.env.VISA_HELPER_DATA_FILE ?? join(here, "../data/applications.json"));
-const resourceUri = "ui://visa-helper/application-v1.html";
+const resourceUri = "ui://visa-helper/application-v2.html";
 
 function reply(application, message = "") {
   return {
@@ -42,7 +42,7 @@ async function safely(action) {
 }
 
 export function createVisaServer(store = defaultStore) {
-  const server = new McpServer({ name: "visa-helper", version: "0.1.0" });
+  const server = new McpServer({ name: "visa-helper", version: "0.2.0" });
 
   registerAppResource(server, "visa-helper-ui", resourceUri, {}, async () => ({
     contents: [{ uri: resourceUri, mimeType: RESOURCE_MIME_TYPE, text: widgetHtml }],
@@ -50,7 +50,7 @@ export function createVisaServer(store = defaultStore) {
 
   registerAppTool(server, "open_visa_helper", {
     title: "Open Visa Helper",
-    description: "Open the Visa Helper application UI. Shows the supported Iceland tourism prototype path. Does not assert current visa requirements.",
+    description: "Open the Visa Helper UI for a simulated Iceland tourism application. If the user has no application, call create_application, then get_questions. Rules are an unverified 2025 checklist draft.",
     inputSchema: { applicationId: z.string().uuid().optional() },
     annotations: { readOnlyHint: true, openWorldHint: false, destructiveHint: false },
     _meta: { ui: { resourceUri } },
@@ -58,36 +58,46 @@ export function createVisaServer(store = defaultStore) {
 
   server.registerTool("create_application", {
     title: "Create visa application",
-    description: "Create a Visa Helper application for the China-passport, China-resident, Iceland-tourism prototype path. No official visa rules are active yet.",
+    description: "Start one simulated Iceland tourism application for one person. Returns the first complete question group. Ask the user the group together, accepting natural language answers. Do not request passport numbers or files.",
     inputSchema: {},
     annotations: { readOnlyHint: false, openWorldHint: false, destructiveHint: false },
-  }, async () => reply(await store.create(), "已创建申请。请在界面中确认申请场景。"));
+  }, async () => reply(await store.create(), "已创建模拟申请。请一次询问当前问题组中的所有问题。"));
 
   server.registerTool("get_application", {
     title: "Get visa application",
-    description: "Fetch the server-authoritative state and next allowed step of an existing Visa Helper application.",
+    description: "Fetch the server-authoritative application state, current question group, or generated file-task queue.",
     inputSchema: { applicationId: z.string().uuid() },
     annotations: { readOnlyHint: true, openWorldHint: false, destructiveHint: false },
   }, async ({ applicationId }) => safely(async () => reply(await store.get(applicationId))));
 
-  server.registerTool("submit_step", {
-    title: "Submit application step",
-    description: "Submit only the current step. The server validates order and values and returns the next allowed step. This prototype does not accept passport numbers or files.",
+  server.registerTool("get_questions", {
+    title: "Get current checklist questions",
+    description: "Return the full current question group derived from the server-side checklist decision tree. Ask these questions together; do not invent material-selection questions. An application must be created first.",
+    inputSchema: { applicationId: z.string().uuid() },
+    annotations: { readOnlyHint: true, openWorldHint: false, destructiveHint: false },
+  }, async ({ applicationId }) => safely(async () => reply(await store.get(applicationId))));
+
+  server.registerTool("submit_answers", {
+    title: "Save checklist answers",
+    description: "Save structured answers extracted from the user's reply. Returns the next full question group or the file-task queue. Existing answers may be corrected. Use only option values supplied by get_questions.",
     inputSchema: {
       applicationId: z.string().uuid(),
-      stepId: z.enum(["scenario", "trip", "review"]),
-      data: z.object({
-        nationality: z.string().optional(),
-        residence: z.string().optional(),
-        destination: z.string().optional(),
-        purpose: z.string().optional(),
-        arrivalDate: z.string().optional(),
-        departureDate: z.string().optional(),
-      }),
+      answers: z.record(z.string()),
     },
     annotations: { readOnlyHint: false, openWorldHint: false, destructiveHint: false },
-  }, async ({ applicationId, stepId, data }) => safely(async () =>
-    reply(await store.submit(applicationId, stepId, data), "已保存当前步骤。")));
+  }, async ({ applicationId, answers }) => safely(async () =>
+    reply(await store.submitAnswers(applicationId, answers), "已保存答案，并重新计算问题与任务。")));
+
+  server.registerTool("get_task_queue", {
+    title: "Get required file tasks",
+    description: "Return the file tasks generated from completed checklist answers. Each task represents one file to prepare. The draft checklist is only for simulation.",
+    inputSchema: { applicationId: z.string().uuid() },
+    annotations: { readOnlyHint: true, openWorldHint: false, destructiveHint: false },
+  }, async ({ applicationId }) => safely(async () => {
+    const application = await store.get(applicationId);
+    if (application.status !== "tasks_ready") throw new WorkflowError("QUESTIONS_INCOMPLETE", "请先完成决策树问题，才能获取文件任务队列。");
+    return reply(application);
+  }));
 
   return server;
 }

@@ -1,6 +1,16 @@
 # ChatGPT MCP App 部署与测试
 
-当前状态：`app/` 的 MCP 工具和 MCP Apps UI 原型已部署在腾讯云服务器，通过开发机上的 Secure MCP Tunnel 在 ChatGPT 中完成私有测试。尚不能公开处理真实用户申请。
+当前状态：`app/` 的 MCP 工具和 MCP Apps UI 原型已部署在腾讯云服务器，通过开发机上的 Secure MCP Tunnel 在 ChatGPT 中完成过私有测试。2026-10-15 已更新为决策树模拟版；新版本已在服务器本机验证，尚未在 ChatGPT 中重新扫描并验证。尚不能公开处理真实用户申请。
+
+## 2026-10-15：决策树模拟版
+
+私有服务仍由 `visa-helper-mcp.service` 管理，仅监听腾讯云的 `127.0.0.1:18081`。当前有六个工具：`open_visa_helper`、`create_application`、`get_application`、`get_questions`、`submit_answers`、`get_task_queue`。旧版 `submit_step` 已移除；旧演示记录仍可读取，但新问答需要新建申请。
+
+规则在 `app/config/rules/` 中按版本保存，`app/config/active.json` 指向新申请使用的版本。使用开源 JsonLogic 求值器；切换配置版本无需改代码或重启服务，旧申请继续使用创建时的版本。当前唯一配置来自用户提供的 2025 年材料审核表，仅供虚构申请模拟。
+
+服务器本机通过 MCP 调用验证：新建申请返回 `basic` 问题组；用虚构日期与情况回答后返回 `adult` 组；提交「在职」后得到 `tasks_ready` 和 12 个文件任务，其中包括在职证明。更新前做了文件备份，数据目录未替换。
+
+**在 ChatGPT 中复测**：按下文启动开发机的 SSH 转发与 Tunnel，重新扫描或重新连接 Visa Helper，使工具列表从旧版四个更新为上述六个。新对话中请 ChatGPT 创建一位虚构申请人，并**一次列出当前问题组的全部问题**；用虚构答案回复，检查下一组问题和最后的文件任务队列。独立 UI 也应显示同一任务列表。不要输入真实个人资料。
 
 ## 现有服务器的连通性（2026-10-14）
 
@@ -99,8 +109,8 @@ ChatGPT 首次添加时曾提示无法连接。排查发现 tunnel-client 仍处
    ```
 
    按提示在本机输入 Platform 运行 API key，输入不会显示。看到 `RESULT ok` 和“Tunnel 检查通过”后，保持终端运行。该脚本同时建立到腾讯云的 SSH 本地转发，运行 `doctor`，并启动持续轮询的 tunnel-client。`doctor` 对 `/mcp` 返回 HTTP 406 的检查结果是正常的：普通 GET 缺少 MCP 请求所需的头部。
-3. 在 ChatGPT 已添加的 Visa Helper 应用中新开对话，发送“打开 Visa Helper”。若需重新添加，到 [ChatGPT Plugins](https://chatgpt.com/plugins) 添加自定义 MCP 服务，Connection 选 **Tunnel**，选择与本地 profile 相同的 tunnel；认证选无认证。Tunnel ID 不是 Server URL。等待工具扫描完成，应看到四个工具和独立 UI。
-4. 在 UI 中点“创建申请”，记下界面上的申请 ID；点“确认并继续”，用虚构日期（如 `2027-06-01` 至 `2027-06-10`）点“保存并继续”，再点“完成交互演示”。新开一个 ChatGPT 对话，选择 Visa Helper，发送“打开 Visa Helper”，把刚才的 ID 填入“已有申请 ID”，点“恢复申请”。应显示已完成状态。不要填真实个人信息或上传真实材料。
+3. 在 ChatGPT 已添加的 Visa Helper 应用中新开对话，发送“打开 Visa Helper”。若需重新添加，到 [ChatGPT Plugins](https://chatgpt.com/plugins) 添加自定义 MCP 服务，Connection 选 **Tunnel**，选择与本地 profile 相同的 tunnel；认证选无认证。Tunnel ID 不是 Server URL。重新扫描工具后，应看到六个工具和独立 UI。
+4. 让 ChatGPT 创建一位虚构申请人并一次展示整组问题。可用中国护照、居住中国、北京递交、仅赴冰岛旅游、`2027-06-01` 至 `2027-06-10`、已成年、在职的虚构答案。应先出现基础问题组，再出现职业问题组，最后显示含在职证明的 12 项文件任务。新开一个 ChatGPT 对话，选择 Visa Helper，发送“打开 Visa Helper”，用刚才的申请 ID 恢复，应显示同一队列。不要填真实个人信息或上传真实材料。
 5. 测试结束后用 `Ctrl-C` 停止启动脚本；脚本会清理它启动的 SSH 转发。若使用过独立启动的 SSH 转发，需单独确认并结束其进程。
 
 如果 ChatGPT 提示“无法连接到 MCP 服务器”，按请求路径逐段检查：先看脚本终端中的 tunnel-client 是否仍在轮询；再在开发机执行 `curl --max-time 5 http://127.0.0.1:18081/`，应立即返回服务响应；最后检查腾讯云上的 `visa-helper-mcp.service`。本机端口能建立 TCP 连接却迟迟没有 HTTP 响应时，优先检查 SSH 转发是否失效，并重新建立转发。连接成功但没有 UI 时，重新扫描工具并调用 `open_visa_helper`。

@@ -1,25 +1,13 @@
 import { randomUUID } from "node:crypto";
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
+import { DEFAULT_CONFIG_DIR, evaluateChecklist, getActiveRuleVersion, validateAnswerPatch } from "./checklist.js";
 
 export const PATH = Object.freeze({
   id: "cn-passport-cn-resident-is-tourism",
   label: "中国护照 · 居住中国 · 冰岛旅游",
-  ruleStatus: "pending_verification",
+  ruleStatus: "simulation_draft",
 });
-
-const STEPS = Object.freeze([
-  { id: "scenario", title: "确认申请场景", fields: ["nationality", "residence", "destination", "purpose"] },
-  { id: "trip", title: "记录旅行计划", fields: ["arrivalDate", "departureDate"] },
-  { id: "review", title: "查看准备状态", fields: [] },
-]);
-
-const REQUIRED_SCENARIO = {
-  nationality: "CN",
-  residence: "CN",
-  destination: "IS",
-  purpose: "tourism",
-};
 
 export class WorkflowError extends Error {
   constructor(code, message) {
@@ -28,23 +16,35 @@ export class WorkflowError extends Error {
   }
 }
 
-export function publicState(record) {
+export function publicState(record, configDir = DEFAULT_CONFIG_DIR) {
+  if (!record.answers) {
+    return {
+      id: record.id, path: PATH, status: "legacy_walkthrough", data: record.data,
+      updatedAt: record.updatedAt,
+      notice: "这是旧版交互演示记录。请新建申请，以使用材料决策树。",
+    };
+  }
+  const result = evaluateChecklist(record.answers, record.ruleVersion, configDir);
   return {
     id: record.id,
     path: PATH,
-    status: record.status,
-    currentStep: record.currentStep,
-    completedSteps: record.completedSteps,
-    steps: STEPS,
-    data: record.data,
+    ruleVersion: record.ruleVersion,
+    status: result.status,
+    answers: record.answers,
+    questionGroup: result.group ? { id: result.group.id, title: result.group.title, total: result.group.questions.length } : null,
+    questions: result.questions,
+    tasks: result.tasks,
+    reviewNotes: result.reviewNotes ?? [],
+    reason: result.reason ?? null,
     updatedAt: record.updatedAt,
-    notice: "当前仅验证应用交互。官方签证规则和材料清单尚未发布。",
+    notice: result.notice,
   };
 }
 
 export class ApplicationStore {
-  constructor(filePath) {
+  constructor(filePath, configDir = DEFAULT_CONFIG_DIR) {
     this.filePath = filePath;
+    this.configDir = configDir;
     this.queue = Promise.resolve();
   }
 
@@ -77,63 +77,36 @@ export class ApplicationStore {
 
   async create() {
     return this.mutate((records) => {
-      const now = new Date().toISOString();
       const record = {
         id: randomUUID(),
-        status: "in_progress",
-        currentStep: "scenario",
-        completedSteps: [],
-        data: {},
-        updatedAt: now,
+        ruleVersion: getActiveRuleVersion(this.configDir),
+        answers: {},
+        updatedAt: new Date().toISOString(),
       };
       records[record.id] = record;
-      return publicState(record);
+      return publicState(record, this.configDir);
     });
   }
 
   async get(id) {
     const record = (await this.readAll())[id];
     if (!record) throw new WorkflowError("NOT_FOUND", "找不到该申请。");
-    return publicState(record);
+    return publicState(record, this.configDir);
   }
 
-  async submit(id, stepId, input) {
+  async submitAnswers(id, patch) {
     return this.mutate((records) => {
       const record = records[id];
       if (!record) throw new WorkflowError("NOT_FOUND", "找不到该申请。");
-      if (record.currentStep !== stepId) {
-        throw new WorkflowError("STEP_NOT_ALLOWED", "请先完成当前步骤。");
+      if (!record.answers) throw new WorkflowError("LEGACY_APPLICATION", "旧版演示记录无法填写新问卷，请新建申请。");
+      try {
+        validateAnswerPatch(patch, record.ruleVersion, this.configDir);
+      } catch (error) {
+        throw new WorkflowError("INVALID_ANSWERS", error.message);
       }
-      if (stepId === "scenario") {
-        for (const [field, value] of Object.entries(REQUIRED_SCENARIO)) {
-          if (input[field] !== value) {
-            throw new WorkflowError("UNSUPPORTED_PATH", "当前原型仅支持中国护照、居住中国、赴冰岛旅游。不可推断其他路径的要求。");
-          }
-        }
-        record.data.scenario = { ...REQUIRED_SCENARIO };
-      } else if (stepId === "trip") {
-        const { arrivalDate, departureDate } = input;
-        if (!isIsoDate(arrivalDate) || !isIsoDate(departureDate) || arrivalDate >= departureDate) {
-          throw new WorkflowError("INVALID_DATES", "请填写有效的入境和离境日期，且离境日期晚于入境日期。");
-        }
-        record.data.trip = { arrivalDate, departureDate };
-      } else if (stepId === "review") {
-        // The walkthrough ends here. No visa readiness claim is made while rules are pending.
-      } else {
-        throw new WorkflowError("UNKNOWN_STEP", "未知步骤。");
-      }
-      record.completedSteps.push(stepId);
-      const index = STEPS.findIndex((step) => step.id === stepId);
-      record.currentStep = STEPS[index + 1]?.id ?? null;
-      if (!record.currentStep) record.status = "walkthrough_complete";
+      record.answers = { ...record.answers, ...patch };
       record.updatedAt = new Date().toISOString();
-      return publicState(record);
+      return publicState(record, this.configDir);
     });
   }
-}
-
-function isIsoDate(value) {
-  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
-  const date = new Date(`${value}T00:00:00Z`);
-  return !Number.isNaN(date.valueOf()) && date.toISOString().slice(0, 10) === value;
 }

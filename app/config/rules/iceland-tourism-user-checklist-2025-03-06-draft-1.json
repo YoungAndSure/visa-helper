@@ -1,0 +1,1208 @@
+{
+  "version": "iceland-tourism-user-checklist-2025-03-06-draft-1",
+  "title": "中国居民赴冰岛个人旅游材料任务模拟",
+  "notice": "模拟规则来自用户提供的 2025 年审核表，尚未核实为现行官方要求。请勿用于真实申请。",
+  "source": {
+    "title": "VISA DOCUMENT CHECKLIST – TOURISM / 签证材料审核表 – 个人旅游",
+    "createdDate": "2025-03-06",
+    "status": "user_supplied_unverified"
+  },
+  "questionGroups": [
+    {
+      "id": "basic",
+      "title": "基本情况与行程",
+      "questions": [
+        {
+          "id": "nationality",
+          "title": "申请人持有哪国护照？",
+          "type": "choice",
+          "options": [
+            {
+              "value": "CN",
+              "label": "中国"
+            },
+            {
+              "value": "other",
+              "label": "其他"
+            }
+          ]
+        },
+        {
+          "id": "residence",
+          "title": "申请人目前居住在哪里？",
+          "type": "choice",
+          "options": [
+            {
+              "value": "CN",
+              "label": "中国"
+            },
+            {
+              "value": "other",
+              "label": "其他"
+            }
+          ]
+        },
+        {
+          "id": "applicationCity",
+          "title": "计划在哪个中国城市递交申请？",
+          "type": "text"
+        },
+        {
+          "id": "destination",
+          "title": "此行是否前往冰岛？",
+          "type": "choice",
+          "options": [
+            {
+              "value": "IS",
+              "label": "是，前往冰岛"
+            },
+            {
+              "value": "other",
+              "label": "否"
+            }
+          ]
+        },
+        {
+          "id": "purpose",
+          "title": "此行的目的是什么？",
+          "type": "choice",
+          "options": [
+            {
+              "value": "tourism",
+              "label": "个人旅游"
+            },
+            {
+              "value": "other",
+              "label": "其他"
+            }
+          ]
+        },
+        {
+          "id": "arrivalDate",
+          "title": "计划何时进入申根区？",
+          "type": "date"
+        },
+        {
+          "id": "departureDate",
+          "title": "计划何时离开申根区？",
+          "type": "date"
+        },
+        {
+          "id": "ageGroup",
+          "title": "出行时申请人是否已满 18 岁？",
+          "type": "choice",
+          "options": [
+            {
+              "value": "adult",
+              "label": "已满 18 岁"
+            },
+            {
+              "value": "minor",
+              "label": "未满 18 岁"
+            }
+          ]
+        },
+        {
+          "id": "otherSchengenCountries",
+          "title": "这次是否还会去其他申根国家？",
+          "type": "choice",
+          "options": [
+            {
+              "value": "yes",
+              "label": "是"
+            },
+            {
+              "value": "no",
+              "label": "否"
+            }
+          ]
+        }
+      ],
+      "when": true
+    },
+    {
+      "id": "multi_country",
+      "title": "多国行程",
+      "questions": [
+        {
+          "id": "icelandMainDestination",
+          "title": "冰岛是否为此次申根行程停留时间最长的国家？",
+          "type": "choice",
+          "options": [
+            {
+              "value": "yes",
+              "label": "是"
+            },
+            {
+              "value": "no",
+              "label": "否"
+            },
+            {
+              "value": "unsure",
+              "label": "不确定"
+            }
+          ]
+        }
+      ],
+      "when": {
+        "===": [
+          {
+            "var": "otherSchengenCountries"
+          },
+          "yes"
+        ]
+      }
+    },
+    {
+      "id": "adult",
+      "title": "成年申请人的职业",
+      "questions": [
+        {
+          "id": "occupation",
+          "title": "目前属于哪种情况？",
+          "type": "choice",
+          "options": [
+            {
+              "value": "employed",
+              "label": "在职"
+            },
+            {
+              "value": "retired",
+              "label": "退休"
+            },
+            {
+              "value": "unemployed",
+              "label": "无业"
+            }
+          ]
+        }
+      ],
+      "when": {
+        "===": [
+          {
+            "var": "ageGroup"
+          },
+          "adult"
+        ]
+      }
+    },
+    {
+      "id": "unemployed",
+      "title": "无业申请人的收入与担保",
+      "questions": [
+        {
+          "id": "maritalStatus",
+          "title": "目前婚姻状态是？",
+          "type": "choice",
+          "options": [
+            {
+              "value": "married",
+              "label": "已婚"
+            },
+            {
+              "value": "single",
+              "label": "未婚"
+            },
+            {
+              "value": "divorced",
+              "label": "离异"
+            },
+            {
+              "value": "widowed",
+              "label": "丧偶"
+            }
+          ]
+        },
+        {
+          "id": "sponsor",
+          "title": "此次旅行由谁提供资金支持？",
+          "type": "choice",
+          "options": [
+            {
+              "value": "self",
+              "label": "本人"
+            },
+            {
+              "value": "spouse",
+              "label": "配偶"
+            },
+            {
+              "value": "other",
+              "label": "其他人"
+            }
+          ]
+        }
+      ],
+      "when": {
+        "and": [
+          {
+            "===": [
+              {
+                "var": "ageGroup"
+              },
+              "adult"
+            ]
+          },
+          {
+            "===": [
+              {
+                "var": "occupation"
+              },
+              "unemployed"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "minor",
+      "title": "未成年人的学校与同行情况",
+      "questions": [
+        {
+          "id": "inSchool",
+          "title": "申请人目前是否在读？",
+          "type": "choice",
+          "options": [
+            {
+              "value": "yes",
+              "label": "是"
+            },
+            {
+              "value": "no",
+              "label": "否"
+            }
+          ]
+        },
+        {
+          "id": "minorTravel",
+          "title": "未成年人将与谁同行？",
+          "type": "choice",
+          "options": [
+            {
+              "value": "alone",
+              "label": "独自出行"
+            },
+            {
+              "value": "one_parent",
+              "label": "一位家长"
+            },
+            {
+              "value": "both_parents",
+              "label": "双方家长"
+            },
+            {
+              "value": "other_guardian",
+              "label": "其他监护人／情况"
+            }
+          ]
+        }
+      ],
+      "when": {
+        "===": [
+          {
+            "var": "ageGroup"
+          },
+          "minor"
+        ]
+      }
+    },
+    {
+      "id": "minor_consent",
+      "title": "出行同意文件",
+      "questions": [
+        {
+          "id": "guardianAbroad",
+          "title": "需要出具同意文件的家长或监护人是否有人不在中国？",
+          "type": "choice",
+          "options": [
+            {
+              "value": "yes",
+              "label": "是"
+            },
+            {
+              "value": "no",
+              "label": "否"
+            }
+          ]
+        }
+      ],
+      "when": {
+        "and": [
+          {
+            "===": [
+              {
+                "var": "ageGroup"
+              },
+              "minor"
+            ]
+          },
+          {
+            "in": [
+              {
+                "var": "minorTravel"
+              },
+              [
+                "alone",
+                "one_parent",
+                "other_guardian"
+              ]
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "stopRules": [
+    {
+      "afterGroup": "basic",
+      "when": {
+        "!": [
+          {
+            "<": [
+              {
+                "var": "arrivalDate"
+              },
+              {
+                "var": "departureDate"
+              }
+            ]
+          }
+        ]
+      },
+      "status": "needs_correction",
+      "reason": "离开申根区的日期必须晚于进入日期。"
+    },
+    {
+      "afterGroup": "basic",
+      "when": {
+        "!": [
+          {
+            "and": [
+              {
+                "===": [
+                  {
+                    "var": "nationality"
+                  },
+                  "CN"
+                ]
+              },
+              {
+                "===": [
+                  {
+                    "var": "residence"
+                  },
+                  "CN"
+                ]
+              },
+              {
+                "===": [
+                  {
+                    "var": "destination"
+                  },
+                  "IS"
+                ]
+              },
+              {
+                "===": [
+                  {
+                    "var": "purpose"
+                  },
+                  "tourism"
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "status": "unsupported",
+      "reason": "当前模拟仅覆盖中国护照、居住中国、赴冰岛个人旅游的申请人。"
+    },
+    {
+      "afterGroup": "multi_country",
+      "when": {
+        "===": [
+          {
+            "var": "icelandMainDestination"
+          },
+          "no"
+        ]
+      },
+      "status": "unsupported",
+      "reason": "冰岛不是停留时间最长的目的地，本模拟不能套用冰岛申请清单。"
+    },
+    {
+      "afterGroup": "multi_country",
+      "when": {
+        "===": [
+          {
+            "var": "icelandMainDestination"
+          },
+          "unsure"
+        ]
+      },
+      "status": "needs_review",
+      "reason": "冰岛是否为主要目的地尚不能确认；本模拟暂不生成确定清单。"
+    },
+    {
+      "afterGroup": "unemployed",
+      "when": {
+        "and": [
+          {
+            "===": [
+              {
+                "var": "sponsor"
+              },
+              "spouse"
+            ]
+          },
+          {
+            "!==": [
+              {
+                "var": "maritalStatus"
+              },
+              "married"
+            ]
+          }
+        ]
+      },
+      "status": "needs_correction",
+      "reason": "婚姻状态与资金支持人不一致，请更正。"
+    }
+  ],
+  "reviewNotes": [
+    {
+      "when": {
+        "===": [
+          {
+            "var": "ageGroup"
+          },
+          "minor"
+        ]
+      },
+      "text": "审核表未说明未成年人银行对账单由谁提供，请人工核对。"
+    },
+    {
+      "when": {
+        "and": [
+          {
+            "===": [
+              {
+                "var": "ageGroup"
+              },
+              "minor"
+            ]
+          },
+          {
+            "===": [
+              {
+                "var": "inSchool"
+              },
+              "no"
+            ]
+          }
+        ]
+      },
+      "text": "审核表未说明未在读未成年人如何替代学校材料，请人工核对。"
+    },
+    {
+      "when": {
+        "and": [
+          {
+            "===": [
+              {
+                "var": "ageGroup"
+              },
+              "minor"
+            ]
+          },
+          {
+            "===": [
+              {
+                "var": "minorTravel"
+              },
+              "other_guardian"
+            ]
+          }
+        ]
+      },
+      "text": "其他监护人同行的出行同意要求不明确，请人工核对。"
+    },
+    {
+      "when": {
+        "and": [
+          {
+            "===": [
+              {
+                "var": "ageGroup"
+              },
+              "minor"
+            ]
+          },
+          {
+            "in": [
+              {
+                "var": "minorTravel"
+              },
+              [
+                "alone",
+                "one_parent",
+                "other_guardian"
+              ]
+            ]
+          },
+          {
+            "===": [
+              {
+                "var": "guardianAbroad"
+              },
+              "yes"
+            ]
+          }
+        ]
+      },
+      "text": "家长／监护人不在中国时的出行同意文件形式，请人工核对。"
+    },
+    {
+      "when": {
+        "and": [
+          {
+            "===": [
+              {
+                "var": "occupation"
+              },
+              "unemployed"
+            ]
+          },
+          {
+            "===": [
+              {
+                "var": "sponsor"
+              },
+              "other"
+            ]
+          }
+        ]
+      },
+      "text": "无业者的婚姻状态材料与非配偶担保材料如何叠加，请人工核对。"
+    }
+  ],
+  "tasks": [
+    {
+      "id": "schengen_form",
+      "title": "统一申根签证申请表",
+      "checklistItem": "1",
+      "handling": "form",
+      "note": "填表、打印并由申请人签字。",
+      "when": true,
+      "dependsOn": []
+    },
+    {
+      "id": "passport",
+      "title": "护照／旅行证件",
+      "checklistItem": "2",
+      "handling": "collect",
+      "note": "原件须满足有效期、签发时间及空白页要求。",
+      "when": true,
+      "dependsOn": []
+    },
+    {
+      "id": "photo",
+      "title": "护照照片",
+      "checklistItem": "3",
+      "handling": "collect",
+      "note": "1 张近 6 个月白底 3.5 × 4.5 cm 照片，不可修图。",
+      "when": true,
+      "dependsOn": []
+    },
+    {
+      "id": "travel_insurance",
+      "title": "旅行医疗保险证明",
+      "checklistItem": "4",
+      "handling": "collect",
+      "note": "覆盖全部申根停留期；核对原表所列最低保额及离境航班时间。",
+      "when": true,
+      "dependsOn": []
+    },
+    {
+      "id": "round_trip_reservation",
+      "title": "往返交通预订",
+      "checklistItem": "5",
+      "handling": "collect",
+      "note": "原表说明预订即可，不要求已付款。",
+      "when": true,
+      "dependsOn": []
+    },
+    {
+      "id": "intra_schengen_transport",
+      "title": "申根国家间交通预订",
+      "checklistItem": "5",
+      "handling": "collect",
+      "note": "多国行程时提供相应机票、火车行程或租车预订。",
+      "when": {
+        "===": [
+          {
+            "var": "otherSchengenCountries"
+          },
+          "yes"
+        ]
+      },
+      "dependsOn": [
+        "otherSchengenCountries"
+      ]
+    },
+    {
+      "id": "daily_itinerary",
+      "title": "逐日旅行行程",
+      "checklistItem": "6",
+      "handling": "draft",
+      "note": "",
+      "when": true,
+      "dependsOn": []
+    },
+    {
+      "id": "accommodation",
+      "title": "全程住宿预订",
+      "checklistItem": "7",
+      "handling": "collect",
+      "note": "",
+      "when": true,
+      "dependsOn": []
+    },
+    {
+      "id": "chinese_id_copy",
+      "title": "中国身份证正反面复印件",
+      "checklistItem": "8",
+      "handling": "collect",
+      "note": "",
+      "when": {
+        "===": [
+          {
+            "var": "nationality"
+          },
+          "CN"
+        ]
+      },
+      "dependsOn": [
+        "nationality"
+      ]
+    },
+    {
+      "id": "hukou_copy",
+      "title": "户口本所有内容页复印件",
+      "checklistItem": "9",
+      "handling": "collect",
+      "note": "",
+      "when": {
+        "===": [
+          {
+            "var": "nationality"
+          },
+          "CN"
+        ]
+      },
+      "dependsOn": [
+        "nationality"
+      ]
+    },
+    {
+      "id": "bank_statements",
+      "title": "连续近 3 个月银行对账单",
+      "checklistItem": "10",
+      "handling": "collect",
+      "note": "原表排除存款账户和信用卡对账单。未成年人由谁提供尚待核实。",
+      "when": true,
+      "dependsOn": []
+    },
+    {
+      "id": "employer_license",
+      "title": "雇主营业执照复印件",
+      "checklistItem": "11",
+      "handling": "collect",
+      "note": "",
+      "when": {
+        "and": [
+          {
+            "===": [
+              {
+                "var": "ageGroup"
+              },
+              "adult"
+            ]
+          },
+          {
+            "===": [
+              {
+                "var": "occupation"
+              },
+              "employed"
+            ]
+          }
+        ]
+      },
+      "dependsOn": [
+        "ageGroup",
+        "occupation"
+      ]
+    },
+    {
+      "id": "employment_letter",
+      "title": "在职证明",
+      "checklistItem": "11",
+      "handling": "collect",
+      "note": "原表要求公司抬头纸、签字、日期、公章及雇主和申请人详细信息。",
+      "when": {
+        "and": [
+          {
+            "===": [
+              {
+                "var": "ageGroup"
+              },
+              "adult"
+            ]
+          },
+          {
+            "===": [
+              {
+                "var": "occupation"
+              },
+              "employed"
+            ]
+          }
+        ]
+      },
+      "dependsOn": [
+        "ageGroup",
+        "occupation"
+      ]
+    },
+    {
+      "id": "pension_income",
+      "title": "退休金或其他固定收入证明",
+      "checklistItem": "11",
+      "handling": "collect",
+      "note": "",
+      "when": {
+        "and": [
+          {
+            "===": [
+              {
+                "var": "ageGroup"
+              },
+              "adult"
+            ]
+          },
+          {
+            "===": [
+              {
+                "var": "occupation"
+              },
+              "retired"
+            ]
+          }
+        ]
+      },
+      "dependsOn": [
+        "ageGroup",
+        "occupation"
+      ]
+    },
+    {
+      "id": "spouse_employment_income",
+      "title": "配偶工作及收入证明",
+      "checklistItem": "11",
+      "handling": "collect",
+      "note": "",
+      "when": {
+        "and": [
+          {
+            "===": [
+              {
+                "var": "ageGroup"
+              },
+              "adult"
+            ]
+          },
+          {
+            "===": [
+              {
+                "var": "occupation"
+              },
+              "unemployed"
+            ]
+          },
+          {
+            "===": [
+              {
+                "var": "maritalStatus"
+              },
+              "married"
+            ]
+          }
+        ]
+      },
+      "dependsOn": [
+        "ageGroup",
+        "occupation",
+        "maritalStatus"
+      ]
+    },
+    {
+      "id": "marriage_certificate",
+      "title": "经认证的婚姻关系公证书",
+      "checklistItem": "11",
+      "handling": "collect",
+      "note": "",
+      "when": {
+        "and": [
+          {
+            "===": [
+              {
+                "var": "ageGroup"
+              },
+              "adult"
+            ]
+          },
+          {
+            "===": [
+              {
+                "var": "occupation"
+              },
+              "unemployed"
+            ]
+          },
+          {
+            "===": [
+              {
+                "var": "maritalStatus"
+              },
+              "married"
+            ]
+          }
+        ]
+      },
+      "dependsOn": [
+        "ageGroup",
+        "occupation",
+        "maritalStatus"
+      ]
+    },
+    {
+      "id": "other_regular_income",
+      "title": "其他固定收入证明",
+      "checklistItem": "11",
+      "handling": "collect",
+      "note": "",
+      "when": {
+        "and": [
+          {
+            "===": [
+              {
+                "var": "ageGroup"
+              },
+              "adult"
+            ]
+          },
+          {
+            "===": [
+              {
+                "var": "occupation"
+              },
+              "unemployed"
+            ]
+          },
+          {
+            "in": [
+              {
+                "var": "maritalStatus"
+              },
+              [
+                "single",
+                "divorced",
+                "widowed"
+              ]
+            ]
+          }
+        ]
+      },
+      "dependsOn": [
+        "ageGroup",
+        "occupation",
+        "maritalStatus"
+      ]
+    },
+    {
+      "id": "sponsor_employment_income",
+      "title": "非配偶担保人工作及收入证明",
+      "checklistItem": "11",
+      "handling": "collect",
+      "note": "",
+      "when": {
+        "and": [
+          {
+            "===": [
+              {
+                "var": "ageGroup"
+              },
+              "adult"
+            ]
+          },
+          {
+            "===": [
+              {
+                "var": "occupation"
+              },
+              "unemployed"
+            ]
+          },
+          {
+            "===": [
+              {
+                "var": "sponsor"
+              },
+              "other"
+            ]
+          }
+        ]
+      },
+      "dependsOn": [
+        "ageGroup",
+        "occupation",
+        "sponsor"
+      ]
+    },
+    {
+      "id": "sponsor_bank_statements",
+      "title": "非配偶担保人银行对账单",
+      "checklistItem": "11",
+      "handling": "collect",
+      "note": "",
+      "when": {
+        "and": [
+          {
+            "===": [
+              {
+                "var": "ageGroup"
+              },
+              "adult"
+            ]
+          },
+          {
+            "===": [
+              {
+                "var": "occupation"
+              },
+              "unemployed"
+            ]
+          },
+          {
+            "===": [
+              {
+                "var": "sponsor"
+              },
+              "other"
+            ]
+          }
+        ]
+      },
+      "dependsOn": [
+        "ageGroup",
+        "occupation",
+        "sponsor"
+      ]
+    },
+    {
+      "id": "sponsorship_letter",
+      "title": "非配偶担保人签署的担保函",
+      "checklistItem": "11",
+      "handling": "collect",
+      "note": "",
+      "when": {
+        "and": [
+          {
+            "===": [
+              {
+                "var": "ageGroup"
+              },
+              "adult"
+            ]
+          },
+          {
+            "===": [
+              {
+                "var": "occupation"
+              },
+              "unemployed"
+            ]
+          },
+          {
+            "===": [
+              {
+                "var": "sponsor"
+              },
+              "other"
+            ]
+          }
+        ]
+      },
+      "dependsOn": [
+        "ageGroup",
+        "occupation",
+        "sponsor"
+      ]
+    },
+    {
+      "id": "sponsor_passport_copy",
+      "title": "非配偶担保人护照复印件",
+      "checklistItem": "11",
+      "handling": "collect",
+      "note": "",
+      "when": {
+        "and": [
+          {
+            "===": [
+              {
+                "var": "ageGroup"
+              },
+              "adult"
+            ]
+          },
+          {
+            "===": [
+              {
+                "var": "occupation"
+              },
+              "unemployed"
+            ]
+          },
+          {
+            "===": [
+              {
+                "var": "sponsor"
+              },
+              "other"
+            ]
+          }
+        ]
+      },
+      "dependsOn": [
+        "ageGroup",
+        "occupation",
+        "sponsor"
+      ]
+    },
+    {
+      "id": "student_card",
+      "title": "未成年人学生证",
+      "checklistItem": "13",
+      "handling": "collect",
+      "note": "",
+      "when": {
+        "and": [
+          {
+            "===": [
+              {
+                "var": "ageGroup"
+              },
+              "minor"
+            ]
+          },
+          {
+            "===": [
+              {
+                "var": "inSchool"
+              },
+              "yes"
+            ]
+          }
+        ]
+      },
+      "dependsOn": [
+        "ageGroup",
+        "inSchool"
+      ]
+    },
+    {
+      "id": "school_letter",
+      "title": "学校在读及准假证明",
+      "checklistItem": "13",
+      "handling": "collect",
+      "note": "学校地址、电话、准假信息和批准人姓名及职务。",
+      "when": {
+        "and": [
+          {
+            "===": [
+              {
+                "var": "ageGroup"
+              },
+              "minor"
+            ]
+          },
+          {
+            "===": [
+              {
+                "var": "inSchool"
+              },
+              "yes"
+            ]
+          }
+        ]
+      },
+      "dependsOn": [
+        "ageGroup",
+        "inSchool"
+      ]
+    },
+    {
+      "id": "family_guardianship_certificate",
+      "title": "亲属关系或监护关系公证及认证文件",
+      "checklistItem": "13",
+      "handling": "collect",
+      "note": "",
+      "when": {
+        "===": [
+          {
+            "var": "ageGroup"
+          },
+          "minor"
+        ]
+      },
+      "dependsOn": [
+        "ageGroup"
+      ]
+    },
+    {
+      "id": "travel_consent_certificate",
+      "title": "未成年人出行同意公证及认证文件",
+      "checklistItem": "13",
+      "handling": "collect",
+      "note": "独自出行或仅随一位家长出行时要求；出具人及境外证明形式需按具体情况核对。",
+      "when": {
+        "and": [
+          {
+            "===": [
+              {
+                "var": "ageGroup"
+              },
+              "minor"
+            ]
+          },
+          {
+            "in": [
+              {
+                "var": "minorTravel"
+              },
+              [
+                "alone",
+                "one_parent"
+              ]
+            ]
+          }
+        ]
+      },
+      "dependsOn": [
+        "ageGroup",
+        "minorTravel"
+      ]
+    }
+  ]
+}
