@@ -1,11 +1,12 @@
 {
   "name": "visa-helper-mcp-app",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "private": true,
   "type": "module",
   "scripts": {
     "start": "node src/server.js",
-    "test": "node --test"
+    "test": "node --test",
+    "check:release": "node scripts/check-release.mjs"
   },
   "dependencies": {
     "@modelcontextprotocol/ext-apps": "^1.0.1",

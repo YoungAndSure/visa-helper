@@ -39,11 +39,18 @@
     <div id="content"><p class="muted">正在读取材料清单…</p></div>
     <p id="status" class="muted" role="status"></p>
     <p id="error" role="alert"></p>
+    <p id="version" class="muted">Visa Helper __VISA_APP_VERSION__ · 服务版本待确认</p>
   </main>
   <script type="module">
     const content = document.querySelector("#content");
     const errorEl = document.querySelector("#error");
     const statusEl = document.querySelector("#status");
+    const versionEl = document.querySelector("#version");
+    const embeddedVersion = "__VISA_APP_VERSION__";
+    const embeddedUiHash = "__VISA_UI_SOURCE_HASH__";
+    let runtimeInfo = null;
+    let versionMismatch = false;
+    let lastReceiptKey = null;
     let application = null;
     let busy = false;
     let hydrationStartedFor = null;
@@ -61,6 +68,12 @@
     });
 
     function applyResult(result) {
+      const info = result?.structuredContent?.serverInfo ?? result?._meta?.serverInfo;
+      if (info) {
+        runtimeInfo = info;
+        versionMismatch = info.ui.sourceHash !== embeddedUiHash;
+        versionEl.textContent = `界面 ${embeddedVersion} · 服务 ${info.version} · 构建 ${info.buildHash.slice(0, 12)} · UI ${embeddedUiHash.slice(0, 12)}`;
+      }
       const fullState = result?._meta?.application ?? result?.structuredContent?.application;
       if (fullState?.id) {
         application = fullState.id === application?.id && fullState.status === "tasks_ready" && !Array.isArray(fullState.tasks)
@@ -70,6 +83,18 @@
       if (result?.isError) throw new Error(result?.structuredContent?.error?.message ?? "操作失败，请重试。");
       render();
       if (application?.status === "tasks_ready" && !Array.isArray(application.tasks)) hydrate(application.id);
+      if (!versionMismatch && application?.status === "tasks_ready" && Array.isArray(application.tasks) && runtimeInfo) {
+        const receiptKey = `${application.id}:${application.updatedAt}:${runtimeInfo.buildHash}`;
+        if (lastReceiptKey !== receiptKey) {
+          lastReceiptKey = receiptKey;
+          const receiptArgs = { applicationId: application.id, uiSourceHash: embeddedUiHash, buildHash: runtimeInfo.buildHash,
+            applicationUpdatedAt: application.updatedAt };
+          ready.then(async () => {
+            const result = await request("tools/call", { name: "report_ui_ready", arguments: receiptArgs });
+            if (result?.isError) throw new Error(result.structuredContent?.error?.message ?? "页面状态确认失败。");
+          }).catch((error) => { lastReceiptKey = null; versionEl.textContent += ` · ${error.message}`; });
+        }
+      }
     }
     function hydrate(applicationId) {
       if (!applicationId || hydrationStartedFor === applicationId) return;
@@ -94,7 +119,7 @@
       }
     });
     const ready = request("ui/initialize", {
-      appInfo: { name: "visa-helper-material-checklist", version: "0.4.0" },
+      appInfo: { name: "visa-helper-material-checklist", version: embeddedVersion },
       appCapabilities: {}, protocolVersion: "2026-01-26",
     }).then(() => notify("ui/notifications/initialized", {}));
     ready.catch((error) => { errorEl.textContent = error.message; });
@@ -143,11 +168,15 @@
     function button(label, action, className = "") {
       const node = element("button", label, className);
       node.type = "button";
-      node.disabled = busy;
+      node.disabled = busy || versionMismatch;
       node.addEventListener("click", action);
       return node;
     }
     function render() {
+      if (versionMismatch) {
+        content.replaceChildren(element("p", "当前界面与服务端版本不一致，已暂停材料操作。请重新载入清单；现有申请数据已保留。", "notice"));
+        return;
+      }
       if (!application) return;
       content.replaceChildren();
       if (application.status !== "tasks_ready") {

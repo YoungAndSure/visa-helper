@@ -59,7 +59,7 @@ test("native forms round-trip through the official HTTP handler and advance the 
       assert.equal((await store.get(applicationId)).answers[question.id], answers[question.id]);
     }
     assert.equal(new Set(asked).size, 10);
-    assert.equal(state.structuredContent.nextAction.tool, "show_material_checklist");
+    assert.equal(state.structuredContent.nextAction.tool, "get_task_queue");
     assert.equal(state.structuredContent.application.taskCount, 12);
     const workspace = await call("show_material_checklist", { applicationId });
     assert.equal(workspace._meta.application.tasks.length, 12);

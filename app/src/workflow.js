@@ -44,6 +44,7 @@ export function publicState(record, configDir = DEFAULT_CONFIG_DIR) {
     questionCatalog,
     tasks,
     activeTask: tasks.find((task) => task.id === record.activeTaskId) ?? null,
+    uiReceipt: record.uiReceipt ?? null,
     reviewNotes: result.reviewNotes ?? [],
     reason: result.reason?.replaceAll("本模拟", "当前流程").replaceAll("当前模拟", "当前版本") ?? null,
     updatedAt: record.updatedAt,
@@ -117,6 +118,7 @@ export class ApplicationStore {
         throw new WorkflowError("INVALID_ANSWERS", error.message);
       }
       record.answers = { ...record.answers, ...patch };
+      delete record.uiReceipt;
       record.updatedAt = new Date().toISOString();
       return publicState(record, this.configDir);
     });
@@ -134,6 +136,19 @@ export class ApplicationStore {
       record.activeTaskId = taskId;
       record.updatedAt = new Date().toISOString();
       return publicState(record, this.configDir);
+    });
+  }
+
+  async recordUiReady(id, receipt, expectedUpdatedAt) {
+    return this.mutate((records) => {
+      const record = records[id];
+      if (!record) throw new WorkflowError("NOT_FOUND", "找不到该申请。");
+      if (publicState(record, this.configDir).status !== "tasks_ready") throw new WorkflowError("QUESTIONS_INCOMPLETE", "申请信息尚未完整。");
+      if (expectedUpdatedAt !== undefined && expectedUpdatedAt !== record.updatedAt) {
+        throw new WorkflowError("UI_STATE_CHANGED", "申请状态已变化，请重新读取清单。");
+      }
+      record.uiReceipt = { ...receipt, applicationUpdatedAt: record.updatedAt, receivedAt: new Date().toISOString() };
+      return record.uiReceipt;
     });
   }
 }

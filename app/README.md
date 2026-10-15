@@ -19,18 +19,21 @@ npm start
 
 | 工具 | 用途 |
 | --- | --- |
+| `get_server_info` | 查询服务版本、构建/工具/UI 指纹；提交当前实际工具列表后检查连接兼容性 |
+| `open_visa_helper` | 保留旧会话兼容，读取状态和版本，不打开问卷 |
 | `create_application` | 为一位申请人创建申请记录，返回下一题和问题目录 |
 | `ask_next_question` | 请求原生问题表单，用户接受后保存答案；取消时保留缺失项，不支持时明确回退 |
 | `get_application` | 读取服务端状态并恢复申请 |
 | `get_questions` | 返回下一题、当前缺失问题和完整问题目录，不加载 UI |
 | `submit_answers` | 提交一个或多个明确答案，推进到缺少信息的位置或叶子节点；可更正答案 |
-| `show_material_checklist` | 在叶子节点展示 MCP App 材料清单和任务入口 |
-| `get_task_queue` | 供 App 加载完整清单和自动恢复状态，不要求用户输入申请 ID |
+| `get_task_queue` | 稳定的最终清单显示入口，也支持旧版 UI 读取完整数据 |
+| `show_material_checklist` | 等价的清单显示入口，持续保留兼容 |
 | `start_task` | 选择一项适用材料，保存准备中状态并返回该材料的原表说明 |
+| `report_ui_ready` | App 专用的清单载入回执，校验页面和服务版本，区分数据返回与页面载入 |
 
-每次结果中的 `nextAction` 明确下一步：`answer_or_ask` 先用已知事实代答，否则调用 `ask_next_question`；`clarify` 澄清矛盾；`call_tool` 在叶子调用 `show_material_checklist`；`choose_task` 提示从工作台选择任务。完整清单通过工具结果 `_meta.application` 提供给 UI，模型只收到数量和下一步。工作台支持初始工具通知、已有 `window.openai` 输出和工具输入三种载入方式，必要时使用申请 ID 自动读取清单。
+每次结果中的 `nextAction` 明确下一步：`answer_or_ask` 先用已知事实代答，否则调用 `ask_next_question`；`clarify` 澄清矛盾；`call_tool` 在叶子调用 `get_task_queue` 或可用的等价入口；`choose_task` 提示从工作台选择任务。旧清单接口继续返回完整数据以兼容旧组件，新入口通过 `_meta.application` 提供完整数据。工作台支持三种初始载入方式，并自动关联申请。
 
-原生表单使用官方 `@modelcontextprotocol/server` 2.x 与 `@openai/mcp-extensions` 的 `requestFormInput`，由多轮请求协议返回 `input_required` 并接收答案。旧 `open_visa_helper` 已移除，清单使用新资源 `ui://visa-helper/material-checklist-v4.html`。工具变更后仍需更新 ChatGPT 插件连接的工具元数据。
+原生表单使用官方 MCP 2.x 和 OpenAI 表单 SDK。清单使用 `ui://visa-helper/material-checklist-v4.html`，v2/v3 的 URI 保留兼容。每次响应附带运行版本，不能仅凭 ChatGPT 工具快照或请求成功推断新版已加载。`get_server_info` 不传实际客户端列表时明确显示未检查；界面载入需独立回执。部署后运行 `npm run check:release -- http://127.0.0.1:18081/mcp` 比对本地与部署指纹；追加工具名 JSON 文件可核对当前聊天快照。详见[版本诊断与发布记录](../docs/deployment.md)。
 
 UI 使用 MCP Apps 的 `ui/initialize`、`ui/notifications/tool-result`、`tools/call` 和 `ui/message` 桥；后者由用户点击「在对话中继续准备」触发，带上申请和材料任务 ID。状态写入 `app/data/applications.json`，该路径已忽略提交。
 

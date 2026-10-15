@@ -20,8 +20,8 @@ test("MCP exposes question groups and produces the file-task queue", async () =>
     assert.ok(tools.tools.some((tool) => tool.name === "get_questions"));
     assert.ok(tools.tools.some((tool) => tool.name === "submit_answers"));
     assert.ok(tools.tools.some((tool) => tool.name === "get_task_queue"));
-    assert.ok(!tools.tools.some((tool) => tool.name === "open_visa_helper"));
-    for (const name of ["create_application", "get_application", "get_questions", "submit_answers", "ask_next_question", "get_task_queue"]) {
+    assert.ok(tools.tools.some((tool) => tool.name === "open_visa_helper"));
+    for (const name of ["open_visa_helper", "create_application", "get_application", "get_questions", "submit_answers", "ask_next_question"]) {
       assert.equal(tools.tools.find((tool) => tool.name === name)._meta?.ui?.resourceUri, undefined, `${name} must not load interview UI`);
     }
     const workspace = tools.tools.find((tool) => tool.name === "show_material_checklist");
@@ -52,17 +52,20 @@ test("MCP exposes question groups and produces the file-task queue", async () =>
     } } });
     assert.equal(answered.structuredContent.application.questionGroup.id, "adult");
     const leaf = await client.callTool({ name: "submit_answers", arguments: { applicationId: id, answers: { occupation: "employed" } } });
-    assert.equal(leaf.structuredContent.nextAction.tool, "show_material_checklist");
+    assert.equal(leaf.structuredContent.nextAction.tool, "get_task_queue");
     assert.equal(leaf.structuredContent.application.taskCount, 12);
     assert.equal(leaf.structuredContent.application.tasks, undefined);
     const queue = await client.callTool({ name: "show_material_checklist", arguments: { applicationId: id } });
     assert.equal(queue.structuredContent.application.status, "tasks_ready");
     assert.equal(queue.structuredContent.nextAction.type, "choose_task");
+    assert.equal(queue.structuredContent.presentation.status, "not_confirmed");
     assert.ok(queue._meta.application.tasks.some((task) => task.id === "employment_letter"));
     assert.doesNotMatch(queue._meta.application.notice, /模拟/);
     assert.equal(queue._meta.application.path.ruleStatus, "pending_verification");
     const hydration = await client.callTool({ name: "get_task_queue", arguments: { applicationId: id } });
     assert.equal(hydration.structuredContent.application.tasks.length, 12);
+    assert.equal(hydration.structuredContent.nextAction.type, "choose_task");
+    assert.ok(hydration.content.length > 0);
     const started = await client.callTool({ name: "start_task", arguments: { applicationId: id, taskId: "employment_letter" } });
     assert.equal(started.structuredContent.nextAction.type, "work_on_task");
     assert.equal(started._meta.application.activeTask.id, "employment_letter");
