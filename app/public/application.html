@@ -133,7 +133,8 @@
         content.append(element("h2", "开始一次模拟申请"));
         content.append(element("p", "每次只处理一位申请人。你可以按页卡逐个回答问题，也可以在当前对话中一口气说出旅行计划；我们会根据你提供的信息查缺补漏。"));
         content.append(element("p", "例如可以说明护照国籍、居住地、递交城市、目的地、日期、年龄和职业。只说你确定的信息即可。", "muted"));
-        content.append(button("开始", () => call("create_application", {})));
+        content.append(button("按页卡逐题回答", () => call("create_application", {})));
+        content.append(element("p", "想一次说完？直接在当前 ChatGPT 对话中写出旅行计划即可，无需先填页卡。", "muted"));
         const resume = document.createElement("form");
         resume.className = "panel";
         const label = element("label", "已有申请 ID");

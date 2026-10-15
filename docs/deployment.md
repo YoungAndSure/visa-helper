@@ -4,6 +4,8 @@
 
 ## 2026-10-15：决策树模拟版
 
+本日修复开场重复问卷：实际会话中的工具说明仍要求「整组一起问」，与服务器实时 `tools/list` 不一致；仅新建会话未更新该连接的工具快照。另发现 `open_visa_helper` 在无申请时只返回空状态，现已改为返回两种文字输入方式的开场提示，以及不要在页卡旁重复列出问卷的对话指引。修改已通过自动测试并部署；经当前已连接的 Visa Helper 实际调用，确认收到新版开场提示。完整聊天表现仍需刷新连接后新建会话复测。工具说明发生变化时，应先在插件连接详情执行 Refresh，再新建会话；参见[官方刷新流程](https://developers.openai.com/plugins/deploy/connect-chatgpt)。
+
 私有服务仍由 `visa-helper-mcp.service` 管理，仅监听腾讯云的 `127.0.0.1:18081`。当前有六个工具：`open_visa_helper`、`create_application`、`get_application`、`get_questions`、`submit_answers`、`get_task_queue`。旧版 `submit_step` 已移除；旧演示记录仍可读取，但新问答需要新建申请。
 
 规则在 `app/config/rules/` 中按版本保存，`app/config/active.json` 指向新申请使用的版本。使用开源 JsonLogic 求值器；切换配置版本无需改代码或重启服务，旧申请继续使用创建时的版本。当前唯一配置来自用户提供的 2025 年材料审核表，仅供虚构申请模拟。

@@ -25,7 +25,13 @@ test("MCP exposes question groups and produces the file-task queue", async () =>
     const resource = await client.readResource({ uri: opener._meta.ui.resourceUri });
     assert.match(resource.contents[0].text, /文件任务队列/);
 
+    const opened = await client.callTool({ name: "open_visa_helper", arguments: {} });
+    assert.equal(opened.structuredContent.application, null);
+    assert.match(opened.content[0].text, /逐题回答.*旅行计划/);
+    assert.match(opened.structuredContent.assistantGuidance, /Do not enumerate/);
+
     const created = await client.callTool({ name: "create_application", arguments: {} });
+    assert.match(created.structuredContent.assistantGuidance, /Do not enumerate/);
     const id = created.structuredContent.application.id;
     const premature = await client.callTool({ name: "get_task_queue", arguments: { applicationId: id } });
     assert.equal(premature.structuredContent.error.code, "QUESTIONS_INCOMPLETE");

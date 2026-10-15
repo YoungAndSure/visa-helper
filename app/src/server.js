@@ -16,11 +16,16 @@ const here = dirname(fileURLToPath(import.meta.url));
 const widgetHtml = readFileSync(join(here, "../public/application.html"), "utf8");
 const defaultStore = new ApplicationStore(process.env.VISA_HELPER_DATA_FILE ?? join(here, "../data/applications.json"));
 const resourceUri = "ui://visa-helper/application-v2.html";
+const welcome = "你可以跟着页卡逐题回答，也可以直接在聊天里写出旅行计划，我们会根据你提供的信息查缺补漏。只说已经确定的安排即可。";
 
 function reply(application, message = "") {
+  const starting = !application || (application.status === "questions" && !Object.keys(application.answers ?? {}).length);
+  const assistantGuidance = starting
+    ? "Show the welcome message and wait for the user. Do not enumerate the questionnaire or ask the user to fill a second form in chat while the UI is open. If the user has already described a plan, extract the explicitly stated facts using questionCatalog and submit them before asking any follow-up."
+    : "The UI and chat share the same answers. Do not repeat the questionnaire in chat. When the user supplies travel-plan text, save explicit facts and ask only for missing or ambiguous information. If the user is following the UI, let the card guide them.";
   return {
-    content: message ? [{ type: "text", text: message }] : [],
-    structuredContent: { application, supportedPath: PATH },
+    content: [{ type: "text", text: starting ? welcome : message || "已读取申请状态。" }],
+    structuredContent: { application, supportedPath: PATH, assistantGuidance },
   };
 }
 
@@ -50,7 +55,7 @@ export function createVisaServer(store = defaultStore) {
 
   registerAppTool(server, "open_visa_helper", {
     title: "Open Visa Helper",
-    description: "Show the Visa Helper UI for an Iceland tourism visa checklist. Explain that the user can answer one question at a time in the UI or describe the whole travel plan in chat. If starting a new application, use create_application. Rules are an unverified 2025 checklist draft.",
+    description: "Show the Visa Helper UI. For a generic request to apply for a visa, show the returned welcome message and wait. The user may follow one-question cards or write a travel plan in chat. Do not list the full questionnaire alongside the UI. If the user already provides a plan, create an application and save explicit facts. Rules cover only an unverified Iceland tourism simulation.",
     inputSchema: { applicationId: z.string().uuid().optional() },
     annotations: { readOnlyHint: true, openWorldHint: false, destructiveHint: false },
     _meta: { ui: { resourceUri } },
