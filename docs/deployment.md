@@ -114,3 +114,5 @@ ChatGPT 首次添加时曾提示无法连接。排查发现 tunnel-client 仍处
 5. 测试结束后用 `Ctrl-C` 停止启动脚本；脚本会清理它启动的 SSH 转发。若使用过独立启动的 SSH 转发，需单独确认并结束其进程。
 
 如果 ChatGPT 提示“无法连接到 MCP 服务器”，按请求路径逐段检查：先看脚本终端中的 tunnel-client 是否仍在轮询；再在开发机执行 `curl --max-time 5 http://127.0.0.1:18081/`，应立即返回服务响应；最后检查腾讯云上的 `visa-helper-mcp.service`。本机端口能建立 TCP 连接却迟迟没有 HTTP 响应时，优先检查 SSH 转发是否失效，并重新建立转发。连接成功但没有 UI 时，重新扫描工具并调用 `open_visa_helper`。
+
+如果保存回答时报 `Unknown tool({"name":"visa_helper.submit_step"})`，说明 ChatGPT 仍持有旧版四工具定义。当前服务端已发布六个工具，保存回答使用 `submit_answers`。到 [ChatGPT Plugins](https://chatgpt.com/plugins) 打开 Visa Helper 连接并点 **Refresh**，确认工具列表出现 `get_questions`、`submit_answers`、`get_task_queue` 且不再出现 `submit_step`，然后**新建对话**测试。旧对话可能仍引用旧工具定义；这类错误发生在进入保存逻辑之前，原回答需要重新提交。若刷新后仍显示旧工具，检查正在运行的 Tunnel 是否连接到本服务，再重新连接该自定义 MCP 服务。
