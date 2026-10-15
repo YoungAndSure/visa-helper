@@ -23,6 +23,7 @@
     .task small { display: block; margin-top: 4px; color: #607284; line-height: 1.45; }
     label { display: block; margin: 12px 0; font-size: .9rem; font-weight: 600; }
     input, select { display: block; width: 100%; padding: 10px; margin-top: 6px; border: 1px solid #b9c9d5; border-radius: 9px; font: inherit; }
+    .actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
     button { background: #176e65; border: 0; border-radius: 10px; color: white; padding: 10px 16px; font: inherit; font-weight: 600; cursor: pointer; }
     button:disabled { opacity: .55; cursor: wait; }
     .secondary { background: #eaf0f3; color: #213848; }
@@ -51,6 +52,7 @@
     const content = document.querySelector("#content");
     const errorEl = document.querySelector("#error");
     let application = null;
+    let activeQuestionId = null;
     let busy = false;
     let rpcId = 0;
     const pending = new Map();
@@ -63,7 +65,16 @@
     function applyResult(result) {
       const data = result?.structuredContent;
       if (data?.application) {
+        const previousQuestionId = activeQuestionId;
         application = data.application;
+        if (application.status === "questions") {
+          const remaining = application.questions.filter((question) => application.answers?.[question.id] === undefined);
+          activeQuestionId = remaining.find((question) => question.id !== previousQuestionId)?.id ?? remaining[0]?.id ?? null;
+        } else if (application.status === "needs_correction") {
+          activeQuestionId = previousQuestionId;
+        } else {
+          activeQuestionId = null;
+        }
         try { localStorage.setItem("visa-helper-application-id", application.id); } catch {}
       }
       if (data?.error) errorEl.textContent = data.error.message;
@@ -120,7 +131,8 @@
       content.replaceChildren();
       if (!application) {
         content.append(element("h2", "开始一次模拟申请"));
-        content.append(element("p", "每次只处理一位申请人。你可以在对话中回答问题，也可以在这里填写。"));
+        content.append(element("p", "每次只处理一位申请人。你可以按页卡逐个回答问题，也可以在当前对话中一口气说出旅行计划；我们会根据你提供的信息查缺补漏。"));
+        content.append(element("p", "例如可以说明护照国籍、居住地、递交城市、目的地、日期、年龄和职业。只说你确定的信息即可。", "muted"));
         content.append(button("开始", () => call("create_application", {})));
         const resume = document.createElement("form");
         resume.className = "panel";
@@ -150,37 +162,41 @@
       if (application.reason) content.append(element("div", application.reason, "panel"));
       if (application.status === "questions" || application.status === "needs_correction") {
         const group = application.questionGroup;
-        content.append(element("h2", `${group.title}（${group.total} 题）`));
-        content.append(element("p", "可一次回答这一组；已有答案可以修改。", "muted"));
+        const questions = application.questions;
+        const question = questions.find((item) => item.id === activeQuestionId) ?? questions.find((item) => application.answers?.[item.id] === undefined) ?? questions[0];
+        const position = questions.findIndex((item) => item.id === question.id);
+        const answered = questions.filter((item) => application.answers?.[item.id] !== undefined).length;
+        content.append(element("h2", group.title));
+        content.append(element("p", `本组已回答 ${answered}/${group.total} 题 · 当前第 ${position + 1} 题`, "muted"));
+        content.append(element("p", "也可以在当前对话中一次写出旅行计划；我们只会追问缺少的信息。", "muted"));
         const form = document.createElement("form");
         form.className = "panel";
-        for (const question of application.questions) {
-          const label = element("label", question.title);
-          let input;
-          if (question.type === "choice") {
-            input = document.createElement("select");
-            input.append(new Option("请选择", ""));
-            question.options.forEach((option) => input.append(new Option(option.label, option.value)));
-          } else {
-            input = document.createElement("input");
-            input.type = question.type === "date" ? "date" : "text";
-          }
-          input.name = question.id;
-          input.value = application.answers?.[question.id] ?? "";
-          label.append(input);
-          form.append(label);
+        const label = element("label", question.title);
+        let input;
+        if (question.type === "choice") {
+          input = document.createElement("select");
+          input.append(new Option("请选择", ""));
+          question.options.forEach((option) => input.append(new Option(option.label, option.value)));
+        } else {
+          input = document.createElement("input");
+          input.type = question.type === "date" ? "date" : "text";
         }
-        const submit = element("button", "保存本组回答");
+        input.name = question.id;
+        input.value = application.answers?.[question.id] ?? "";
+        input.required = true;
+        label.append(input);
+        form.append(label);
+        const actions = document.createElement("div");
+        actions.className = "actions";
+        const submit = element("button", "保存并继续");
         submit.type = "submit";
-        form.append(submit);
+        actions.append(submit);
+        if (position > 0) actions.append(button("上一题", () => { activeQuestionId = questions[position - 1].id; render(); }, "secondary"));
+        if (position < questions.length - 1) actions.append(button("下一题", () => { activeQuestionId = questions[position + 1].id; render(); }, "secondary"));
+        form.append(actions);
         form.addEventListener("submit", (event) => {
           event.preventDefault();
-          const answers = Object.fromEntries(application.questions.map((question) => [question.id, form.elements[question.id].value.trim()]).filter(([, value]) => value));
-          if (!Object.keys(answers).length) {
-            errorEl.textContent = "请至少回答一个问题。";
-            return;
-          }
-          call("submit_answers", { applicationId: application.id, answers });
+          call("submit_answers", { applicationId: application.id, answers: { [question.id]: input.value.trim() } });
         });
         content.append(form);
         return;

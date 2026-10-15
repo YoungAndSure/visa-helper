@@ -37,6 +37,25 @@ test("one adult applicant answers groups and receives an ordered file-task queue
   assert.equal(JSON.parse(await readFile(store.filePath, "utf8"))[created.id].answers.occupation, "employed");
 });
 
+test("one travel-plan reply can fill later branches and leave only missing facts", async () => {
+  const store = await newStore();
+  const created = await store.create();
+  assert.ok(created.questionCatalog.some((question) => question.id === "occupation"));
+  const partial = await store.submitAnswers(created.id, {
+    nationality: "CN", residence: "CN", destination: "IS", purpose: "tourism",
+    ageGroup: "adult", occupation: "employed", otherSchengenCountries: "no",
+  });
+  assert.equal(partial.status, "questions");
+  assert.deepEqual(partial.questions.filter((question) => partial.answers[question.id] === undefined).map((question) => question.id), [
+    "applicationCity", "arrivalDate", "departureDate",
+  ]);
+  const ready = await store.submitAnswers(created.id, {
+    applicationCity: "北京", arrivalDate: "2027-06-01", departureDate: "2027-06-10",
+  });
+  assert.equal(ready.status, "tasks_ready");
+  assert.ok(ids(ready).includes("employment_letter"));
+});
+
 test("independent decisions add tasks and corrected answers remove stale branches", async () => {
   const store = await newStore();
   const { id } = await store.create();

@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
-import { DEFAULT_CONFIG_DIR, evaluateChecklist, getActiveRuleVersion, validateAnswerPatch } from "./checklist.js";
+import { DEFAULT_CONFIG_DIR, evaluateChecklist, getActiveRuleVersion, loadRulePack, validateAnswerPatch } from "./checklist.js";
 
 export const PATH = Object.freeze({
   id: "cn-passport-cn-resident-is-tourism",
@@ -25,6 +25,7 @@ export function publicState(record, configDir = DEFAULT_CONFIG_DIR) {
     };
   }
   const result = evaluateChecklist(record.answers, record.ruleVersion, configDir);
+  const questionCatalog = loadRulePack(record.ruleVersion, configDir).questionGroups.flatMap((group) => group.questions);
   return {
     id: record.id,
     path: PATH,
@@ -33,6 +34,7 @@ export function publicState(record, configDir = DEFAULT_CONFIG_DIR) {
     answers: record.answers,
     questionGroup: result.group ? { id: result.group.id, title: result.group.title, total: result.group.questions.length } : null,
     questions: result.questions,
+    questionCatalog,
     tasks: result.tasks,
     reviewNotes: result.reviewNotes ?? [],
     reason: result.reason ?? null,

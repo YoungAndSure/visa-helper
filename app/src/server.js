@@ -50,7 +50,7 @@ export function createVisaServer(store = defaultStore) {
 
   registerAppTool(server, "open_visa_helper", {
     title: "Open Visa Helper",
-    description: "Show the Visa Helper UI for an Iceland tourism visa checklist. If the user wants to start preparing an application and has none yet, use create_application to begin and present the returned questions naturally. Rules are an unverified 2025 checklist draft.",
+    description: "Show the Visa Helper UI for an Iceland tourism visa checklist. Explain that the user can answer one question at a time in the UI or describe the whole travel plan in chat. If starting a new application, use create_application. Rules are an unverified 2025 checklist draft.",
     inputSchema: { applicationId: z.string().uuid().optional() },
     annotations: { readOnlyHint: true, openWorldHint: false, destructiveHint: false },
     _meta: { ui: { resourceUri } },
@@ -58,10 +58,10 @@ export function createVisaServer(store = defaultStore) {
 
   server.registerTool("create_application", {
     title: "Start Iceland tourism visa checklist",
-    description: "Use when a user naturally asks for help with an Iceland tourist visa, such as what documents to prepare or how to start. Create one simulated application for one person, then ask the returned first group of questions together in plain Chinese. Do not require a special prompt or invent answers. Do not request passport numbers or files.",
+    description: "Use when a user naturally asks for help with an Iceland tourist visa. Create one simulated application for one person. Offer two text paths: answer one question at a time in the UI, or describe the whole travel plan in chat. If the user already described a plan, extract only clearly stated facts using questionCatalog option values, save them with submit_answers, and ask only for missing answers. Do not invent answers or request passport numbers or files.",
     inputSchema: {},
     annotations: { readOnlyHint: false, openWorldHint: false, destructiveHint: false },
-  }, async () => reply(await store.create(), "已开始准备材料清单。请用自然语言一次询问当前问题组中的所有问题。"));
+  }, async () => reply(await store.create(), "已开始准备材料清单。用户可在页卡逐题回答，也可在对话中一口气描述旅行计划；只追问尚缺的信息。"));
 
   server.registerTool("get_application", {
     title: "Get visa application",
@@ -72,14 +72,14 @@ export function createVisaServer(store = defaultStore) {
 
   server.registerTool("get_questions", {
     title: "Get current checklist questions",
-    description: "Return the full current question group derived from the server-side checklist decision tree. Ask these questions together; do not invent material-selection questions. An application must be created first.",
+    description: "Return the current question group and the full questionCatalog. In chat, ask only questions not already answered. The UI presents one question per card. Do not invent material-selection questions. An application must be created first.",
     inputSchema: { applicationId: z.string().uuid() },
     annotations: { readOnlyHint: true, openWorldHint: false, destructiveHint: false },
   }, async ({ applicationId }) => safely(async () => reply(await store.get(applicationId))));
 
   server.registerTool("submit_answers", {
     title: "Save checklist answers",
-    description: "Save structured answers extracted from the user's reply. Returns the next full question group or the file-task queue. Existing answers may be corrected. Use only option values supplied by get_questions.",
+    description: "Save structured answers explicitly stated in the user's text, including facts for later question groups when clearly stated. Use questionCatalog option values and YYYY-MM-DD dates only when unambiguous. Never infer missing facts. Returns remaining questions or the file-task queue. Existing answers may be corrected.",
     inputSchema: {
       applicationId: z.string().uuid(),
       answers: z.record(z.string()),
