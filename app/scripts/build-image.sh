@@ -32,7 +32,7 @@ docker run --rm --network none "$image_tag" node --input-type=module -e '
 docker image save "$image_tag" | gzip > "$release_dir/image.tar.gz.tmp"
 mv "$release_dir/image.tar.gz.tmp" "$release_dir/image.tar.gz"
 cp "$app_dir/deploy/compose.yml" "$release_dir/compose.yml"
-printf 'VISA_HELPER_IMAGE=%s\n' "$image_tag" > "$release_dir/runtime.env"
+printf 'VISA_HELPER_IMAGE=%s\nVISA_HELPER_PULL_POLICY=never\n' "$image_tag" > "$release_dir/runtime.env"
 image_id="$(docker image inspect --format '{{.Id}}' "$image_tag")"
 node --input-type=module - "$release_dir/release.json" "$image_tag" "$image_id" "$app_build_hash" "$node_image" <<'JS'
 import { writeFileSync } from 'node:fs';

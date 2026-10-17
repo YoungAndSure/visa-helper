@@ -19,7 +19,7 @@ npm start
 
 当前通过 Docker 镜像部署到腾讯云。运行 `scripts/build-image.sh` 构建并导出完整镜像；发布包包含镜像、Compose 配置和校验信息。镜像包括业务代码、XState 和完整决策树配置，不包含本机密钥及申请数据。
 
-服务器导入镜像后用 `deploy/compose.yml` 启动，数据挂载原有目录，MCP 仍只监听宿主机 `127.0.0.1:18081`。`deploy/container.env.example` 提供数据路径和端口示例；镜像标签来自发布包的 `runtime.env`。数据目录必须明确配置且已经存在。旧版容器和直接运行 Node 的系统服务已退役。
+使用 `scripts/publish-image.sh` 将已验证镜像推送到腾讯云仓库，成功后生成按摘要固定的 `registry.env`；服务器拉取镜像后用 `deploy/compose.yml` 启动。也保留离线导入方式。数据挂载原有目录，MCP 仍只监听宿主机 `127.0.0.1:18081`。`deploy/container.env.example` 提供数据路径和端口示例；仓库发布使用固定摘要的 `registry.env`，离线发布使用 `runtime.env`。数据目录必须明确配置且已经存在。旧版容器和直接运行 Node 的系统服务已退役。
 
 完整构建、上传、启动、验证和回退步骤见[镜像部署说明](../docs/container-deployment.md)。
 

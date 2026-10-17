@@ -1,6 +1,6 @@
 # Visa Helper 镜像构建与部署
 
-当前应用通过 Docker 镜像运行在腾讯云，服务器无需现场安装 npm 依赖。开发机构建并导出镜像，上传到服务器后离线导入，由 Docker Compose 启动。当前 MCP 仍使用腾讯云 `127.0.0.1:18081/mcp`，开发机 SSH 转发及 Secure MCP Tunnel 保持原连接方式。
+当前应用通过 Docker 镜像运行在腾讯云，服务器无需现场安装 npm 依赖。推荐构建镜像后发布到腾讯云镜像仓库，服务器按摘要拉取并由 Docker Compose 启动；离线导出包保留为备用方式。首次切换使用过 SCP 上传镜像包，记录保留在文末。当前 MCP 仍使用腾讯云 `127.0.0.1:18081/mcp`，开发机 SSH 转发及 Secure MCP Tunnel 保持原连接方式。
 
 ## 镜像与数据
 
@@ -27,13 +27,36 @@ app/scripts/build-image.sh
 | --- | --- |
 | `image.tar.gz` | 完整 Docker 镜像，可离线导入 |
 | `compose.yml` | 容器运行配置 |
-| `runtime.env` | 本次镜像的标签 |
+| `runtime.env` | 本次本地镜像标签及离线拉取策略 `never` |
 | `release.json` | 镜像 ID、基础镜像摘要、应用构建指纹 |
 | `SHA256SUMS` | 发布包文件完整性校验 |
 
-构建机需要访问基础镜像仓库和 npm。腾讯云只导入发布包，不需要访问这些仓库。发布目录、镜像 ID 和校验文件应一起保存；回退使用先前保存的发布包。
+构建机需要访问基础镜像仓库和 npm。发布目录、镜像 ID 和校验文件应一起保存。仓库发布不重新构建镜像，也不读取申请数据；上传的是已经验证过的完整镜像。
 
-## 上传和启动
+## 发布到腾讯云镜像仓库
+
+沿用之前的仓库 `ccr.ccs.tencentyun.com/visa-helper/visa-helper`，当前版本标签为 `0.7.0-589a244540ab`。使用仓库控制台提供的登录信息，在实际执行推送的机器上运行 `docker login ccr.ccs.tencentyun.com`。密码只在终端输入，不写进仓库或聊天。使用 `sudo docker` 推送时，也需要用 `sudo docker login`，因为 root 和普通用户使用不同的凭据配置。
+
+在已登录的机器上，推送本地已构建镜像：
+
+```bash
+app/scripts/publish-image.sh   visa-helper-mcp:0.7.0-589a244540ab   ccr.ccs.tencentyun.com/visa-helper/visa-helper   app/.local/releases/0.7.0-589a244540ab/registry.env
+```
+
+该脚本只添加仓库标签并推送，成功后取得仓库摘要。第三个参数可选；提供时生成 `registry.env`，其中 `VISA_HELPER_IMAGE` 固定为 `仓库@sha256:摘要`，拉取策略为 `missing`。推送失败不写入新发布配置，不能将本地打标签当成已经上传成功。
+
+也可以在已持有镜像的服务器上运行同一脚本，无需再从开发机上传一次大文件。镜像上传成功后应核对远端摘要，并在具备拉取权限的服务器验证拉取。仓库凭据由 Docker 管理，不包含在应用镜像或 Compose 文件中。
+
+服务器使用相同数据配置，用仓库发布配置拉取并启动：
+
+```bash
+sudo docker compose --project-name visa-helper-mcp   --env-file registry.env   --env-file /home/ubuntu/visa-helper-mcp/deploy/container.env   -f compose.yml pull
+sudo docker compose --project-name visa-helper-mcp   --env-file registry.env   --env-file /home/ubuntu/visa-helper-mcp/deploy/container.env   -f compose.yml up -d --wait --wait-timeout 60
+```
+
+这里的 `compose.yml` 使用当前仓库的部署配置，支持 `VISA_HELPER_PULL_POLICY`；首次离线包中的旧 Compose 固定为 `never`，使用仓库方式前需更新该配置。服务器拉取的是已经构建的镜像，不安装 npm，不同步业务源码。现有服务若已运行相同镜像内容，仅上传仓库无需重启；后续部署可采用仓库摘要。
+
+## 离线上传和启动
 
 以下是当前服务器目录，后续发布替换其中的版本目录即可。
 
@@ -63,7 +86,7 @@ sudo docker compose --project-name visa-helper-mcp \
   -f compose.yml up -d --wait --wait-timeout 60
 ```
 
-`pull_policy: never` 确保运行已导入的镜像。健康检查访问 `/version`，会实际加载规则与服务元数据。启动失败时保留原发布包和数据，检查容器日志后再处理，不覆盖数据目录。
+离线包的 `runtime.env` 显式设置 `VISA_HELPER_PULL_POLICY=never`，确保运行已导入的镜像；仓库配置则使用 `missing`，按需拉取。健康检查访问 `/version`，会实际加载规则与服务元数据。启动失败时保留原发布包和数据，检查容器日志后再处理，不覆盖数据目录。
 
 确认启动成功后，更新 `current` 符号链接指向本次发布目录：
 
@@ -102,9 +125,21 @@ node app/scripts/check-release.mjs http://127.0.0.1:18081/mcp
 
 ## 更新与回退
 
-后续发布沿用“构建镜像 → 导出发布包 → 上传 → 校验 → 导入 → Compose 更新 → 发布检查”的流程。更新前备份数据；只更换镜像，不替换数据目录。确认新版本可用前保留上一版本镜像和发布包。
+后续发布优先使用“构建镜像 → 推送腾讯云仓库 → 取得摘要 → 服务器拉取 → Compose 更新 → 发布检查”；无法访问仓库时再使用离线包。更新前备份数据；只更换镜像，不替换数据目录。确认新版本可用前保留上一版本镜像和发布包。
 
 需要回退时，用上一发布目录的 `runtime.env` 和 `compose.yml` 执行同样的 `up -d --wait`，环境配置继续指向同一数据目录，成功后将 `current` 链接指回该版本。回退镜像不会自动撤销新版本产生的数据变更，涉及数据格式变更的版本应另行设计迁移。
+
+## 2026 年 10 月 17 日仓库发布记录
+
+已从开发机成功推送到原腾讯云仓库：
+
+```text
+ccr.ccs.tencentyun.com/visa-helper/visa-helper:0.7.0-589a244540ab
+```
+
+仓库摘要为 `sha256:5831bc962945418a34e1ba18cb054745329ade8bcb9355b33f102aa26ef3f04b`。开发机按此摘要从仓库回拉成功，镜像 ID 与服务器正在运行的镜像一致。发布配置 `registry.env` 已保存到本地及服务器对应发布目录，后续可使用仓库摘要部署。
+
+本次没有重启或更换运行中的容器。服务器尚未独立登录镜像仓库，因此未完成服务器直接拉取验证；未向服务器转交开发机的登录凭据。将来在服务器执行仓库拉取前，应在服务器独立完成 `sudo docker login`。开发机登录成功不代表服务器也已登录。
 
 ## 2026 年 10 月 17 日首次切换记录
 

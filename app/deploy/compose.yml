@@ -3,7 +3,7 @@ name: visa-helper-mcp
 services:
   server:
     image: ${VISA_HELPER_IMAGE:?Set VISA_HELPER_IMAGE to the loaded release image}
-    pull_policy: never
+    pull_policy: ${VISA_HELPER_PULL_POLICY:-missing}
     restart: unless-stopped
     init: true
     ports:
