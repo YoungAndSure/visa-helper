@@ -1,6 +1,6 @@
 {
   "name": "visa-helper-mcp-app",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -15,7 +15,6 @@
     "@modelcontextprotocol/node": "^2.1.1",
     "@modelcontextprotocol/sdk": "^1.20.2",
     "@modelcontextprotocol/server": "^2.3.1",
-    "@openai/mcp-extensions": "^0.2.0",
     "xstate": "5.33.2",
     "zod": "^4.6.7"
   },

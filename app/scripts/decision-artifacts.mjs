@@ -4,7 +4,7 @@ import { resolve, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { isDeepStrictEqual } from "node:util";
 import dagre from "@dagrejs/dagre";
-import { getActiveRuleVersion, loadRulePack, evaluateChecklistWithTrace, validateAnswerPatch } from "../src/checklist.js";
+import { getActiveRuleVersion, loadRulePack, evaluateChecklistWithTrace, validateAnswers } from "../src/checklist.js";
 import { createChecklistMachine, runtimeLogic, predicates, ENGINE_VERSION, IMPLEMENTATION_HASH, hash } from "../src/decision-machine.js";
 
 const appDir = fileURLToPath(new URL("../", import.meta.url));
@@ -118,7 +118,7 @@ export async function main(argv = process.argv.slice(2)) {
   }
   const pack = loadRulePack(version);
   if (!answers || typeof answers !== "object" || Array.isArray(answers)) throw new Error("Answers must be a JSON object");
-  if (Object.keys(answers).length) validateAnswerPatch(answers, version);
+  if (Object.keys(answers).length) validateAnswers(answers, version);
   if (saved && (saved.modelHash !== hash(pack) || saved.engineVersion !== ENGINE_VERSION || saved.implementationHash !== IMPLEMENTATION_HASH)) throw new Error("Replay version mismatch: use the archived model and implementation from the recorded release");
   const { result, execution } = evaluateChecklistWithTrace(answers, version);
   if (saved && (!isDeepStrictEqual(saved.output, result) || !isDeepStrictEqual(saved.path, execution.path))) throw new Error("Replay differs from saved output or path");

@@ -63,9 +63,9 @@ test("trace captures every transient node, guard outcome and selected material b
 test("answer revisions persist separate complete inputs and their own replayable paths", async () => {
   const dir = await mkdtemp(join(tmpdir(), "visa-helper-traces-"));
   const store = new ApplicationStore(join(dir, "applications.json"));
-  const { id } = await store.create();
-  const employed = await store.submitAnswers(id, { ...basic, occupation: "employed" });
-  const retired = await store.submitAnswers(id, { occupation: "retired" });
+  const { application: { id, revision } } = await store.advance({ answers: {} });
+  const { application: employed } = await store.advance({ applicationId: id, revision, answers: { ...basic, occupation: "employed" } });
+  const { application: retired } = await store.advance({ applicationId: id, revision: employed.revision, answers: { ...basic, occupation: "retired" } });
   assert.notEqual(employed.decision.evaluationId, retired.decision.evaluationId);
   const runs = JSON.parse(await readFile(store.filePath, "utf8"))[id].evaluations;
   assert.equal(runs.length, 3);

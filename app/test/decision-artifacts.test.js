@@ -46,9 +46,9 @@ test("portable Sketch source runs with XState alone and reproduces the material 
 test("saved evaluation CLI replays historical input and rejects changed implementation fingerprints", async () => {
   const dir = await mkdtemp(join(tmpdir(), "visa-helper-replay-"));
   const store = new ApplicationStore(join(dir, "applications.json"));
-  const { id } = await store.create();
-  const employed = await store.submitAnswers(id, answers);
-  await store.submitAnswers(id, { occupation: "retired" });
+  const { application: { id, revision } } = await store.advance({ answers: {} });
+  const { application: employed } = await store.advance({ applicationId: id, revision, answers });
+  await store.advance({ applicationId: id, revision: employed.revision, answers: { ...answers, occupation: "retired" } });
   await main(["--application", id, "--evaluation", employed.decision.evaluationId, "--data", store.filePath, "--out", join(dir, "graph")]);
   const replay = JSON.parse(await readFile(join(dir, "graph/iceland.trace.json"), "utf8"));
   assert.equal(replay.input.occupation, "employed");

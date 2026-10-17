@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
-import { DEFAULT_CONFIG_DIR, answerIssues, evaluateChecklist, evaluateChecklistWithTrace, getActiveRuleVersion, loadRulePack, validateAnswerPatch } from "./checklist.js";
+import { DEFAULT_CONFIG_DIR, answerIssues, evaluateChecklist, evaluateChecklistWithTrace, getActiveRuleVersion, loadRulePack } from "./checklist.js";
 
 export const PATH = Object.freeze({
   id: "cn-passport-cn-resident-is-tourism",
@@ -17,13 +17,7 @@ export class WorkflowError extends Error {
 }
 
 export function publicState(record, configDir = DEFAULT_CONFIG_DIR, evaluation) {
-  if (!record.answers) {
-    return {
-      id: record.id, path: PATH, status: "legacy_walkthrough", data: record.data,
-      updatedAt: record.updatedAt,
-      notice: "这是旧版交互演示记录。请新建申请，以使用材料决策树。",
-    };
-  }
+  if (!record.answers) throw new WorkflowError("UNSUPPORTED_APPLICATION", "这份记录不支持当前问答流程，请新建申请。");
   const result = evaluation ?? evaluateChecklist(record.answers, record.ruleVersion, configDir);
   const pack = loadRulePack(record.ruleVersion, configDir);
   const questionCatalog = pack.questionGroups.flatMap((group) => group.questions);
@@ -90,43 +84,13 @@ export class ApplicationStore {
     return operation;
   }
 
-  async create() {
-    return this.mutate((records) => {
-      const record = {
-        id: randomUUID(),
-        ruleVersion: getActiveRuleVersion(this.configDir),
-        answers: {},
-        revision: 1,
-        updatedAt: new Date().toISOString(),
-      };
-      const { result, execution } = evaluateChecklistWithTrace(record.answers, record.ruleVersion, this.configDir);
-      record.evaluations = [{ id: randomUUID(), recordedAt: record.updatedAt, revision: record.revision, source: "create", ...execution }];
-      records[record.id] = record;
-      return publicState(record, this.configDir, result);
-    });
-  }
-
   async get(id) {
     const record = (await this.readAll())[id];
     if (!record) throw new WorkflowError("NOT_FOUND", "找不到该申请。");
     return publicState(record, this.configDir);
   }
 
-  async submitAnswers(id, patch) {
-    return this.mutate((records) => {
-      const record = records[id];
-      if (!record) throw new WorkflowError("NOT_FOUND", "找不到该申请。");
-      if (!record.answers) throw new WorkflowError("LEGACY_APPLICATION", "旧版演示记录无法填写新问卷，请新建申请。");
-      try {
-        validateAnswerPatch(patch, record.ruleVersion, this.configDir);
-      } catch (error) {
-        throw new WorkflowError("INVALID_ANSWERS", error.message);
-      }
-      return this.commitAnswers(record, { ...record.answers, ...patch }, { source: "legacy_patch", answerPatch: structuredClone(patch) });
-    });
-  }
-
-  commitAnswers(record, answers, details) {
+  commitAnswers(record, answers) {
     const { result, execution } = evaluateChecklistWithTrace(answers, record.ruleVersion, this.configDir);
     record.answers = structuredClone(answers);
     record.revision = (record.revision ?? 0) + 1;
@@ -138,7 +102,7 @@ export class ApplicationStore {
     }
     record.updatedAt = new Date().toISOString();
     record.evaluations ??= [];
-    record.evaluations.push({ id: randomUUID(), recordedAt: record.updatedAt, revision: record.revision, ...details, ...execution });
+    record.evaluations.push({ id: randomUUID(), recordedAt: record.updatedAt, revision: record.revision, source: "full_snapshot", ...execution });
     return publicState(record, this.configDir, result);
   }
 
@@ -146,13 +110,12 @@ export class ApplicationStore {
     // Absence of answers means resume/read; an explicit {} means withdraw all answers.
     if (applicationId && answers === undefined) {
       const application = await this.get(applicationId);
-      if (!application.answers) throw new WorkflowError("LEGACY_APPLICATION", "旧版演示记录无法填写新问卷，请新建申请。");
       return { application, saved: false };
     }
     return this.mutate((records) => {
       const existing = applicationId ? records[applicationId] : null;
       if (applicationId && !existing) throw new WorkflowError("NOT_FOUND", "找不到该申请。");
-      if (existing && !existing.answers) throw new WorkflowError("LEGACY_APPLICATION", "旧版演示记录无法填写新问卷，请新建申请。");
+      if (existing && !existing.answers) throw new WorkflowError("UNSUPPORTED_APPLICATION", "这份记录不支持当前问答流程，请新建申请。");
       if (existing && revision !== (existing.revision ?? 0)) return {
         application: publicState(existing, this.configDir), saved: false,
         conflict: { code: "REVISION_CONFLICT", message: "完整问答未保存：申请版本已变化或未提供 revision。请以返回的最新答案为底稿，结合用户本次明确的信息重新整理并提交；不得直接覆盖。" },
@@ -168,7 +131,7 @@ export class ApplicationStore {
       if (existing && keys.length === Object.keys(existing.answers).length && keys.every((key) => snapshot[key] === existing.answers[key])) {
         return { application: publicState(existing, this.configDir), saved: true };
       }
-      const application = this.commitAnswers(record, snapshot, { source: "full_snapshot" });
+      const application = this.commitAnswers(record, snapshot);
       records[record.id] = record;
       return { application, saved: true };
     });

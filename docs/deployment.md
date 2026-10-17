@@ -1,6 +1,21 @@
 # ChatGPT MCP App 部署与测试
 
-当前版本为 `0.6.0`，问答协议 `1.0`：GPT 统一使用 `advance_application` 提交完整问答快照，由服务端从 XState 根节点重新计算并返回 `nextAction`；问答仅在聊天中进行，完成时交接清单 App。保留结构化回放、版本诊断、UI 回执与旧接口兼容。详细约定见[完整问答协议](interview-protocol.md)。
+当前版本为 `0.7.0`，问答协议 `1.0`。服务仅注册 5 个接口：`advance_application`、`get_task_queue`、`start_task`、`get_server_info` 和仅供 App 使用的 `report_ui_ready`。七个旧问答或重复入口、原生表单实现及旧 UI 资源别名均已删除，不提供旧接口兼容。接口参数与职责见 [MCP 接口说明](mcp-api.md)，问答循环见[完整问答协议](interview-protocol.md)。
+
+## 2026-10-17 接口精简
+
+- 问答创建、目录查询、恢复与完整提交均使用 `advance_application`；完成后按返回动作展示清单，用户选材料后用 `start_task`。
+- 删除 `open_visa_helper`、`create_application`、`get_application`、`get_questions`、`submit_answers`、`ask_next_question`、`show_material_checklist`。不保留隐藏入口或转发。原生表单代码、`@openai/mcp-extensions` 依赖和 v2/v3 UI 别名同时删除。
+- 发布检查比对精确工具集合，而非只检查必需接口存在；自动测试核对只有 5 个工具、旧工具调用失败、旧资源不可读取，以及新问答循环和任务展示。
+- 申请数据保留，已有有效问答申请通过统一入口恢复；旧连接必须重载工具列表。GPT 可见 4 个工具，载入回执仅供 App 使用。
+
+### 精简版部署验证
+
+`0.7.0` 已部署到原腾讯云服务，构建指纹 `589a244540ab`，工具契约 `d6f8db600838`。代码和旧表单依赖备份到 `/tmp/visa-helper-before-0.7.0.tgz`；部署前后申请数据 SHA-256 完全一致。远端已实际删除旧表单源码及依赖。
+
+8 个自动测试文件通过。通过现有 SSH 转发连接真实 MCP，精确确认工具数为 5、七个旧接口全部调用失败、UI 资源仅剩 1 个；虚构申请从空问答到 12 项清单，再选择在职证明成功。不存在申请的错误响应也通过输出协议验证。本地与部署的代码、工具、规则、UI 和协议发布检查通过。这些是服务端及传输验证，未把它们当作 ChatGPT 宿主已显示页面的证据。
+
+下列发布记录描述各自版本的历史行为；涉及旧接口的命令和兼容策略已被本节取代。
 
 ## 2026-10-17 完整快照协议
 
@@ -51,10 +66,10 @@
 
 ### 下次遇到版本疑问时
 
-1. 优先调用 `get_server_info`，传入本次聊天实际可调用的 Visa Helper 工具名。新工具尚未发现时，从既有 `get_application`／`get_questions` 响应里的 `serverInfo` 读取版本；不要为查询版本另建申请。
+1. 优先调用 `get_server_info`，传入本次聊天实际可调用的 Visa Helper 工具名。也可从当前 `advance_application` 响应里的 `serverInfo` 读取版本；若连统一接口都不可调用，使用 `/version` 检查部署并重新加载连接，不调用已删除的旧接口，不为查询版本另建申请。
 2. 开发机运行 `node app/scripts/check-release.mjs http://127.0.0.1:18081/mcp` 核对目标部署；要核对 ChatGPT 工具快照，再追加保存其实际工具名数组的 JSON 文件。只比对工具名不能证明宿主中的参数定义、UI 关联也已更新，仍须核对工具详情和载入回执。
 3. 后端指纹落后或不一致时，先检查部署目录、进程及 SSH/Tunnel 目标；后端一致但客户端缺项时，保留申请 ID，再更新连接并重新读取真实工具列表。更新后仍缺项就继续定位连接，不启动问答碰运气。
-4. 到叶子后使用可用的 `get_task_queue` 或 `show_material_checklist`。返回数据但 `presentation.status` 仍为 `not_confirmed` 时，不声称页面已经显示；检查页脚与 `report_ui_ready` 回执。只有匹配当前构建、UI 和申请状态的回执才算已载入。
+4. 到终点后按 `complete.presentation` 使用 `get_task_queue`。返回数据但 `presentation.status` 仍为 `not_confirmed` 时，不声称页面已经显示；检查页脚与 `report_ui_ready` 回执。只有匹配当前构建、UI 和申请状态的回执才算已载入。
 
 ## 历史：0.4.0 原生表单与独立清单入口
 
@@ -162,7 +177,7 @@ ChatGPT → OpenAI Secure MCP Tunnel → 开发机 tunnel-client
    ```
 
    `doctor` 和 `run` 需要 `CONTROL_PLANE_API_KEY`。只有 `doctor` 检查通过、`run` 保持就绪并持续轮询，ChatGPT 才能发现和调用工具。通过 tunnel-client 的本地 `/readyz` 或 `/ui` 核实状态。
-6. 在 [ChatGPT Plugins](https://chatgpt.com/plugins) 添加自定义 MCP 服务，Connection 选 **Tunnel**，选择或填入相同 `tunnel_id`。当前原型没有 OAuth，测试时只使用无认证配置和虚构数据。完成连接后，在新对话中选择该应用，测试 `open_visa_helper`、创建申请、填写步骤、恢复状态及不支持的请求；同时检查嵌入式 UI 和工具结果。真正接入个人申请数据前需要增加用户身份验证及申请归属授权。
+6. 在 [ChatGPT Plugins](https://chatgpt.com/plugins) 添加自定义 MCP 服务，Connection 选 **Tunnel**，选择或填入相同 `tunnel_id`。当前原型没有 OAuth，测试时只使用无认证配置和虚构数据。完成连接后，在新对话中选择该应用，通过 `advance_application` 测试创建、完整问答提交、恢复状态及不支持的请求；同时检查嵌入式 UI 和工具结果。真正接入个人申请数据前需要增加用户身份验证及申请归属授权。
 
 **完成标准**：不仅 `doctor` 就绪和工具列表可见，还要在 ChatGPT 中成功调用至少一个安全的示例工具。Secure MCP Tunnel 仅供私有测试，不满足公开上架所需的稳定公网 HTTPS 地址。[官方连接与测试流程](https://developers.openai.com/plugins/deploy/connect-chatgpt)。
 
@@ -206,9 +221,9 @@ ChatGPT 首次添加时曾提示无法连接。排查发现 tunnel-client 仍处
 
    优先读取本机 `app/.local/tunnel.env` 中的运行密钥；未设置时在交互终端无回显输入。脚本建立或复用 SSH 转发，运行 `doctor` 并在后台启动 tunnel-client，成功后可以关闭终端。`doctor` 对 `/mcp` 返回 HTTP 406 的检查结果是正常的：普通 GET 缺少 MCP 请求所需的头部。
 3. 先按本页「下次遇到版本疑问时」核对部署与实际聊天工具。若需重新添加，到 [ChatGPT Plugins](https://chatgpt.com/plugins) 添加自定义 MCP 服务，Connection 选 **Tunnel**，选择与本地 profile 相同的 tunnel；认证选无认证。Tunnel ID 不是 Server URL。不能仅凭工具数量或 Refresh 点击成功认定更新完成。
-4. 像普通用户一样说「我想去冰岛旅游，签证材料要准备什么？」。问答阶段应留在聊天，逐题表单是否可用以实际请求能力为准；无需用户提到工具、决策树或申请 ID。可用中国护照、居住中国、北京递交、仅赴冰岛旅游、`2027-06-01` 至 `2027-06-10`、已成年、在职的虚构答案。整段已有信息不应重复询问，补齐后显示含在职证明的 12 项材料。核对页脚版本与载入回执，再选择一项材料准备；恢复已有申请时保留原申请 ID。
+4. 像普通用户一样说「我想去冰岛旅游，签证材料要准备什么？」。问答阶段留在聊天，由 GPT 根据统一推进接口返回的问题引导；无需用户提到工具、决策树或申请 ID。可用中国护照、居住中国、北京递交、仅赴冰岛旅游、`2027-06-01` 至 `2027-06-10`、已成年、在职的虚构答案。整段已有信息不应重复询问，补齐后显示含在职证明的 12 项材料。核对页脚版本与载入回执，再选择一项材料准备；恢复已有申请时保留原申请 ID。
 5. 测试结束后运行 `app/scripts/start-private-test.sh stop`。脚本只清理其管理的进程；复用的外部 SSH 转发仍需单独管理。
 
-如果 ChatGPT 提示“无法连接到 MCP 服务器”，按请求路径逐段检查：先运行后台状态检查；再在开发机执行 `curl --max-time 5 http://127.0.0.1:18081/version`，应立即返回当前版本信息；最后检查腾讯云上的 `visa-helper-mcp.service`。本机端口能建立 TCP 连接却迟迟没有 HTTP 响应时，优先检查 SSH 转发是否失效。连接成功但没有 UI 时，核对清单工具的 UI 关联和实际载入回执；`open_visa_helper` 当前只是兼容状态入口，不负责显示清单。
+如果 ChatGPT 提示“无法连接到 MCP 服务器”，按请求路径逐段检查：先运行后台状态检查；再在开发机执行 `curl --max-time 5 http://127.0.0.1:18081/version`，应立即返回当前版本信息；最后检查腾讯云上的 `visa-helper-mcp.service`。本机端口能建立 TCP 连接却迟迟没有 HTTP 响应时，优先检查 SSH 转发是否失效。连接成功但没有 UI 时，核对清单工具的 UI 关联和实际载入回执；`get_task_queue` 是唯一清单展示入口。
 
-历史 `Unknown tool({"name":"visa_helper.submit_step"})` 表示调用了旧版步骤演示接口；当前保存决策树答案使用 `submit_answers`。按版本诊断步骤核对实际后端和客户端工具，再决定更新连接还是部署；检查原答案是否保存，避免未经核对重复提交。不能只因用户说已刷新就假定工具快照已经替换。
+历史 `Unknown tool({"name":"visa_helper.submit_step"})` 表示调用了旧版步骤演示接口；当前保存决策树答案使用 `advance_application` 完整快照。按版本诊断步骤核对实际后端和客户端工具，再决定更新连接还是部署；检查原答案是否保存，避免未经核对重复提交。不能只因用户说已刷新就假定工具快照已经替换。

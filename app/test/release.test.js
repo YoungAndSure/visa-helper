@@ -32,7 +32,7 @@ test("release probe identifies stale host tool snapshots without pretending an o
     const stale = await call("get_server_info", { clientTools: oldTools });
     assert.equal(stale.structuredContent.compatibility.status, "tools_mismatch");
     assert.deepEqual(stale.structuredContent.compatibility.missingTools, ["advance_application"]);
-    const rejected = await call("create_application", { clientTools: oldTools });
+    const rejected = await call("advance_application", { answers: {}, clientTools: oldTools });
     assert.equal(rejected.structuredContent.error.code, "CLIENT_TOOLS_MISMATCH");
     assert.deepEqual(await store.readAll(), {});
     const { tools } = await client.listTools();
@@ -40,16 +40,12 @@ test("release probe identifies stale host tool snapshots without pretending an o
     assert.equal(current.structuredContent.compatibility.status, "compatible");
     const info = current.structuredContent.serverInfo;
     for (const hash of [info.buildHash, info.toolContractHash, info.ui.sourceHash]) assert.match(hash, /^[a-f0-9]{64}$/);
-    const oldEntry = await call("open_visa_helper");
-    assert.equal(oldEntry.isError, undefined);
-    assert.equal(oldEntry.structuredContent.serverInfo.buildHash, info.buildHash);
-    const missingRecord = await call("get_application", { applicationId: "00000000-0000-4000-8000-000000000000" });
+    const missingRecord = await call("advance_application", { applicationId: "00000000-0000-4000-8000-000000000000" });
     assert.equal(missingRecord.structuredContent.error.code, "NOT_FOUND");
     assert.equal(missingRecord.structuredContent.serverInfo.buildHash, info.buildHash);
     const toolsByName = new Map(tools.map((tool) => [tool.name, tool]));
-    for (const name of info.compatibilityTools) assert.ok(toolsByName.has(name), `${name} must stay callable`);
     assert.equal(toolsByName.get("get_task_queue")._meta.ui.resourceUri, info.ui.resourceUri);
-    for (const uri of [info.ui.resourceUri, ...info.ui.aliases]) {
+    for (const uri of [info.ui.resourceUri]) {
       const resource = await client.readResource({ uri });
       assert.ok(resource.contents[0].text.includes(info.ui.sourceHash));
       assert.doesNotMatch(resource.contents[0].text, /模拟|恢复申请/);
@@ -61,9 +57,8 @@ test("UI data is not a loaded-page receipt; wrong UI versions are rejected and c
   const { client, close } = await setup();
   try {
     const call = (name, args = {}) => client.callTool({ name, arguments: args });
-    const created = await call("create_application");
-    const applicationId = created.structuredContent.application.id;
-    await call("submit_answers", { applicationId, answers: facts });
+    const created = await call("advance_application", { answers: facts });
+    const { applicationId, revision } = created.structuredContent;
     const checklist = await call("get_task_queue", { applicationId });
     assert.equal(checklist.structuredContent.presentation.status, "not_confirmed");
     assert.equal(checklist.structuredContent.nextAction.type, "choose_task");
@@ -75,8 +70,8 @@ test("UI data is not a loaded-page receipt; wrong UI versions are rejected and c
       applicationUpdatedAt: checklist._meta.application.updatedAt,
     });
     assert.ok(reported.structuredContent.uiReceipt.receivedAt);
-    assert.equal((await call("get_application", { applicationId })).structuredContent.presentation.status, "loaded");
-    const changed = await call("submit_answers", { applicationId, answers: { occupation: "retired" } });
+    assert.equal((await call("advance_application", { applicationId })).structuredContent.presentation.status, "loaded");
+    const changed = await call("advance_application", { applicationId, revision, answers: { ...facts, occupation: "retired" } });
     assert.equal(changed.structuredContent.presentation.status, "not_confirmed");
     const oldState = await call("report_ui_ready", { applicationId, buildHash: info.buildHash, uiSourceHash: info.ui.sourceHash, applicationUpdatedAt: "old" });
     assert.equal(oldState.structuredContent.error.code, "UI_STATE_CHANGED");

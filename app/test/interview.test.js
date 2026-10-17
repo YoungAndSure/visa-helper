@@ -50,9 +50,7 @@ test("one interface supports guided and paragraph snapshots and hands off only a
   assert.ok(tool.outputSchema);
   assert.equal(tool._meta?.ui?.resourceUri, undefined);
   assert.ok(tool.description.includes("COMPLETE"));
-  for (const name of ["create_application", "get_application", "get_questions", "submit_answers", "ask_next_question"]) {
-    assert.deepEqual(tools.find((tool) => tool.name === name)._meta.ui.visibility, ["app"]);
-  }
+  assert.deepEqual(tools.map((tool) => tool.name).sort(), ["advance_application", "get_server_info", "get_task_queue", "report_ui_ready", "start_task"]);
   let guided = await advance({ answers: {} });
   assert.equal(guided.protocolVersion, "1.0");
   assert.equal(guided.revision, 1);
@@ -129,7 +127,7 @@ test("invalid snapshot returns all repair issues without partial writes; canonic
   assert.equal(Object.keys(await store.readAll()).length, 1);
 });
 
-test("stale and missing revisions cannot overwrite accepted answers, including concurrent and legacy changes", async (t) => {
+test("stale and missing revisions cannot overwrite accepted answers, including concurrent changes", async (t) => {
   const { store, call, advance } = await setup(t);
   const created = await advance({ answers: facts });
   const requests = ["retired", "unemployed"].map((occupation) => advance({ applicationId: created.applicationId,
@@ -143,7 +141,7 @@ test("stale and missing revisions cannot overwrite accepted answers, including c
   const missing = await advance({ applicationId: created.applicationId, answers: {} });
   assert.equal(missing.nextAction.code, "REVISION_CONFLICT");
   assert.equal(await readFile(store.filePath, "utf8"), before);
-  await call("submit_answers", { applicationId: created.applicationId, answers: { applicationCity: "上海" } });
+  await advance({ applicationId: created.applicationId, revision: conflict.revision, answers: { ...conflict.answers, applicationCity: "上海" } });
   const stale = await advance({ applicationId: created.applicationId, revision: conflict.revision, answers: facts });
   assert.equal(stale.nextAction.code, "REVISION_CONFLICT");
   assert.equal(stale.answers.applicationCity, "上海");

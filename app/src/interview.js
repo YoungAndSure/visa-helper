@@ -17,7 +17,7 @@ export const advanceInputSchema = z.object({
   clientTools: z.array(z.string().max(150)).max(100).optional().describe("Optional actual callable Visa Helper tool names for compatibility diagnostics; never fabricate an inventory."),
 }).strict();
 
-export const advanceOutputSchema = z.object({
+const advanceSuccessSchema = z.object({
   protocolVersion: z.literal(INTERVIEW_PROTOCOL_VERSION),
   applicationId: z.string().uuid().nullable(), revision: z.number().int().nonnegative(),
   ruleVersion: z.string(), saved: z.boolean(), status: z.string(),
@@ -34,6 +34,14 @@ export const advanceOutputSchema = z.object({
   ]),
   notice: z.string(), assistantGuidance: z.string(),
 }).passthrough();
+
+export const advanceOutputSchema = z.union([
+  advanceSuccessSchema,
+  z.object({
+    error: z.object({ code: z.string(), message: z.string() }),
+    nextAction: z.object({ type: z.literal("blocked"), code: z.string(), reason: z.string() }),
+  }).passthrough(),
+]);
 
 export function interviewReply({ application, saved, issues, conflict }, instructions) {
   let nextAction;

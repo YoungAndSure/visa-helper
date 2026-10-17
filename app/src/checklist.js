@@ -80,9 +80,8 @@ export function answerIssues(answers, version, configDir = DEFAULT_CONFIG_DIR) {
   return issues;
 }
 
-export function validateAnswerPatch(patch, version, configDir = DEFAULT_CONFIG_DIR) {
-  if (!patch || typeof patch !== "object" || Array.isArray(patch) || !Object.keys(patch).length) throw new Error("请提供至少一个问题的答案。");
-  const issues = answerIssues(patch, version, configDir);
+export function validateAnswers(answers, version, configDir = DEFAULT_CONFIG_DIR) {
+  const issues = answerIssues(answers, version, configDir);
   if (issues.length) throw new Error(issues[0].message);
 }
 

@@ -11,15 +11,12 @@ const digest = (text) => createHash("sha256").update(text).digest("hex");
 const packageInfo = JSON.parse(readFileSync(join(appDir, "package.json"), "utf8"));
 export const APP_VERSION = packageInfo.version;
 export const UI_RESOURCE_URI = "ui://visa-helper/material-checklist-v4.html";
-export const UI_ALIASES = ["ui://visa-helper/application-v2.html", "ui://visa-helper/task-workspace-v3.html"];
 export const WIDGET_SOURCE = readFileSync(join(appDir, "public/application.html"), "utf8");
 export const UI_SOURCE_HASH = digest(WIDGET_SOURCE);
 export const WIDGET_HTML = WIDGET_SOURCE.replaceAll("__VISA_APP_VERSION__", packageInfo.version).replaceAll("__VISA_UI_SOURCE_HASH__", UI_SOURCE_HASH);
 export const REQUIRED_CLIENT_TOOLS = [
   "advance_application", "get_task_queue", "start_task",
 ];
-// Keep the baseline callable even when a host retains an older tool snapshot.
-export const COMPATIBILITY_TOOLS = ["open_visa_helper", "get_task_queue"];
 const files = ["package.json", "package-lock.json", "public/application.html",
   ...readdirSync(join(appDir, "src")).filter((file) => file.endsWith(".js")).sort().map((file) => `src/${file}`)];
 const buildHash = digest(files.map((file) => `${file}\0${readFileSync(join(appDir, file), "utf8")}\0`).join(""));
@@ -31,12 +28,11 @@ export function serverInfo(contracts, configDir) {
   const active = loadRulePack(activeVersion, configDir);
   return {
     service: "visa-helper", version: packageInfo.version, buildHash,
-    interview: { protocolVersion: INTERVIEW_PROTOCOL_VERSION, tool: "advance_application", answerSubmission: "full_snapshot", legacyTools: ["create_application", "get_application", "get_questions", "submit_answers", "ask_next_question"] },
+    interview: { protocolVersion: INTERVIEW_PROTOCOL_VERSION, tool: "advance_application", answerSubmission: "full_snapshot" },
     instanceId, startedAt,
     toolContractHash: digest(JSON.stringify([...contracts].sort((a, b) => a.name.localeCompare(b.name)))),
     tools: contracts.map((tool) => tool.name), requiredClientTools: REQUIRED_CLIENT_TOOLS,
-    compatibilityTools: COMPATIBILITY_TOOLS,
-    ui: { resourceUri: UI_RESOURCE_URI, sourceHash: UI_SOURCE_HASH, aliases: UI_ALIASES },
+    ui: { resourceUri: UI_RESOURCE_URI, sourceHash: UI_SOURCE_HASH },
     rules: { activeVersion, modelHash: hash(active), engine: "xstate", engineVersion: ENGINE_VERSION },
   };
 }

@@ -1,6 +1,6 @@
 # Visa Helper MCP App
 
-首版在 ChatGPT 中完成一位申请人的材料决策树，走到终点后展示 MCP App 材料工作台。`0.6.0` 的第一阶段统一使用 `advance_application`：逐题回答或整段描述均由 GPT 整理为完整问答快照，服务端校验、保存并从根节点执行 XState，返回明确类型的下一步。问答阶段不加载自建 App，也不依赖旧的原生表单调用链。完整约定见 [GPT 与 MCP 问答协议](../docs/interview-protocol.md)。
+首版在 ChatGPT 中完成一位申请人的材料决策树，走到终点后展示 MCP App 材料工作台。`0.7.0` 的第一阶段统一使用 `advance_application`：逐题回答或整段描述均由 GPT 整理为完整问答快照，服务端校验、保存并从根节点执行 XState，返回明确类型的下一步。问答阶段不加载自建 App。完整约定见 [GPT 与 MCP 问答协议](../docs/interview-protocol.md)。
 
 当前材料依据是用户提供的 **2025 年冰岛旅游审核表**，官方现行要求仍待复核；申请记录按用户实际准备申请处理。工作台支持选择材料、记录「准备中」并回到对话准备这一项；文件上传、生成和完成验收尚未实现。
 
@@ -13,7 +13,7 @@ npm install
 npm start
 ```
 
-服务默认监听 `127.0.0.1:8787/mcp`。运行 `npm test` 验证完整快照、版本冲突、修正与撤回、分支和回放、清单展示，以及旧原生表单兼容。用 MCP Inspector 连接本地端点，从 `advance_application` 的 `{"answers":{}}` 开始；根据问题目录提交完整答案和当前 `revision`，遵循 `nextAction`，完成后执行其中的清单展示动作。
+服务默认监听 `127.0.0.1:8787/mcp`。运行 `npm test` 验证完整快照、版本冲突、修正与撤回、分支和回放、清单展示、HTTP 调用及旧接口已删除。用 MCP Inspector 连接本地端点，从 `advance_application` 的 `{"answers":{}}` 开始；根据问题目录提交完整答案和当前 `revision`，遵循 `nextAction`，完成后执行其中的清单展示动作。
 
 `deploy/compose.yml` 提供与旧版服务隔离的 Docker 部署：容器内监听 `8787`，宿主机仅在 `127.0.0.1:18081` 暴露原型。若服务器无法访问 Docker Hub，也可使用 `deploy/visa-helper-mcp.service` 在独立目录运行 Node；该服务同样仅监听本机 `18081`。两种方式都只用于远程运行验证，不能作为公开的 ChatGPT 连接地址。
 
@@ -31,9 +31,9 @@ npm start
 
 逐题或整段输入均由 GPT 维护相同结构，不分两套模式。GPT 可以依据用户已明确表达的事实修正编码，无法确定选项归属时应澄清，不能为了命中分支改变事实。`complete` 的 `presentation` 指示调用 `get_task_queue` 展示清单；聊天只简短提示选择材料，不重复长清单。由于宿主 UI 模板绑定在工具声明上，问答接口不挂模板；最终展示使用现有只读工具，详见协议中的宿主边界。
 
-旧 `create_application`、`get_application`、`get_questions`、`submit_answers`、`ask_next_question` 保留给缓存的旧连接，并标为 App 可见的兼容入口；新模型只使用统一推进接口。旧 `submit_answers` 保持增量语义，修改时也递增版本以防覆盖。`open_visa_helper` 保留状态兼容，`show_material_checklist` 保留等价展示兼容；它们不建立新的问答流程。
+服务只注册上表 5 个接口，其中 `report_ui_ready` 仅供 App 使用。七个旧问答或重复入口已删除，内部增量提交方法、原生表单代码及依赖也已删除，不保留接口兼容实现。完整参数、返回值和调用顺序见 [MCP 接口说明](../docs/mcp-api.md)。
 
-清单使用 `ui://visa-helper/material-checklist-v4.html`，v2/v3 URI 保留兼容。每次响应附带运行版本与 `serverInfo.interview` 协议信息。`get_server_info` 不传实际客户端工具列表时明确显示未检查；界面载入需独立回执。部署后运行 `npm run check:release -- http://127.0.0.1:18081/mcp` 比对本地与部署指纹；追加工具名 JSON 文件可核对当前聊天快照。新会话应能调用 `advance_application`、`get_task_queue`、`start_task`，旧会话缺少这些工具时保留申请并报告差异。详见[版本诊断与发布记录](../docs/deployment.md)。
+清单使用 `ui://visa-helper/material-checklist-v4.html`，无旧资源别名。每次响应附带运行版本与 `serverInfo.interview` 协议信息。`get_server_info` 不传实际客户端工具列表时明确显示未检查；界面载入需独立回执。部署后运行 `npm run check:release -- http://127.0.0.1:18081/mcp` 比对本地与部署指纹；追加工具名 JSON 文件可核对当前聊天快照。新会话应能调用 `advance_application`、`get_task_queue`、`start_task`，旧会话缺少这些工具时保留申请并报告差异。详见[版本诊断与发布记录](../docs/deployment.md)。
 
 UI 使用 MCP Apps 的 `ui/initialize`、`ui/notifications/tool-result`、`tools/call` 和 `ui/message` 桥；后者由用户点击「在对话中继续准备」触发，带上申请和材料任务 ID。状态写入 `app/data/applications.json`，该路径已忽略提交。
 
