@@ -6,21 +6,22 @@ import { toNodeHandler } from "@modelcontextprotocol/node";
 import { z } from "zod";
 import { ApplicationStore, PATH, WorkflowError } from "./workflow.js";
 import { nativeFormAvailable, requestQuestion } from "./forms.js";
+import { advanceInputSchema, advanceOutputSchema, interviewReply } from "./interview.js";
 import { APP_VERSION, WIDGET_HTML, UI_RESOURCE_URI, UI_ALIASES, serverInfo, checkClient } from "./release.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const defaultStore = new ApplicationStore(process.env.VISA_HELPER_DATA_FILE ?? join(here, "../data/applications.json"));
 const resourceUri = UI_RESOURCE_URI;
-const instructions = `Before a new application, use get_server_info if available, passing clientTools containing the Visa Helper tool names YOU CAN ACTUALLY INVOKE. Never copy the server's required list as if it were your available tools. If the version tool itself is absent, use serverInfo in an existing tool response and compare its requiredClientTools with your own inventory. Missing flow tools must be reported with server version/build before continuing questions; never repeatedly claim Refresh worked or mistake a not_checked result for a successful check. Preserve the current application ID across a connection update.
-Visa Helper has two stages. Interview entirely in the ChatGPT conversation; never load an App UI to ask decision-tree questions. Start with create_application. Briefly offer to guide the user one question at a time or accept a whole travel plan. Use ask_next_question to display each missing question in a native host form. Do not merely assume chat text creates a question card. If that tool reports native forms unavailable, explain once that this host lacks the form capability and continue in chat; do not claim a form was displayed.
-MCP is authoritative for decision-tree progress. Read nextAction on every response. For a paragraph, extract explicitly stated facts with questionCatalog option values and call submit_answers. You may submit multiple known fields, including later groups. The server advances until it needs another fact or reaches a leaf. Keep using information already in the user's message before asking them anything else. Never invent answers, treat silence as no, or independently generate a checklist. Clarify ambiguous or contradictory information. Continue asking until the server reaches tasks_ready; do not stop after acknowledging a saved answer.
-At a leaf, use get_task_queue if available, or its equivalent alias show_material_checklist. Only call tools actually in your inventory; if nextAction.tool is absent use an available nextAction.aliases entry. If neither is available, stop and report the mismatch while preserving the application. open_visa_helper remains a compatible conversation/status entry. Never claim the user sees a checklist solely because data returned. presentation.status is not_confirmed until the App reports a matching load receipt; loaded confirms the App received and rendered the checklist, not that the user has read it. Do not duplicate the checklist in chat. When the user selects a material, use start_task and help with only that task. These are actual application-preparation records; the supplied checklist source still awaits official verification.`;
+const instructions = `Use advance_application as the ONLY interview/progress interface for both guided single-question answers and whole travel-plan descriptions. On first use call it with answers:{} and clientTools listing the Visa Helper tools YOU CAN ACTUALLY INVOKE, to obtain an application ID, revision and questionCatalog. Reuse that ID throughout; to resume, call with applicationId and OMIT answers, never send {} to read. No need to call separate create/get_questions/submit/ask tools. Those are legacy compatibility tools. get_server_info remains optional diagnostics. When supplying clientTools, list only tools you can actually invoke; never fabricate an inventory. If clientTools was omitted, compare returned serverInfo.requiredClientTools against your actual tool inventory before continuing. A not_checked result is not proof of compatibility. Missing tools must be reported with serverInfo version/build while preserving the application.
+GPT owns natural-language understanding and the COMPLETE questionId-to-canonical-string answer map; MCP owns validation, persistence, decision-tree routing and nextAction. Offer a brief choice of answering one question at a time or describing a whole plan. No separate mode or workflow. Use questionCatalog IDs, option.value codes and unambiguous YYYY-MM-DD dates. Reuse every explicit fact from the conversation, including later branches, before asking anything. After each answer or paragraph update the COMPLETE map and submit it with applicationId and latest revision. This is full replacement: omitted fields are withdrawn, not retained. Keep unchanged facts; omit unknown/withdrawn facts. Use returned answers as the accepted baseline. Never invent an answer, treat silence as no, or change facts merely to match an option.
+Read nextAction on EVERY response. ask: use known explicit information first, otherwise ask just its question in ChatGPT with its choices. Do not load an App questionnaire or call legacy ask_next_question. repair: the submitted snapshot was NOT saved; repair encoding/format yourself only when meaning is unambiguous, keep all other intended answers and resubmit the COMPLETE corrected snapshot. Clarify ambiguity instead of guessing. clarify: resolve contradictions; for REVISION_CONFLICT reconcile the user's explicit changes onto returned latest answers/revision, never blindly overwrite. blocked: explain the reason and do not invent a checklist or bypass the tree's branch/else policy. Avoid automatic retry loops when no new information can resolve an action.
+complete: follow nextAction.presentation and call the available get_task_queue display tool. This is presentation only, not another interview step. If unavailable, report the tool mismatch and preserve applicationId; never claim a checklist is visible from data alone. App UI is only for the completed material checklist; do not duplicate materials in a long chat response. presentation.status loaded is confirmed by a matching App load receipt, not merely a successful tool call. When the user selects a material use start_task and help with only that task. These are actual application-preparation records; the supplied source still awaits official verification.`;
 
 function reply(application, { workspace = false, workingOnTask = false, includeTasks = false } = {}) {
   let nextAction;
   let message;
   if (!application) {
-    nextAction = { type: "call_tool", tool: "create_application", arguments: {} };
+    nextAction = { type: "call_tool", tool: "advance_application", arguments: { answers: {} } };
     message = "请先开始对话问答，再根据用户信息推进决策树。";
   } else if (application.status === "questions") {
     nextAction = { type: "answer_or_ask", question: application.nextQuestion, pendingCount: application.pendingQuestions.length,
@@ -61,7 +62,8 @@ function failure(error) {
   return {
     isError: true,
     content: [{ type: "text", text: error.message }],
-    structuredContent: { error: { code: error.code, message: error.message } },
+    structuredContent: { error: { code: error.code, message: error.message },
+      nextAction: { type: "blocked", code: error.code, reason: error.message } },
   };
 }
 
@@ -119,18 +121,36 @@ export function createVisaServer(store = defaultStore) {
       structuredContent: { compatibility, nextAction: { type: compatibility.status === "compatible" ? "continue" : "check_connection" } } };
   });
 
+  registerTool("advance_application", {
+    title: "Advance visa application with complete answers",
+    description: "Single interview interface. First call answers:{} plus clientTools listing actual callable Visa Helper tools to check compatibility, create and receive the FULL questionCatalog (questions, types, canonical options). Resume with applicationId and OMIT answers. For a single reply OR a paragraph, organize all explicit facts into the COMPLETE answers map and submit with applicationId and latest revision. Missing keys withdraw prior answers. Returns authoritative answers, revision and typed nextAction: ask, repair, clarify, blocked or complete. Correct representation without asking again only when already stated facts are unambiguous. At complete follow the returned presentation action; no App UI during questions.",
+    inputSchema: advanceInputSchema, outputSchema: advanceOutputSchema,
+    annotations: { readOnlyHint: false, openWorldHint: false, destructiveHint: true },
+  }, async (args) => safely(async () => {
+    const compatibility = checkClient(args);
+    if (compatibility.checked && compatibility.status !== "compatible") {
+      const result = failure(new WorkflowError("CLIENT_TOOLS_MISMATCH", compatibility.message));
+      result.structuredContent.compatibility = compatibility;
+      return result;
+    }
+    const result = interviewReply(await store.advance(args), instructions);
+    result.structuredContent.compatibility = compatibility;
+    return result;
+  }));
+
   registerTool("open_visa_helper", {
     title: "Read Visa Helper status (compatible entry)",
-    description: "Stable compatible entry for older connections. Returns serverInfo even without an application ID; with an ID, returns the current decision-tree state and next action. Does not open a questionnaire. Use get_task_queue to display a completed checklist.",
+    description: "Legacy compatible status entry. For new interviews and resuming use advance_application; do not start a separate legacy questionnaire. Returns serverInfo without opening App UI.",
     inputSchema: z.object({ applicationId: z.string().uuid().optional() }),
     annotations: { readOnlyHint: true, openWorldHint: false, destructiveHint: false },
   }, async ({ applicationId }) => safely(async () => reply(applicationId ? await store.get(applicationId) : null)));
 
   registerTool("create_application", {
     title: "Start Iceland tourism visa checklist",
-    description: "After checking client tool compatibility with get_server_info, start one application without opening App UI. Pass your actual clientTools if available so a mismatched connection is rejected before questions. Extract existing facts and submit_answers; use ask_next_question for missing facts and get_task_queue at a leaf. Covers Chinese passport holders residing in China visiting Iceland for tourism; source awaits official verification.",
+    description: "Legacy compatibility only; new interviews use advance_application. After checking client tool compatibility with get_server_info, start one application without opening App UI. Pass your actual clientTools if available so a mismatched connection is rejected before questions. Extract existing facts and submit_answers; use ask_next_question for missing facts and get_task_queue at a leaf. Covers Chinese passport holders residing in China visiting Iceland for tourism; source awaits official verification.",
     inputSchema: z.object({ clientTools: z.array(z.string().max(150)).max(100).optional() }),
     annotations: { readOnlyHint: false, openWorldHint: false, destructiveHint: false },
+    _meta: { ui: { visibility: ["app"] } },
   }, async (args) => safely(async () => {
     const compatibility = checkClient(args);
     if (compatibility.checked && compatibility.status !== "compatible") {
@@ -145,34 +165,38 @@ export function createVisaServer(store = defaultStore) {
 
   registerTool("get_application", {
     title: "Get visa application",
-    description: "Fetch the server-authoritative application state, current question group, or generated file-task queue.",
+    description: "Legacy compatibility only; new interviews use advance_application. Fetch the server-authoritative application state, current question group, or generated file-task queue.",
     inputSchema: { applicationId: z.string().uuid() },
     annotations: { readOnlyHint: true, openWorldHint: false, destructiveHint: false },
+    _meta: { ui: { visibility: ["app"] } },
   }, async ({ applicationId }) => safely(async () => reply(await store.get(applicationId))));
 
   registerTool("get_questions", {
     title: "Get current checklist questions",
-    description: "Read nextQuestion, pendingQuestions, and questionCatalog from the saved decision-tree state. No UI. Use facts from the conversation to answer first; only ask the user when a required fact is missing. Do not stop while unanswered questions remain.",
+    description: "Legacy compatibility only; new interviews use advance_application. Read nextQuestion, pendingQuestions, and questionCatalog from the saved decision-tree state. No UI. Use facts from the conversation to answer first; only ask the user when a required fact is missing. Do not stop while unanswered questions remain.",
     inputSchema: { applicationId: z.string().uuid() },
     annotations: { readOnlyHint: true, openWorldHint: false, destructiveHint: false },
+    _meta: { ui: { visibility: ["app"] } },
   }, async ({ applicationId }) => safely(async () => reply(await store.get(applicationId))));
 
   registerTool("submit_answers", {
     title: "Save checklist answers",
-    description: "Advance the server-side decision tree with answers explicitly provided by the user. Accepts one answer or a batch extracted from a paragraph, including known facts for later groups. Use questionCatalog option values and unambiguous YYYY-MM-DD dates. Follow returned nextAction: use any remaining known facts, ask missing information in ChatGPT, clarify conflicts, or immediately call get_task_queue at a leaf. No interview UI. Existing answers can be corrected.",
+    description: "Legacy compatibility only; new interviews use advance_application. Advance the server-side decision tree with answers explicitly provided by the user. Accepts one answer or a batch extracted from a paragraph, including known facts for later groups. Use questionCatalog option values and unambiguous YYYY-MM-DD dates. Follow returned nextAction: use any remaining known facts, ask missing information in ChatGPT, clarify conflicts, or immediately call get_task_queue at a leaf. No interview UI. Existing answers can be corrected.",
     inputSchema: {
       applicationId: z.string().uuid(),
       answers: z.record(z.string(), z.string()),
     },
     annotations: { readOnlyHint: false, openWorldHint: false, destructiveHint: false },
+    _meta: { ui: { visibility: ["app"] } },
   }, async ({ applicationId, answers }) => safely(async () =>
     reply(await store.submitAnswers(applicationId, answers))));
 
   registerTool("ask_next_question", {
     title: "Ask the next decision-tree question",
-    description: "Display one missing question using the host's native form, save the answer, and return the next decision-tree action. Use only after extracting facts already provided by the user. If native forms are unavailable, returns an explicit chat fallback; never opens an App questionnaire. Declined forms remain unanswered.",
+    description: "Legacy compatibility only; new interviews use advance_application. Display one missing question using the host's native form, save the answer, and return the next decision-tree action. Use only after extracting facts already provided by the user. If native forms are unavailable, returns an explicit chat fallback; never opens an App questionnaire. Declined forms remain unanswered.",
     inputSchema: z.object({ applicationId: z.string().uuid() }),
     annotations: { readOnlyHint: false, openWorldHint: false, destructiveHint: false },
+    _meta: { ui: { visibility: ["app"] } },
   }, async ({ applicationId }, context) => safely(async () => {
     const application = await store.get(applicationId);
     if (application.status !== "questions") return reply(application);

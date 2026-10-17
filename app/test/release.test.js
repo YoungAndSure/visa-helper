@@ -31,7 +31,7 @@ test("release probe identifies stale host tool snapshots without pretending an o
     const oldTools = ["open_visa_helper", "create_application", "get_application", "get_questions", "submit_answers", "get_task_queue", "start_task"];
     const stale = await call("get_server_info", { clientTools: oldTools });
     assert.equal(stale.structuredContent.compatibility.status, "tools_mismatch");
-    assert.deepEqual(stale.structuredContent.compatibility.missingTools, ["ask_next_question", "show_material_checklist"]);
+    assert.deepEqual(stale.structuredContent.compatibility.missingTools, ["advance_application"]);
     const rejected = await call("create_application", { clientTools: oldTools });
     assert.equal(rejected.structuredContent.error.code, "CLIENT_TOOLS_MISMATCH");
     assert.deepEqual(await store.readAll(), {});

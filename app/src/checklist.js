@@ -62,16 +62,28 @@ function isIsoDate(value) {
   return !Number.isNaN(date.valueOf()) && date.toISOString().slice(0, 10) === value;
 }
 
+export function answerIssues(answers, version, configDir = DEFAULT_CONFIG_DIR) {
+  if (!answers || typeof answers !== "object" || Array.isArray(answers)) return [{ code: "INVALID_SNAPSHOT", message: "answers 必须是问题 ID 到答案值的完整映射。" }];
+  const questions = new Map(loadRulePack(version, configDir).questionGroups.flatMap((group) => group.questions.map((q) => [q.id, q])));
+  const issues = [];
+  for (const [id, value] of Object.entries(answers)) {
+    const question = questions.get(id);
+    if (!question) { issues.push({ questionId: id, code: "UNKNOWN_QUESTION", message: `未知问题：${id}` }); continue; }
+    if (typeof value !== "string" || value.length > 120 || !value.trim()) {
+      issues.push({ questionId: id, code: "INVALID_VALUE", message: `${question.title}：答案格式无效。` }); continue;
+    }
+    if (question.type === "choice" && !question.options.some((option) => option.value === value)) {
+      issues.push({ questionId: id, code: "INVALID_OPTION", message: `${question.title}：请使用给定选项。`, options: question.options });
+    }
+    if (question.type === "date" && !isIsoDate(value)) issues.push({ questionId: id, code: "INVALID_DATE", message: `${question.title}：请填写 YYYY-MM-DD 格式的有效日期。` });
+  }
+  return issues;
+}
+
 export function validateAnswerPatch(patch, version, configDir = DEFAULT_CONFIG_DIR) {
   if (!patch || typeof patch !== "object" || Array.isArray(patch) || !Object.keys(patch).length) throw new Error("请提供至少一个问题的答案。");
-  const questions = new Map(loadRulePack(version, configDir).questionGroups.flatMap((group) => group.questions.map((q) => [q.id, q])));
-  for (const [id, value] of Object.entries(patch)) {
-    const question = questions.get(id);
-    if (!question) throw new Error(`未知问题：${id}`);
-    if (typeof value !== "string" || value.length > 120 || !value.trim()) throw new Error(`${question.title}：答案格式无效。`);
-    if (question.type === "choice" && !question.options.some((option) => option.value === value)) throw new Error(`${question.title}：请使用给定选项。`);
-    if (question.type === "date" && !isIsoDate(value)) throw new Error(`${question.title}：请填写 YYYY-MM-DD 格式的有效日期。`);
-  }
+  const issues = answerIssues(patch, version, configDir);
+  if (issues.length) throw new Error(issues[0].message);
 }
 
 export function evaluateChecklist(answers = {}, version = getActiveRuleVersion(), configDir = DEFAULT_CONFIG_DIR) {

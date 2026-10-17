@@ -1,6 +1,8 @@
 # Visa Helper MCP App
 
-首版在 ChatGPT 中完成一位申请人的材料决策树，走到叶子节点后才展示 MCP App 材料工作台。逐题回答使用官方原生表单工具 `ask_next_question`；整段旅行计划由 ChatGPT 提取明确事实后调用 `submit_answers` 推进。原生表单扩展支持 ChatGPT Work 网页和桌面端；缺少原生表单能力的连接明确回退到普通聊天，不宣称已展示问题框。问答阶段不加载自建 App 网页。当前材料依据是用户提供的 **2025 年冰岛旅游审核表**，官方现行要求仍待复核；申请记录按用户实际准备申请处理。工作台支持选择材料、记录「准备中」并回到对话准备这一项；文件上传、生成和完成验收尚未实现。
+首版在 ChatGPT 中完成一位申请人的材料决策树，走到终点后展示 MCP App 材料工作台。`0.6.0` 的第一阶段统一使用 `advance_application`：逐题回答或整段描述均由 GPT 整理为完整问答快照，服务端校验、保存并从根节点执行 XState，返回明确类型的下一步。问答阶段不加载自建 App，也不依赖旧的原生表单调用链。完整约定见 [GPT 与 MCP 问答协议](../docs/interview-protocol.md)。
+
+当前材料依据是用户提供的 **2025 年冰岛旅游审核表**，官方现行要求仍待复核；申请记录按用户实际准备申请处理。工作台支持选择材料、记录「准备中」并回到对话准备这一项；文件上传、生成和完成验收尚未实现。
 
 ## 本地运行
 
@@ -11,7 +13,7 @@ npm install
 npm start
 ```
 
-服务默认监听 `127.0.0.1:8787/mcp`。运行 `npm test` 验证问题分支、原生表单多轮协议、任务生成和 MCP 工具。用 MCP Inspector 连接本地端点，从 `create_application` 开始；答案完整后调用 `show_material_checklist` 查看 UI 资源和工具结果。
+服务默认监听 `127.0.0.1:8787/mcp`。运行 `npm test` 验证完整快照、版本冲突、修正与撤回、分支和回放、清单展示，以及旧原生表单兼容。用 MCP Inspector 连接本地端点，从 `advance_application` 的 `{"answers":{}}` 开始；根据问题目录提交完整答案和当前 `revision`，遵循 `nextAction`，完成后执行其中的清单展示动作。
 
 `deploy/compose.yml` 提供与旧版服务隔离的 Docker 部署：容器内监听 `8787`，宿主机仅在 `127.0.0.1:18081` 暴露原型。若服务器无法访问 Docker Hub，也可使用 `deploy/visa-helper-mcp.service` 在独立目录运行 Node；该服务同样仅监听本机 `18081`。两种方式都只用于远程运行验证，不能作为公开的 ChatGPT 连接地址。
 
@@ -19,21 +21,19 @@ npm start
 
 | 工具 | 用途 |
 | --- | --- |
-| `get_server_info` | 查询服务版本、构建/工具/UI 指纹；提交当前实际工具列表后检查连接兼容性 |
-| `open_visa_helper` | 保留旧会话兼容，读取状态和版本，不打开问卷 |
-| `create_application` | 为一位申请人创建申请记录，返回下一题和问题目录 |
-| `ask_next_question` | 请求原生问题表单，用户接受后保存答案；取消时保留缺失项，不支持时明确回退 |
-| `get_application` | 读取服务端状态并恢复申请 |
-| `get_questions` | 返回下一题、当前缺失问题和完整问题目录，不加载 UI |
-| `submit_answers` | 提交一个或多个明确答案，推进到缺少信息的位置或叶子节点；可更正答案 |
-| `get_task_queue` | 稳定的最终清单显示入口，也支持旧版 UI 读取完整数据 |
-| `show_material_checklist` | 等价的清单显示入口，持续保留兼容 |
+| `advance_application` | 唯一的问答推进接口；创建、只读恢复、完整快照提交，返回问题目录及 `ask/repair/clarify/blocked/complete` |
+| `get_task_queue` | 只读展示完成后的 App 材料清单，由 `complete.presentation` 指定；不是第二个问答接口 |
 | `start_task` | 选择一项适用材料，保存准备中状态并返回该材料的原表说明 |
-| `report_ui_ready` | App 专用的清单载入回执，校验页面和服务版本，区分数据返回与页面载入 |
+| `get_server_info` | 可选诊断：版本、构建/工具/UI 指纹，以及实际客户端工具列表兼容性 |
+| `report_ui_ready` | App 专用载入回执；校验页面和服务版本，区分数据返回与页面载入 |
 
-每次结果中的 `nextAction` 明确下一步：`answer_or_ask` 先用已知事实代答，否则调用 `ask_next_question`；`clarify` 澄清矛盾；`call_tool` 在叶子调用 `get_task_queue` 或可用的等价入口；`choose_task` 提示从工作台选择任务。旧清单接口继续返回完整数据以兼容旧组件，新入口通过 `_meta.application` 提供完整数据。工作台支持三种初始载入方式，并自动关联申请。
+首次 `advance_application({answers:{}})` 返回申请 ID、`revision`、完整 `questionCatalog`、当前 `answers` 和下一步。已有申请每次提交 `applicationId`、最新 `revision` 和**全部答案**，缺少的键会撤回旧答案；只读恢复时传 `applicationId` 并**省略** `answers`。返回的完整答案是服务端已接受的底稿。格式错误整批拒绝且返回 `repair`；旧版本快照返回 `clarify/REVISION_CONFLICT`，不能覆盖已保存内容。相同快照重传不重复追加历史。业务矛盾会保存并交给决策树返回澄清。
 
-原生表单使用官方 MCP 2.x 和 OpenAI 表单 SDK。清单使用 `ui://visa-helper/material-checklist-v4.html`，v2/v3 的 URI 保留兼容。每次响应附带运行版本，不能仅凭 ChatGPT 工具快照或请求成功推断新版已加载。`get_server_info` 不传实际客户端列表时明确显示未检查；界面载入需独立回执。部署后运行 `npm run check:release -- http://127.0.0.1:18081/mcp` 比对本地与部署指纹；追加工具名 JSON 文件可核对当前聊天快照。详见[版本诊断与发布记录](../docs/deployment.md)。
+逐题或整段输入均由 GPT 维护相同结构，不分两套模式。GPT 可以依据用户已明确表达的事实修正编码，无法确定选项归属时应澄清，不能为了命中分支改变事实。`complete` 的 `presentation` 指示调用 `get_task_queue` 展示清单；聊天只简短提示选择材料，不重复长清单。由于宿主 UI 模板绑定在工具声明上，问答接口不挂模板；最终展示使用现有只读工具，详见协议中的宿主边界。
+
+旧 `create_application`、`get_application`、`get_questions`、`submit_answers`、`ask_next_question` 保留给缓存的旧连接，并标为 App 可见的兼容入口；新模型只使用统一推进接口。旧 `submit_answers` 保持增量语义，修改时也递增版本以防覆盖。`open_visa_helper` 保留状态兼容，`show_material_checklist` 保留等价展示兼容；它们不建立新的问答流程。
+
+清单使用 `ui://visa-helper/material-checklist-v4.html`，v2/v3 URI 保留兼容。每次响应附带运行版本与 `serverInfo.interview` 协议信息。`get_server_info` 不传实际客户端工具列表时明确显示未检查；界面载入需独立回执。部署后运行 `npm run check:release -- http://127.0.0.1:18081/mcp` 比对本地与部署指纹；追加工具名 JSON 文件可核对当前聊天快照。新会话应能调用 `advance_application`、`get_task_queue`、`start_task`，旧会话缺少这些工具时保留申请并报告差异。详见[版本诊断与发布记录](../docs/deployment.md)。
 
 UI 使用 MCP Apps 的 `ui/initialize`、`ui/notifications/tool-result`、`tools/call` 和 `ui/message` 桥；后者由用户点击「在对话中继续准备」触发，带上申请和材料任务 ID。状态写入 `app/data/applications.json`，该路径已忽略提交。
 
@@ -41,7 +41,7 @@ UI 使用 MCP Apps 的 `ui/initialize`、`ui/notifications/tool-result`、`tools
 
 本原型已通过 Secure MCP Tunnel 在 ChatGPT 中完成私有交互测试，详见 [部署与测试记录](../docs/deployment.md)。它**不能直接公开到互联网**：尚无用户认证和申请所属关系，知道申请 ID 的调用方可能读取其状态。处理真实个人申请前需实现认证、授权、持久化部署和相应的数据处理方案；在此之前不要输入真实护照或个人材料，也不要把此服务通过公网隧道暴露出去。
 
-0.5.0 使用锁定版本的 **XState 5.33.2**。`config/rules/` 中的版本化 JSON 包含问题目录、材料目录和原生 `machine.states` 节点及分支，`config/active.json` 指向新申请使用的版本。`src/decision-machine.js` 注册共享判断函数和任务收集动作，`src/checklist.js` 加载模型、校验答案并调用 XState。新模型不再用材料上的 `when` 反向筛选任务；适用问题分支进入材料节点，收集任务 ID，按原表顺序去重输出。新增分支或材料时，同时在模型中添加或连接对应节点。
+当前使用锁定版本的 **XState 5.33.2**。`config/rules/` 中的版本化 JSON 包含问题目录、材料目录和原生 `machine.states` 节点及分支，`config/active.json` 指向新申请使用的版本。`src/decision-machine.js` 注册共享判断函数和任务收集动作，`src/checklist.js` 加载模型、校验答案并调用 XState。新模型不再用材料上的 `when` 反向筛选任务；适用问题分支进入材料节点，收集任务 ID，按原表顺序去重输出。新增分支或材料时，同时在模型中添加或连接对应节点。
 
 新增规则应创建**新的版本文件**并更新 `active.json`。已注册判断函数可由 JSON 引用，配置变化在后续请求生效；新增判断函数需要发布代码。已有申请保留原版本，旧文件不能删除或原地改写。旧 JsonLogic 规则通过受校验的等价 XState 模型兼容读取，运行路径不依赖 JsonLogic；它只作为测试对照依赖存在。当前已有 4,004 组输入与旧求值器做差分比对，覆盖部分回答、成人职业、无业担保、未成年、多国、矛盾与失效分支。
 

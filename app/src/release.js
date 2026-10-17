@@ -3,6 +3,7 @@ import { readFileSync, readdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { getActiveRuleVersion, loadRulePack } from "./checklist.js";
+import { INTERVIEW_PROTOCOL_VERSION } from "./interview.js";
 import { ENGINE_VERSION, hash } from "./decision-machine.js";
 
 const appDir = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -15,8 +16,7 @@ export const WIDGET_SOURCE = readFileSync(join(appDir, "public/application.html"
 export const UI_SOURCE_HASH = digest(WIDGET_SOURCE);
 export const WIDGET_HTML = WIDGET_SOURCE.replaceAll("__VISA_APP_VERSION__", packageInfo.version).replaceAll("__VISA_UI_SOURCE_HASH__", UI_SOURCE_HASH);
 export const REQUIRED_CLIENT_TOOLS = [
-  "create_application", "get_application", "get_questions", "submit_answers",
-  "ask_next_question", "show_material_checklist", "start_task",
+  "advance_application", "get_task_queue", "start_task",
 ];
 // Keep the baseline callable even when a host retains an older tool snapshot.
 export const COMPATIBILITY_TOOLS = ["open_visa_helper", "get_task_queue"];
@@ -31,6 +31,7 @@ export function serverInfo(contracts, configDir) {
   const active = loadRulePack(activeVersion, configDir);
   return {
     service: "visa-helper", version: packageInfo.version, buildHash,
+    interview: { protocolVersion: INTERVIEW_PROTOCOL_VERSION, tool: "advance_application", answerSubmission: "full_snapshot", legacyTools: ["create_application", "get_application", "get_questions", "submit_answers", "ask_next_question"] },
     instanceId, startedAt,
     toolContractHash: digest(JSON.stringify([...contracts].sort((a, b) => a.name.localeCompare(b.name)))),
     tools: contracts.map((tool) => tool.name), requiredClientTools: REQUIRED_CLIENT_TOOLS,

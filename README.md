@@ -4,6 +4,7 @@ Visa Helper 的新方向是运行在 ChatGPT 中的签证申请助手：MCP Serv
 
 - [产品方案](docs/product-plan.md)
 - [新应用与运行说明](app/README.md)
+- [GPT 与 MCP 完整问答协议](docs/interview-protocol.md)
 - [问题树设计与 XState 选型](docs/iceland-checklist-flow.md)
 - [ChatGPT 部署前检查](docs/deployment.md)
 - [旧代码归档](archive/README.md)
