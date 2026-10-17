@@ -2,6 +2,12 @@
 
 当前版本为 `0.7.0`，问答协议 `1.0`。服务仅注册 5 个接口：`advance_application`、`get_task_queue`、`start_task`、`get_server_info` 和仅供 App 使用的 `report_ui_ready`。七个旧问答或重复入口、原生表单实现及旧 UI 资源别名均已删除，不提供旧接口兼容。接口参数与职责见 [MCP 接口说明](mcp-api.md)，问答循环见[完整问答协议](interview-protocol.md)。
 
+## 当前部署方式
+
+当前已改用 Docker 镜像，详见[镜像构建与部署](container-deployment.md)。正式容器为 `visa-helper-mcp-server-1`，使用原有数据目录和 `127.0.0.1:18081`。旧版 `18080` 容器已删除，直接运行 Node 的 systemd 服务已停用并移除。SSH 转发与 Secure MCP Tunnel 保持原路径，接口及运行指纹未变化。
+
+下列记录中的 systemd 启动方式仅描述历史发布。当前排查服务请用 Docker Compose 状态和日志，不再启动已退役的系统服务。
+
 ## 2026-10-17 接口精简
 
 - 问答创建、目录查询、恢复与完整提交均使用 `advance_application`；完成后按返回动作展示清单，用户选材料后用 `start_task`。
@@ -224,6 +230,6 @@ ChatGPT 首次添加时曾提示无法连接。排查发现 tunnel-client 仍处
 4. 像普通用户一样说「我想去冰岛旅游，签证材料要准备什么？」。问答阶段留在聊天，由 GPT 根据统一推进接口返回的问题引导；无需用户提到工具、决策树或申请 ID。可用中国护照、居住中国、北京递交、仅赴冰岛旅游、`2027-06-01` 至 `2027-06-10`、已成年、在职的虚构答案。整段已有信息不应重复询问，补齐后显示含在职证明的 12 项材料。核对页脚版本与载入回执，再选择一项材料准备；恢复已有申请时保留原申请 ID。
 5. 测试结束后运行 `app/scripts/start-private-test.sh stop`。脚本只清理其管理的进程；复用的外部 SSH 转发仍需单独管理。
 
-如果 ChatGPT 提示“无法连接到 MCP 服务器”，按请求路径逐段检查：先运行后台状态检查；再在开发机执行 `curl --max-time 5 http://127.0.0.1:18081/version`，应立即返回当前版本信息；最后检查腾讯云上的 `visa-helper-mcp.service`。本机端口能建立 TCP 连接却迟迟没有 HTTP 响应时，优先检查 SSH 转发是否失效。连接成功但没有 UI 时，核对清单工具的 UI 关联和实际载入回执；`get_task_queue` 是唯一清单展示入口。
+如果 ChatGPT 提示“无法连接到 MCP 服务器”，按请求路径逐段检查：先运行后台状态检查；再在开发机执行 `curl --max-time 5 http://127.0.0.1:18081/version`，应立即返回当前版本信息；最后按[镜像部署说明](container-deployment.md)检查腾讯云容器状态和日志。本机端口能建立 TCP 连接却迟迟没有 HTTP 响应时，优先检查 SSH 转发是否失效。连接成功但没有 UI 时，核对清单工具的 UI 关联和实际载入回执；`get_task_queue` 是唯一清单展示入口。
 
 历史 `Unknown tool({"name":"visa_helper.submit_step"})` 表示调用了旧版步骤演示接口；当前保存决策树答案使用 `advance_application` 完整快照。按版本诊断步骤核对实际后端和客户端工具，再决定更新连接还是部署；检查原答案是否保存，避免未经核对重复提交。不能只因用户说已刷新就假定工具快照已经替换。

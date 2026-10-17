@@ -1,4 +1,13 @@
-node_modules
-data
-test
-*.log
+**
+!Dockerfile
+!.dockerignore
+!package.json
+!package-lock.json
+!src/
+!src/**
+!public/
+!public/**
+!config/
+!config/**
+!scripts/
+!scripts/check-release.mjs

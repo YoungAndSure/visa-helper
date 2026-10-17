@@ -15,7 +15,13 @@ npm start
 
 服务默认监听 `127.0.0.1:8787/mcp`。运行 `npm test` 验证完整快照、版本冲突、修正与撤回、分支和回放、清单展示、HTTP 调用及旧接口已删除。用 MCP Inspector 连接本地端点，从 `advance_application` 的 `{"answers":{}}` 开始；根据问题目录提交完整答案和当前 `revision`，遵循 `nextAction`，完成后执行其中的清单展示动作。
 
-`deploy/compose.yml` 提供与旧版服务隔离的 Docker 部署：容器内监听 `8787`，宿主机仅在 `127.0.0.1:18081` 暴露原型。若服务器无法访问 Docker Hub，也可使用 `deploy/visa-helper-mcp.service` 在独立目录运行 Node；该服务同样仅监听本机 `18081`。两种方式都只用于远程运行验证，不能作为公开的 ChatGPT 连接地址。
+## 镜像部署
+
+当前通过 Docker 镜像部署到腾讯云。运行 `scripts/build-image.sh` 构建并导出完整镜像；发布包包含镜像、Compose 配置和校验信息。镜像包括业务代码、XState 和完整决策树配置，不包含本机密钥及申请数据。
+
+服务器导入镜像后用 `deploy/compose.yml` 启动，数据挂载原有目录，MCP 仍只监听宿主机 `127.0.0.1:18081`。`deploy/container.env.example` 提供数据路径和端口示例；镜像标签来自发布包的 `runtime.env`。数据目录必须明确配置且已经存在。旧版容器和直接运行 Node 的系统服务已退役。
+
+完整构建、上传、启动、验证和回退步骤见[镜像部署说明](../docs/container-deployment.md)。
 
 ## MCP 工具
 
@@ -55,4 +61,4 @@ UI 使用 MCP Apps 的 `ui/initialize`、`ui/notifications/tool-result`、`tools
 
 之后需要核实中国居民赴冰岛旅游路径的官方材料和适用条件，发布有来源和复核日期的规则，再实现第二阶段的材料准备、字段采集、文件生成和递交前检查。
 
-开发结构：`config/` 保存问题、任务和 XState 模型，`src/decision-machine.js` 通过 XState 执行并捕获路径，`src/checklist.js` 加载规则与校验输入，`src/workflow.js` 管理服务端状态和求值历史，`src/server.js` 提供 MCP 工具和 UI 资源，`public/application.html` 是嵌入式 UI。旧演示申请可读取，但需要新建申请才能使用决策树。
+开发结构：`config/` 保存问题、任务和 XState 模型，`src/decision-machine.js` 通过 XState 执行并捕获路径，`src/checklist.js` 加载规则与校验输入，`src/workflow.js` 管理服务端状态和求值历史，`src/server.js` 提供 MCP 工具和 UI 资源，`public/application.html` 是嵌入式 UI。早期演示记录需要新建申请才能使用当前决策树。
