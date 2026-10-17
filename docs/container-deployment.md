@@ -35,7 +35,7 @@ app/scripts/build-image.sh
 
 ## 发布到腾讯云镜像仓库
 
-沿用之前的仓库 `ccr.ccs.tencentyun.com/visa-helper/visa-helper`，当前版本标签为 `0.7.0-589a244540ab`。使用仓库控制台提供的登录信息，在实际执行推送的机器上运行 `docker login ccr.ccs.tencentyun.com`。密码只在终端输入，不写进仓库或聊天。使用 `sudo docker` 推送时，也需要用 `sudo docker login`，因为 root 和普通用户使用不同的凭据配置。
+沿用之前的仓库 `ccr.ccs.tencentyun.com/visa-helper/visa-helper`，当前版本标签为 `0.7.0-589a244540ab`。使用仓库控制台提供的登录信息，在实际执行推送的机器上运行 `docker login ccr.ccs.tencentyun.com`。密码只在终端输入，不写进仓库或聊天。默认的 `sudo docker` 使用 root 凭据，普通用户使用自己的配置；可以分别登录，也可以用 `sudo docker --config /home/ubuntu/.docker ...` 明确读取现有用户配置。不要仅凭网页登录成功判断 Docker 已登录。
 
 在已登录的机器上，推送本地已构建镜像：
 
@@ -47,11 +47,13 @@ app/scripts/publish-image.sh   visa-helper-mcp:0.7.0-589a244540ab   ccr.ccs.tenc
 
 也可以在已持有镜像的服务器上运行同一脚本，无需再从开发机上传一次大文件。镜像上传成功后应核对远端摘要，并在具备拉取权限的服务器验证拉取。仓库凭据由 Docker 管理，不包含在应用镜像或 Compose 文件中。
 
+当前服务器的仓库登录保存在 `ubuntu` 用户的 `/home/ubuntu/.docker`，执行 Docker 管理命令需要 sudo。拉取时使用 `sudo docker --config /home/ubuntu/.docker ...`，直接读取该用户现有配置，不复制凭据。登录到 `ubuntu` 后执行普通 `docker login` 即可更新这个配置；它与 root 的默认配置不同。
+
 服务器使用相同数据配置，用仓库发布配置拉取并启动：
 
 ```bash
-sudo docker compose --project-name visa-helper-mcp   --env-file registry.env   --env-file /home/ubuntu/visa-helper-mcp/deploy/container.env   -f compose.yml pull
-sudo docker compose --project-name visa-helper-mcp   --env-file registry.env   --env-file /home/ubuntu/visa-helper-mcp/deploy/container.env   -f compose.yml up -d --wait --wait-timeout 60
+sudo docker --config /home/ubuntu/.docker compose --project-name visa-helper-mcp   --env-file registry.env   --env-file /home/ubuntu/visa-helper-mcp/deploy/container.env   -f compose.yml pull
+sudo docker --config /home/ubuntu/.docker compose --project-name visa-helper-mcp   --env-file registry.env   --env-file /home/ubuntu/visa-helper-mcp/deploy/container.env   -f compose.yml up -d --wait --wait-timeout 60
 ```
 
 这里的 `compose.yml` 使用当前仓库的部署配置，支持 `VISA_HELPER_PULL_POLICY`；首次离线包中的旧 Compose 固定为 `never`，使用仓库方式前需更新该配置。服务器拉取的是已经构建的镜像，不安装 npm，不同步业务源码。现有服务若已运行相同镜像内容，仅上传仓库无需重启；后续部署可采用仓库摘要。
@@ -100,10 +102,10 @@ ln -sfn releases/0.7.0-589a244540ab /home/ubuntu/visa-helper-mcp/current
 
 ```bash
 cd /home/ubuntu/visa-helper-mcp
-sudo docker compose --project-name visa-helper-mcp \
+sudo docker --config /home/ubuntu/.docker compose --project-name visa-helper-mcp \
   --env-file current/runtime.env --env-file deploy/container.env \
   -f current/compose.yml ps
-sudo docker compose --project-name visa-helper-mcp \
+sudo docker --config /home/ubuntu/.docker compose --project-name visa-helper-mcp \
   --env-file current/runtime.env --env-file deploy/container.env \
   -f current/compose.yml logs --tail 100 server
 ```
@@ -139,7 +141,19 @@ ccr.ccs.tencentyun.com/visa-helper/visa-helper:0.7.0-589a244540ab
 
 仓库摘要为 `sha256:5831bc962945418a34e1ba18cb054745329ade8bcb9355b33f102aa26ef3f04b`。开发机按此摘要从仓库回拉成功，镜像 ID 与服务器正在运行的镜像一致。发布配置 `registry.env` 已保存到本地及服务器对应发布目录，后续可使用仓库摘要部署。
 
-本次没有重启或更换运行中的容器。服务器尚未独立登录镜像仓库，因此未完成服务器直接拉取验证；未向服务器转交开发机的登录凭据。将来在服务器执行仓库拉取前，应在服务器独立完成 `sudo docker login`。开发机登录成功不代表服务器也已登录。
+首次发布时未更换运行容器，服务器当时尚未独立登录，未做服务器直接拉取验证。后续用户在服务器配置登录后，已完成下节记录的拉取、流程验证和正式切换。整个过程未向服务器转交开发机登录凭据。
+
+## 2026 年 10 月 17 日服务器仓库拉取与切换
+
+用户在服务器 `ubuntu` 账户下完成仓库登录后，通过 `sudo docker --config /home/ubuntu/.docker pull 仓库@摘要` 直接拉取成功。镜像层已有缓存，Docker 校验仓库摘要后复用；镜像 ID 与发布记录完全相同。未复制登录凭据。
+
+正式发布目录为 `/home/ubuntu/visa-helper-mcp/releases/0.7.0-589a244540ab-registry`，`current` 链接已指向该目录。目录内 `runtime.env` 直接引用腾讯云仓库摘要，拉取策略为 `missing`；正式容器的 `Config.Image` 也已变为该仓库摘要，不再引用本地构建标签。
+
+切换前使用数据副本在独立端口验证了 5 个接口、16 个问题、逐步补充问答、12 项在职材料、任务选择、退休分支 11 项材料、撤回答案及恢复。预检通过后才切换正式容器，备份位于 `/home/ubuntu/visa-helper-mcp/backups/before-registry-20261017T074258Z`。
+
+正式申请数据切换前后 SHA-256 一致。通过原 SSH 转发恢复先前的退休申请成功，答案版本未变、清单为 11 项；发布指纹检查通过。实际 Visa Helper 连接的 `get_server_info` 返回进程实例 `77029273-86bb-4337-b0bb-a3b5a95f8db2`，与正式端口一致，确认已到达新容器。这里验证了接口及传输链路，未声称重新完成 ChatGPT 页面视觉验收。
+
+正式容器健康，仍监听 `127.0.0.1:18081`，数据仍挂载原目录。预检容器、网络和临时数据副本已清理。
 
 ## 2026 年 10 月 17 日首次切换记录
 

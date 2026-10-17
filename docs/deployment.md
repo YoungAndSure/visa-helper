@@ -6,7 +6,7 @@
 
 当前已改用 Docker 镜像，详见[镜像构建与部署](container-deployment.md)。正式容器为 `visa-helper-mcp-server-1`，使用原有数据目录和 `127.0.0.1:18081`。旧版 `18080` 容器已删除，直接运行 Node 的 systemd 服务已停用并移除。SSH 转发与 Secure MCP Tunnel 保持原路径，接口及运行指纹未变化。
 
-当前镜像已推送至腾讯云仓库 `ccr.ccs.tencentyun.com/visa-helper/visa-helper:0.7.0-589a244540ab`，开发机按仓库摘要回拉验证通过。运行容器仍是同一镜像内容，本次未重启；服务器尚需独立完成仓库登录后才能直接拉取。详见[仓库发布记录](container-deployment.md)。
+当前容器已使用腾讯云仓库 `ccr.ccs.tencentyun.com/visa-helper/visa-helper` 的固定摘要镜像运行，服务器直接拉取、独立数据预检、正式切换和原申请恢复均通过。`current` 指向 `releases/0.7.0-589a244540ab-registry`。仓库凭据位于服务器 `ubuntu` 用户配置，命令需使用 `sudo docker --config /home/ubuntu/.docker ...`。详见[仓库拉取与切换记录](container-deployment.md)。
 
 下列记录中的 systemd 启动方式仅描述历史发布。当前排查服务请用 Docker Compose 状态和日志，不再启动已退役的系统服务。
 
