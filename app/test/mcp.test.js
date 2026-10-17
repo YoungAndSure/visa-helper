@@ -54,6 +54,9 @@ test("MCP exposes question groups and produces the file-task queue", async () =>
     const leaf = await client.callTool({ name: "submit_answers", arguments: { applicationId: id, answers: { occupation: "employed" } } });
     assert.equal(leaf.structuredContent.nextAction.tool, "get_task_queue");
     assert.equal(leaf.structuredContent.application.taskCount, 12);
+    assert.equal(leaf.structuredContent.application.decision.engine, "xstate");
+    assert.equal(leaf.structuredContent.application.decision.nodeId, "ready");
+    assert.ok(leaf.structuredContent.application.decision.evaluationId);
     assert.equal(leaf.structuredContent.application.tasks, undefined);
     const queue = await client.callTool({ name: "show_material_checklist", arguments: { applicationId: id } });
     assert.equal(queue.structuredContent.application.status, "tasks_ready");

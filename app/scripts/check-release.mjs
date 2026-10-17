@@ -19,6 +19,7 @@ try {
   const actual = result.structuredContent.serverInfo;
   for (const field of ["version", "buildHash", "toolContractHash"]) assert.equal(actual[field], expected[field], `${field} mismatch`);
   assert.equal(actual.ui.sourceHash, expected.ui.sourceHash, "UI source mismatch");
+  assert.deepEqual(actual.rules, expected.rules, "Rule model or execution engine mismatch");
   assert.equal(result.structuredContent.compatibility.status, "compatible", JSON.stringify(result.structuredContent.compatibility));
   for (const name of expected.compatibilityTools) assert.ok(listed.some((tool) => tool.name === name), `removed compatibility tool: ${name}`);
   const ui = await client.readResource({ uri: actual.ui.resourceUri });
@@ -30,6 +31,7 @@ try {
   assert.equal(httpInfo.instanceId, actual.instanceId, "HTTP and MCP target different server instances");
   assert.equal(httpInfo.buildHash, actual.buildHash);
   console.log(JSON.stringify({ status: "pass", version: actual.version, build: actual.buildHash.slice(0, 12),
+    engine: actual.rules.engine, engineVersion: actual.rules.engineVersion, model: actual.rules.modelHash.slice(0, 12),
     tools: actual.toolContractHash.slice(0, 12), ui: actual.ui.sourceHash.slice(0, 12),
     hostInventoryChecked: Boolean(clientToolFile),
     inventorySource: clientToolFile ? "provided host snapshot" : "server tools/list only; ChatGPT snapshot not checked",

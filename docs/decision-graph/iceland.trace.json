@@ -1,0 +1,254 @@
+{
+  "engine": "xstate",
+  "engineVersion": "5.33.2",
+  "modelHash": "9450e64159ec41a283cde074ba9ec6f2ab11f0213f52b5586a3338794fc85f5a",
+  "implementationHash": "b7e81cf0e43934179f3e8faa1d309e72c8920c0fd9cbbb715a6842c70471110f",
+  "nodeId": "q_nationality",
+  "ruleVersion": "iceland-tourism-user-checklist-2025-03-06-xstate-1",
+  "input": {},
+  "path": [
+    "q_nationality"
+  ],
+  "conditions": [
+    {
+      "nodeId": "q_nationality",
+      "guard": "answered",
+      "params": {
+        "field": "nationality",
+        "nodeId": "q_nationality"
+      },
+      "result": false
+    }
+  ],
+  "transitions": [],
+  "output": {
+    "status": "questions",
+    "group": {
+      "id": "basic",
+      "title": "基本情况与行程",
+      "questions": [
+        {
+          "id": "nationality",
+          "title": "申请人持有哪国护照？",
+          "type": "choice",
+          "options": [
+            {
+              "value": "CN",
+              "label": "中国"
+            },
+            {
+              "value": "other",
+              "label": "其他"
+            }
+          ]
+        },
+        {
+          "id": "residence",
+          "title": "申请人目前居住在哪里？",
+          "type": "choice",
+          "options": [
+            {
+              "value": "CN",
+              "label": "中国"
+            },
+            {
+              "value": "other",
+              "label": "其他"
+            }
+          ]
+        },
+        {
+          "id": "applicationCity",
+          "title": "计划在哪个中国城市递交申请？",
+          "type": "text"
+        },
+        {
+          "id": "destination",
+          "title": "此行是否前往冰岛？",
+          "type": "choice",
+          "options": [
+            {
+              "value": "IS",
+              "label": "是，前往冰岛"
+            },
+            {
+              "value": "other",
+              "label": "否"
+            }
+          ]
+        },
+        {
+          "id": "purpose",
+          "title": "此行的目的是什么？",
+          "type": "choice",
+          "options": [
+            {
+              "value": "tourism",
+              "label": "个人旅游"
+            },
+            {
+              "value": "other",
+              "label": "其他"
+            }
+          ]
+        },
+        {
+          "id": "arrivalDate",
+          "title": "计划何时进入申根区？",
+          "type": "date"
+        },
+        {
+          "id": "departureDate",
+          "title": "计划何时离开申根区？",
+          "type": "date"
+        },
+        {
+          "id": "ageGroup",
+          "title": "出行时申请人是否已满 18 岁？",
+          "type": "choice",
+          "options": [
+            {
+              "value": "adult",
+              "label": "已满 18 岁"
+            },
+            {
+              "value": "minor",
+              "label": "未满 18 岁"
+            }
+          ]
+        },
+        {
+          "id": "otherSchengenCountries",
+          "title": "这次是否还会去其他申根国家？",
+          "type": "choice",
+          "options": [
+            {
+              "value": "yes",
+              "label": "是"
+            },
+            {
+              "value": "no",
+              "label": "否"
+            }
+          ]
+        }
+      ]
+    },
+    "questions": [
+      {
+        "id": "nationality",
+        "title": "申请人持有哪国护照？",
+        "type": "choice",
+        "options": [
+          {
+            "value": "CN",
+            "label": "中国"
+          },
+          {
+            "value": "other",
+            "label": "其他"
+          }
+        ]
+      },
+      {
+        "id": "residence",
+        "title": "申请人目前居住在哪里？",
+        "type": "choice",
+        "options": [
+          {
+            "value": "CN",
+            "label": "中国"
+          },
+          {
+            "value": "other",
+            "label": "其他"
+          }
+        ]
+      },
+      {
+        "id": "applicationCity",
+        "title": "计划在哪个中国城市递交申请？",
+        "type": "text"
+      },
+      {
+        "id": "destination",
+        "title": "此行是否前往冰岛？",
+        "type": "choice",
+        "options": [
+          {
+            "value": "IS",
+            "label": "是，前往冰岛"
+          },
+          {
+            "value": "other",
+            "label": "否"
+          }
+        ]
+      },
+      {
+        "id": "purpose",
+        "title": "此行的目的是什么？",
+        "type": "choice",
+        "options": [
+          {
+            "value": "tourism",
+            "label": "个人旅游"
+          },
+          {
+            "value": "other",
+            "label": "其他"
+          }
+        ]
+      },
+      {
+        "id": "arrivalDate",
+        "title": "计划何时进入申根区？",
+        "type": "date"
+      },
+      {
+        "id": "departureDate",
+        "title": "计划何时离开申根区？",
+        "type": "date"
+      },
+      {
+        "id": "ageGroup",
+        "title": "出行时申请人是否已满 18 岁？",
+        "type": "choice",
+        "options": [
+          {
+            "value": "adult",
+            "label": "已满 18 岁"
+          },
+          {
+            "value": "minor",
+            "label": "未满 18 岁"
+          }
+        ]
+      },
+      {
+        "id": "otherSchengenCountries",
+        "title": "这次是否还会去其他申根国家？",
+        "type": "choice",
+        "options": [
+          {
+            "value": "yes",
+            "label": "是"
+          },
+          {
+            "value": "no",
+            "label": "否"
+          }
+        ]
+      }
+    ],
+    "tasks": [],
+    "notice": "模拟规则来自用户提供的 2025 年审核表，尚未核实为现行官方要求。请勿用于真实申请。",
+    "decision": {
+      "engine": "xstate",
+      "engineVersion": "5.33.2",
+      "modelHash": "9450e64159ec41a283cde074ba9ec6f2ab11f0213f52b5586a3338794fc85f5a",
+      "implementationHash": "b7e81cf0e43934179f3e8faa1d309e72c8920c0fd9cbbb715a6842c70471110f",
+      "nodeId": "q_nationality"
+    }
+  }
+}

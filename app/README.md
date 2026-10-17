@@ -41,12 +41,18 @@ UI 使用 MCP Apps 的 `ui/initialize`、`ui/notifications/tool-result`、`tools
 
 本原型已通过 Secure MCP Tunnel 在 ChatGPT 中完成私有交互测试，详见 [部署与测试记录](../docs/deployment.md)。它**不能直接公开到互联网**：尚无用户认证和申请所属关系，知道申请 ID 的调用方可能读取其状态。处理真实个人申请前需实现认证、授权、持久化部署和相应的数据处理方案；在此之前不要输入真实护照或个人材料，也不要把此服务通过公网隧道暴露出去。
 
-当前问题树与文件任务定义在 `config/rules/` 的版本化 JSON 中，`config/active.json` 指向新申请使用的版本。服务端使用开源 `json-logic-js` 执行各节点的条件表达式；`src/checklist.js` 只负责编排问题组、停止条件和任务输出。新增规则时创建**新的版本文件**并更新 `active.json`，服务在下一次请求时读取新配置，无须修改求值代码或重启；已有申请保留原版本，因此旧版本文件不能删除或原地改写。变更后仍需审核规则来源并运行测试。
+0.5.0 使用锁定版本的 **XState 5.33.2**。`config/rules/` 中的版本化 JSON 包含问题目录、材料目录和原生 `machine.states` 节点及分支，`config/active.json` 指向新申请使用的版本。`src/decision-machine.js` 注册共享判断函数和任务收集动作，`src/checklist.js` 加载模型、校验答案并调用 XState。新模型不再用材料上的 `when` 反向筛选任务；适用问题分支进入材料节点，收集任务 ID，按原表顺序去重输出。新增分支或材料时，同时在模型中添加或连接对应节点。
 
-2026-10-17 已确定将执行引擎迁移至 **XState**，按问题与回答分支建立显式模型，使用开源可视化工具展示结构，并保存每次完整结构化输入与路径供回放排查。选型已定，迁移尚未实施；当前运行代码仍为上述 JsonLogic 实现。具体约定见[问题树与任务队列设计](../docs/iceland-checklist-flow.md#xstate-选型与执行约定)。
+新增规则应创建**新的版本文件**并更新 `active.json`。已注册判断函数可由 JSON 引用，配置变化在后续请求生效；新增判断函数需要发布代码。已有申请保留原版本，旧文件不能删除或原地改写。旧 JsonLogic 规则通过受校验的等价 XState 模型兼容读取，运行路径不依赖 JsonLogic；它只作为测试对照依赖存在。当前已有 4,004 组输入与旧求值器做差分比对，覆盖部分回答、成人职业、无业担保、未成年、多国、矛盾与失效分支。
+
+## 决策图与输入回放
+
+在 `app/` 中运行 `npm run decision:graph`，生成 [HTML 决策图](../docs/decision-graph/iceland.html)、[SVG](../docs/decision-graph/iceland.svg)、Mermaid、原生模型 JSON 和可独立加载的 XState 模块。51 个节点、62 条连线从实际运行的机器提取；HTML 支持缩放、节点详情和执行路径定位。初始图使用空输入，停在第一题。
+
+指定输入时运行 `npm run decision:graph -- --answers /path/answers.json`，默认输出到忽略提交的 `.local/decision-graph/`，展示实际经过路径。创建申请与保存答案会记录完整输入、模型与执行实现指纹、输出和逐步跳转，保存在申请的 `evaluations` 中；当前 MCP 状态中的 `decision.evaluationId` 可定位一次求值。`npm run decision:replay -- --application 申请ID --evaluation 求值ID --data /path/applications.json` 可重跑历史输入，核对结果与路径并生成图。省略 `--evaluation` 使用该申请最近一次记录。指纹或版本不匹配时要求使用当时发布的代码和配置，不冒充原版回放。详见[决策图与回放说明](../docs/decision-graph/README.md)。
 
 规则版本与每个文件任务的原表编号一起返回。原表中的多文件条目会拆成独立任务，例如雇主营业执照复印件和在职证明。若答案缺失、超出支持范围或表格本身未说明，服务端不输出看似确定的清单。详见[问题树与任务队列设计](../docs/iceland-checklist-flow.md)。
 
 之后需要核实中国居民赴冰岛旅游路径的官方材料和适用条件，发布有来源和复核日期的规则，再实现第二阶段的材料准备、字段采集、文件生成和递交前检查。
 
-开发结构：`config/` 保存问题与任务规则，`src/checklist.js` 运行规则并产生问题或任务，`src/workflow.js` 管理服务端状态，`src/server.js` 提供 MCP 工具和 UI 资源，`public/application.html` 是嵌入式 UI。旧演示申请可读取，但需要新建申请才能使用决策树。
+开发结构：`config/` 保存问题、任务和 XState 模型，`src/decision-machine.js` 通过 XState 执行并捕获路径，`src/checklist.js` 加载规则与校验输入，`src/workflow.js` 管理服务端状态和求值历史，`src/server.js` 提供 MCP 工具和 UI 资源，`public/application.html` 是嵌入式 UI。旧演示申请可读取，但需要新建申请才能使用决策树。

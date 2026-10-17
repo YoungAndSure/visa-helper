@@ -1,10 +1,13 @@
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import jsonLogic from "json-logic-js";
+import { createHash } from "node:crypto";
+import { runDecision, validateMachine } from "./decision-machine.js";
 
 export const DEFAULT_CONFIG_DIR = join(dirname(fileURLToPath(import.meta.url)), "../config");
 const VERSION_PATTERN = /^[a-z0-9][a-z0-9._-]{0,100}$/;
+export const XSTATE_RULE_VERSION = "iceland-tourism-user-checklist-2025-03-06-xstate-1";
+const LEGACY_RULE_VERSION = "iceland-tourism-user-checklist-2025-03-06-draft-1";
 
 function readJson(path) {
   return JSON.parse(readFileSync(path, "utf8"));
@@ -18,9 +21,20 @@ export function getActiveRuleVersion(configDir = DEFAULT_CONFIG_DIR) {
 
 export function loadRulePack(version, configDir = DEFAULT_CONFIG_DIR) {
   if (typeof version !== "string" || !VERSION_PATTERN.test(version)) throw new Error("Invalid rule version");
-  const pack = readJson(join(configDir, "rules", `${version}.json`));
-  if (pack.version !== version || !Array.isArray(pack.questionGroups) || !Array.isArray(pack.tasks) || !Array.isArray(pack.stopRules)) {
+  const source = readFileSync(join(configDir, "rules", `${version}.json`), "utf8");
+  let pack = JSON.parse(source);
+  if (pack.version !== version || !Array.isArray(pack.questionGroups) || !Array.isArray(pack.tasks)) {
     throw new Error(`Invalid rule pack: ${version}`);
+  }
+  if (!pack.machine) {
+    if (version !== LEGACY_RULE_VERSION) throw new Error(`No XState migration for rule version: ${version}`);
+    const migrated = readJson(join(configDir, "rules", `${XSTATE_RULE_VERSION}.json`));
+    const originalHash = createHash("sha256").update(source).digest("hex");
+    if (migrated.legacyBridge?.version !== version || migrated.legacyBridge?.sha256 !== originalHash) throw new Error("Legacy rule pack changed; XState compatibility must be reviewed");
+    const strip = ({ when, ...value }) => value;
+    pack = { ...pack, engine: "xstate", machine: migrated.machine,
+      questionGroups: pack.questionGroups.map(strip), tasks: pack.tasks.map(strip),
+      reviewNotes: pack.reviewNotes.map((note, index) => ({ id: migrated.reviewNotes[index].id, text: note.text })) };
   }
   const questionIds = new Set();
   const groupIds = new Set();
@@ -38,11 +52,8 @@ export function loadRulePack(version, configDir = DEFAULT_CONFIG_DIR) {
     if (!task.id || taskIds.has(task.id) || !task.title || !task.checklistItem) throw new Error(`Invalid file task in ${version}`);
     taskIds.add(task.id);
   }
+  validateMachine(pack);
   return pack;
-}
-
-function applies(rule, answers) {
-  return Boolean(jsonLogic.apply(rule ?? true, answers));
 }
 
 function isIsoDate(value) {
@@ -64,26 +75,9 @@ export function validateAnswerPatch(patch, version, configDir = DEFAULT_CONFIG_D
 }
 
 export function evaluateChecklist(answers = {}, version = getActiveRuleVersion(), configDir = DEFAULT_CONFIG_DIR) {
-  const pack = loadRulePack(version, configDir);
-  for (const group of pack.questionGroups) {
-    if (!applies(group.when, answers)) continue;
-    if (group.questions.some((question) => answers[question.id] === undefined)) {
-      return { status: "questions", group, questions: group.questions, tasks: [], notice: pack.notice };
-    }
-    for (const stop of pack.stopRules.filter((rule) => rule.afterGroup === group.id)) {
-      if (applies(stop.when, answers)) {
-        return {
-          status: stop.status, reason: stop.reason,
-          group: stop.status === "needs_correction" ? group : null,
-          questions: stop.status === "needs_correction" ? group.questions : [],
-          tasks: [], notice: pack.notice,
-        };
-      }
-    }
-  }
-  const tasks = pack.tasks.filter((task) => applies(task.when, answers)).map(({ when, dependsOn, ...task }) => ({
-    ...task, matchedConditions: dependsOn ?? [], status: "todo",
-  }));
-  const reviewNotes = (pack.reviewNotes ?? []).filter((note) => applies(note.when, answers)).map((note) => note.text);
-  return { status: "tasks_ready", questions: [], tasks, reviewNotes, notice: pack.notice };
+  return runDecision(loadRulePack(version, configDir), answers).result;
+}
+
+export function evaluateChecklistWithTrace(answers = {}, version = getActiveRuleVersion(), configDir = DEFAULT_CONFIG_DIR) {
+  return runDecision(loadRulePack(version, configDir), answers, { trace: true });
 }

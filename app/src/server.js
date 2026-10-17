@@ -45,6 +45,7 @@ function reply(application, { workspace = false, workingOnTask = false, includeT
   // duplicate the workspace with a long list in the conversation.
   const modelApplication = application?.status === "tasks_ready" && !includeTasks ? {
     id: application.id, status: application.status, taskCount: application.tasks.length,
+    decision: application.decision,
     activeTask: workingOnTask ? application.activeTask : undefined,
     notice: application.notice,
   } : application;

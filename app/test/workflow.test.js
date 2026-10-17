@@ -131,7 +131,8 @@ test("a configuration-only version switch affects new applications, not existing
   const old = await store.create();
   const v2 = "iceland-tourism-test-v2";
   pack.version = v2;
-  pack.tasks.push({ id: "config_added_file", title: "配置新增材料", checklistItem: "test", when: true });
+  pack.tasks.push({ id: "config_added_file", title: "配置新增材料", checklistItem: "test" });
+  pack.machine.states.materials_common.entry[0].params.ids.push("config_added_file");
   await writeFile(join(configDir, "rules", `${v2}.json`), JSON.stringify(pack));
   await writeFile(join(configDir, "active.json"), JSON.stringify({ version: v2 }));
   const fresh = await store.create();

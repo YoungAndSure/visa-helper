@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
-import { DEFAULT_CONFIG_DIR, evaluateChecklist, getActiveRuleVersion, loadRulePack, validateAnswerPatch } from "./checklist.js";
+import { DEFAULT_CONFIG_DIR, evaluateChecklist, evaluateChecklistWithTrace, getActiveRuleVersion, loadRulePack, validateAnswerPatch } from "./checklist.js";
 
 export const PATH = Object.freeze({
   id: "cn-passport-cn-resident-is-tourism",
@@ -16,7 +16,7 @@ export class WorkflowError extends Error {
   }
 }
 
-export function publicState(record, configDir = DEFAULT_CONFIG_DIR) {
+export function publicState(record, configDir = DEFAULT_CONFIG_DIR, evaluation) {
   if (!record.answers) {
     return {
       id: record.id, path: PATH, status: "legacy_walkthrough", data: record.data,
@@ -24,7 +24,7 @@ export function publicState(record, configDir = DEFAULT_CONFIG_DIR) {
       notice: "这是旧版交互演示记录。请新建申请，以使用材料决策树。",
     };
   }
-  const result = evaluateChecklist(record.answers, record.ruleVersion, configDir);
+  const result = evaluation ?? evaluateChecklist(record.answers, record.ruleVersion, configDir);
   const pack = loadRulePack(record.ruleVersion, configDir);
   const questionCatalog = pack.questionGroups.flatMap((group) => group.questions);
   const pendingQuestions = result.status === "questions"
@@ -35,6 +35,7 @@ export function publicState(record, configDir = DEFAULT_CONFIG_DIR) {
     id: record.id,
     path: PATH,
     ruleVersion: record.ruleVersion,
+    decision: { ...result.decision, evaluationId: record.evaluations?.at(-1)?.id ?? null },
     status: result.status,
     answers: record.answers,
     questionGroup: result.group ? { id: result.group.id, title: result.group.title, total: result.group.questions.length } : null,
@@ -96,8 +97,10 @@ export class ApplicationStore {
         answers: {},
         updatedAt: new Date().toISOString(),
       };
+      const { result, execution } = evaluateChecklistWithTrace(record.answers, record.ruleVersion, this.configDir);
+      record.evaluations = [{ id: randomUUID(), recordedAt: record.updatedAt, ...execution }];
       records[record.id] = record;
-      return publicState(record, this.configDir);
+      return publicState(record, this.configDir, result);
     });
   }
 
@@ -120,7 +123,10 @@ export class ApplicationStore {
       record.answers = { ...record.answers, ...patch };
       delete record.uiReceipt;
       record.updatedAt = new Date().toISOString();
-      return publicState(record, this.configDir);
+      const { result, execution } = evaluateChecklistWithTrace(record.answers, record.ruleVersion, this.configDir);
+      record.evaluations ??= [];
+      record.evaluations.push({ id: randomUUID(), recordedAt: record.updatedAt, answerPatch: structuredClone(patch), ...execution });
+      return publicState(record, this.configDir, result);
     });
   }
 

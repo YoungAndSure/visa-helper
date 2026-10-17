@@ -2,7 +2,8 @@ import { createHash, randomUUID } from "node:crypto";
 import { readFileSync, readdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { getActiveRuleVersion } from "./checklist.js";
+import { getActiveRuleVersion, loadRulePack } from "./checklist.js";
+import { ENGINE_VERSION, hash } from "./decision-machine.js";
 
 const appDir = join(dirname(fileURLToPath(import.meta.url)), "..");
 const digest = (text) => createHash("sha256").update(text).digest("hex");
@@ -27,6 +28,7 @@ const startedAt = new Date().toISOString();
 
 export function serverInfo(contracts, configDir) {
   const activeVersion = getActiveRuleVersion(configDir);
+  const active = loadRulePack(activeVersion, configDir);
   return {
     service: "visa-helper", version: packageInfo.version, buildHash,
     instanceId, startedAt,
@@ -34,7 +36,7 @@ export function serverInfo(contracts, configDir) {
     tools: contracts.map((tool) => tool.name), requiredClientTools: REQUIRED_CLIENT_TOOLS,
     compatibilityTools: COMPATIBILITY_TOOLS,
     ui: { resourceUri: UI_RESOURCE_URI, sourceHash: UI_SOURCE_HASH, aliases: UI_ALIASES },
-    rules: { activeVersion },
+    rules: { activeVersion, modelHash: hash(active), engine: "xstate", engineVersion: ENGINE_VERSION },
   };
 }
 

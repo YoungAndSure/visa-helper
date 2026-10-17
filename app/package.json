@@ -1,11 +1,13 @@
 {
   "name": "visa-helper-mcp-app",
-  "version": "0.4.1",
+  "version": "0.5.0",
   "private": true,
   "type": "module",
   "scripts": {
     "start": "node src/server.js",
-    "test": "node --test",
+    "test": "node --test test/*.test.js",
+    "decision:graph": "node scripts/decision-artifacts.mjs",
+    "decision:replay": "node scripts/decision-artifacts.mjs",
     "check:release": "node scripts/check-release.mjs"
   },
   "dependencies": {
@@ -14,7 +16,11 @@
     "@modelcontextprotocol/sdk": "^1.20.2",
     "@modelcontextprotocol/server": "^2.3.1",
     "@openai/mcp-extensions": "^0.2.0",
-    "json-logic-js": "^2.0.5",
+    "xstate": "5.33.2",
     "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@dagrejs/dagre": "1.1.8",
+    "json-logic-js": "2.0.5"
   }
 }

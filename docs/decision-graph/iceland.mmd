@@ -1,0 +1,114 @@
+flowchart TD
+  q_nationality["申请人持有哪国护照？"]
+  q_residence["申请人目前居住在哪里？"]
+  q_applicationCity["计划在哪个中国城市递交申请？"]
+  q_destination["此行是否前往冰岛？"]
+  q_purpose["此行的目的是什么？"]
+  q_arrivalDate["计划何时进入申根区？"]
+  q_departureDate["计划何时离开申根区？"]
+  q_ageGroup["出行时申请人是否已满 18 岁？"]
+  q_otherSchengenCountries["这次是否还会去其他申根国家？"]
+  check_dates["进入日期早于离开日期？"]
+  stop_dates["离开申根区的日期必须晚于进入日期。"]
+  check_scope["中国护照、居住中国、冰岛个人旅游？"]
+  stop_scope["当前版本仅覆盖中国护照、居住中国、赴冰岛个人旅游的申请人。"]
+  materials_common["共通材料（原表第 1–10 项）"]
+  route_countries["是否还有其他申根国家？"]
+  q_icelandMainDestination["冰岛是否为此次申根行程停留时间最长的国家？"]
+  check_main_destination["冰岛是否为主要目的地？"]
+  stop_destination["冰岛不是停留时间最长的目的地，当前流程不能套用冰岛申请清单。"]
+  stop_unsure["冰岛是否为主要目的地尚不能确认；当前流程暂不生成确定清单。"]
+  materials_multi["多国行程材料"]
+  route_age["成年还是未成年？"]
+  q_occupation["目前属于哪种情况？"]
+  route_occupation["成年申请人的职业分支"]
+  materials_employed["在职材料"]
+  materials_retired["退休收入材料"]
+  q_maritalStatus["目前婚姻状态是？"]
+  q_sponsor["此次旅行由谁提供资金支持？"]
+  check_sponsor_consistency["婚姻状态与配偶担保是否一致？"]
+  stop_sponsor["婚姻状态与资金支持人不一致，请更正。"]
+  route_marital_status["无业申请人的婚姻分支"]
+  materials_spouse["已婚无业材料"]
+  materials_regular_income["其他固定收入材料"]
+  route_sponsor["是否由非配偶担保？"]
+  materials_other_sponsor["非配偶担保材料"]
+  q_inSchool["申请人目前是否在读？"]
+  q_minorTravel["未成年人将与谁同行？"]
+  route_guardian_question["是否需要补充监护人所在地？"]
+  q_guardianAbroad["需要出具同意文件的家长或监护人是否有人不在中国？"]
+  materials_minor["未成年人亲属／监护关系材料"]
+  route_school["未成年人是否在读？"]
+  materials_school["在读材料"]
+  note_no_school["未在读材料待核实"]
+  route_other_guardian["是否属于其他监护人同行？"]
+  note_other_guardian["其他监护人要求待核实"]
+  route_guardian_abroad["需同意文件且有监护人在境外？"]
+  note_guardian_abroad["境外同意文件形式待核实"]
+  route_consent_material["独自或仅随一位家长出行？"]
+  materials_consent["出行同意材料"]
+  check_sponsor_note["原审核表的无业与非配偶担保复核提示"]
+  note_sponsor["无业材料叠加待核实"]
+  ready["材料清单已就绪"]
+  q_nationality -->|"已提供答案"| q_residence
+  q_residence -->|"已提供答案"| q_applicationCity
+  q_applicationCity -->|"已提供答案"| q_destination
+  q_destination -->|"已提供答案"| q_purpose
+  q_purpose -->|"已提供答案"| q_arrivalDate
+  q_arrivalDate -->|"已提供答案"| q_departureDate
+  q_departureDate -->|"已提供答案"| q_ageGroup
+  q_ageGroup -->|"已提供答案"| q_otherSchengenCountries
+  q_otherSchengenCountries -->|"已提供答案"| check_dates
+  check_dates -->|"进入日期早于离开日期"| check_scope
+  check_dates -->|"否则／继续"| stop_dates
+  check_scope -->|"申请路径符合"| materials_common
+  check_scope -->|"否则／继续"| stop_scope
+  materials_common -->|"否则／继续"| route_countries
+  route_countries -->|"otherSchengenCountries = 是"| q_icelandMainDestination
+  route_countries -->|"otherSchengenCountries = 否"| route_age
+  q_icelandMainDestination -->|"已提供答案"| check_main_destination
+  check_main_destination -->|"icelandMainDestination = 否"| stop_destination
+  check_main_destination -->|"icelandMainDestination = 不确定"| stop_unsure
+  check_main_destination -->|"icelandMainDestination = 是"| materials_multi
+  materials_multi -->|"否则／继续"| route_age
+  route_age -->|"ageGroup = 已满 18 岁"| q_occupation
+  route_age -->|"ageGroup = 未满 18 岁"| q_inSchool
+  q_occupation -->|"已提供答案"| route_occupation
+  route_occupation -->|"occupation = 在职"| materials_employed
+  route_occupation -->|"occupation = 退休"| materials_retired
+  route_occupation -->|"occupation = 无业"| q_maritalStatus
+  materials_employed -->|"否则／继续"| check_sponsor_note
+  materials_retired -->|"否则／继续"| check_sponsor_note
+  q_maritalStatus -->|"已提供答案"| q_sponsor
+  q_sponsor -->|"已提供答案"| check_sponsor_consistency
+  check_sponsor_consistency -->|"配偶担保与婚姻状态冲突"| stop_sponsor
+  check_sponsor_consistency -->|"否则／继续"| route_marital_status
+  route_marital_status -->|"maritalStatus = 已婚"| materials_spouse
+  route_marital_status -->|"maritalStatus ∈ 未婚 / 离异 / 丧偶"| materials_regular_income
+  materials_spouse -->|"否则／继续"| route_sponsor
+  materials_regular_income -->|"否则／继续"| route_sponsor
+  route_sponsor -->|"sponsor = 其他人"| materials_other_sponsor
+  route_sponsor -->|"否则／继续"| check_sponsor_note
+  materials_other_sponsor -->|"否则／继续"| check_sponsor_note
+  q_inSchool -->|"已提供答案"| q_minorTravel
+  q_minorTravel -->|"已提供答案"| route_guardian_question
+  route_guardian_question -->|"minorTravel ∈ 独自出行 / 一位家长 / 其他监护人／情况"| q_guardianAbroad
+  route_guardian_question -->|"否则／继续"| materials_minor
+  q_guardianAbroad -->|"已提供答案"| materials_minor
+  materials_minor -->|"否则／继续"| route_school
+  route_school -->|"inSchool = 是"| materials_school
+  route_school -->|"inSchool = 否"| note_no_school
+  materials_school -->|"否则／继续"| route_other_guardian
+  note_no_school -->|"否则／继续"| route_other_guardian
+  route_other_guardian -->|"minorTravel = 其他监护人／情况"| note_other_guardian
+  route_other_guardian -->|"否则／继续"| route_guardian_abroad
+  note_other_guardian -->|"否则／继续"| route_guardian_abroad
+  route_guardian_abroad -->|"需同意文件且监护人在境外"| note_guardian_abroad
+  route_guardian_abroad -->|"否则／继续"| route_consent_material
+  note_guardian_abroad -->|"否则／继续"| route_consent_material
+  route_consent_material -->|"minorTravel ∈ 独自出行 / 一位家长"| materials_consent
+  route_consent_material -->|"否则／继续"| check_sponsor_note
+  materials_consent -->|"否则／继续"| check_sponsor_note
+  check_sponsor_note -->|"无业且非配偶担保"| note_sponsor
+  check_sponsor_note -->|"否则／继续"| ready
+  note_sponsor -->|"否则／继续"| ready
