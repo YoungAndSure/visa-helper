@@ -1,6 +1,6 @@
 # Visa Helper MCP 接口
 
-应用版本 `0.8.2`，问答协议 `1.0`。MCP 服务仅注册以下 **6 个工具**，其中 5 个供 GPT 调用，1 个仅供 App UI 调用。问答全过程只使用 `advance_application`；其他接口分别负责展示、材料处理和诊断。
+应用版本 `0.8.3`，问答协议 `1.0`。MCP 服务仅注册以下 **6 个工具**，其中 5 个供 GPT 调用，1 个仅供 App UI 调用。问答全过程只使用 `advance_application`；其他接口分别负责展示、材料处理和诊断。
 
 ## 接口总览
 
@@ -133,6 +133,27 @@ advance_task：填写指引、用户填表、可选检查、用户确认完成
 
 ## 独立填写对照页
 
-`get_task_queue`、`start_task` 或 `advance_task` 返回的 App 专用 `_meta` 可包含 `guideLink`（临时 URL 与到期时间）和 `guideDocument`（已转义的 HTML）。链接只发给界面，不作为用户申请数据保存；不增加 MCP 工具。界面点击时用现有 `advance_task` 只读取得最新链接，再通过 `ui/open-link` 请求客户端浏览器打开；不再在嵌入式 App 内切换对照页。具体打开位置由宿主客户端决定。
+MCP 负责把已知信息整理成填写对照页并返回 URL；GPT 或用户负责打开网页。模型不需要从隐藏元数据提取链接，也不由 MCP 控制浏览器。
 
-独立网页监听器与 MCP 分离，仅允许 GET/HEAD `/guides/随机令牌`，不开放 `/mcp` 或 `/version`。令牌 15 分钟有效，服务重启、申请 revision 或任务 revision 改变后失效。页面不缓存、不索引、不加载第三方脚本；链接持有人可读取该次指引，不应转发。HTTP 的 IP 加端口入口仅为当前用户明确选择的临时测试方式；正式入口使用 HTTPS。下载 HTML 仍可用。
+在 `start_task` 或 `advance_task` 的整理资料、等待填写阶段，若已配置网页入口，外层返回：
+
+```json
+{
+  "nextAction": {
+    "type": "open_url",
+    "url": "生成的预填网页 URL",
+    "expiresAt": "到期时间",
+    "title": "申请表填写对照页",
+    "placement": "right",
+    "taskAction": { "type": "prepare_guide" }
+  }
+}
+```
+
+GPT 读取 `open_url` 后调用当前客户端的原生浏览器工具；用户希望自行打开或客户端不能打开时，提供准确的可点击链接。`taskAction` 保留当前业务步骤，打开网页不改变任务状态。其他步骤保留其业务 `nextAction`，同时提供模型可见的 `guidePresentation`，供用户要求重新打开时使用。
+
+卡片展示普通链接；“让助手打开填写对照页”通过 `ui/message` 把用户意图交给当前会话，GPT 再读取任务获得 URL。不使用 `ui/open-link` 的默认浏览器请求冒充已在右侧显示。打开请求返回 queued 时应明确尚未确认显示。点击操作和失败提示显示在卡片顶部。
+
+App 专用 `_meta` 仍可包含 `guideDocument` HTML；下载在该字段缺失时使用 `guidePresentation.url` 的 `resource_link`。这兼容客户端省略私有元数据的情况，不增加 MCP 工具或修改任务模型版本。
+
+独立网页监听器与 MCP 分离，仅允许 GET/HEAD `/guides/随机令牌`，不开放 `/mcp` 或 `/version`。令牌 15 分钟有效，服务重启、申请 revision 或任务 revision 改变后失效。页面不缓存、不索引、不加载第三方脚本；链接持有人可读取该次指引，不应转发。HTTP 的 IP 加端口入口仅为当前用户明确选择的临时测试方式；正式入口使用 HTTPS。

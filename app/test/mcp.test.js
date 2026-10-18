@@ -7,6 +7,7 @@ import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { createVisaServer } from "../src/server.js";
 import { ApplicationStore } from "../src/workflow.js";
+import { GuideLinks } from "../src/form-guide.js";
 
 const removed = ["open_visa_helper", "create_application", "get_application", "get_questions", "submit_answers", "ask_next_question", "show_material_checklist"];
 test("MCP exposes exactly six tools and rejects removed endpoints and resource aliases", async () => {
@@ -33,5 +34,29 @@ test("MCP exposes exactly six tools and rejects removed endpoints and resource a
     for (const uri of ["ui://visa-helper/application-v2.html", "ui://visa-helper/task-workspace-v3.html"]) {
       await assert.rejects(client.readResource({ uri }), /not found|not exist|unknown/i);
     }
+  } finally { await client.close(); await server.close(); }
+});
+
+test("guide URLs remain available when a client omits private tool metadata", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "visa-guide-contract-"));
+  const store = new ApplicationStore(join(dir, "applications.json"));
+  const { application } = await store.advance({ answers: { nationality: "CN", residence: "CN", applicationCity: "北京",
+    destination: "IS", purpose: "tourism", arrivalDate: "2027-06-01", departureDate: "2027-06-10",
+    ageGroup: "adult", otherSchengenCountries: "no", occupation: "employed" } });
+  const server = createVisaServer(store, new GuideLinks({ baseUrl: "http://127.0.0.1:18080" }));
+  const client = new Client({ name: "guide-client", version: "1" });
+  const [ct, st] = InMemoryTransport.createLinkedPair();
+  try {
+    await server.connect(st); await client.connect(ct);
+    const response = await client.callTool({ name: "start_task", arguments: { applicationId: application.id, taskId: "schengen_form" } });
+    const { _meta, ...modelVisible } = response;
+    assert.equal(modelVisible.structuredContent.guidePresentation.url, _meta.guideLink.url);
+    assert.equal(modelVisible.structuredContent.guidePresentation.placement, "right");
+    assert.equal(modelVisible.structuredContent.guidePresentation.action, "open_in_client_browser");
+    assert.equal(modelVisible.structuredContent.nextAction.type, "open_url");
+    assert.equal(modelVisible.structuredContent.nextAction.url, modelVisible.structuredContent.guidePresentation.url);
+    assert.equal(modelVisible.structuredContent.nextAction.taskAction.type, "prepare_guide");
+    assert.match(modelVisible.structuredContent.assistantGuidance, /native browser tool/);
+    assert.equal(modelVisible.structuredContent.application.taskFlow.revision, 0);
   } finally { await client.close(); await server.close(); }
 });

@@ -1,14 +1,24 @@
 # ChatGPT MCP App 部署与测试
 
-当前版本为 `0.8.2`，问答协议 `1.0`。服务注册 6 个接口：`advance_application`、`get_task_queue`、`start_task`、`advance_task`、`get_server_info` 和仅供 App 使用的 `report_ui_ready`。七个旧问答或重复入口、原生表单实现及旧 UI 资源别名均已删除，不提供旧接口兼容。接口参数与职责见 [MCP 接口说明](mcp-api.md)，问答循环见[完整问答协议](interview-protocol.md)。
+当前版本为 `0.8.3`，问答协议 `1.0`。服务注册 6 个接口：`advance_application`、`get_task_queue`、`start_task`、`advance_task`、`get_server_info` 和仅供 App 使用的 `report_ui_ready`。七个旧问答或重复入口、原生表单实现及旧 UI 资源别名均已删除，不提供旧接口兼容。接口参数与职责见 [MCP 接口说明](mcp-api.md)，问答循环见[完整问答协议](interview-protocol.md)。
 
 ## 当前部署方式
 
 当前已改用 Docker 镜像，详见[镜像构建与部署](container-deployment.md)。正式容器为 `visa-helper-mcp-server-1`，使用原有数据目录和 `127.0.0.1:18081`。旧版 `18080` 容器已删除，直接运行 Node 的 systemd 服务已停用并移除。SSH 转发与 Secure MCP Tunnel 保持原路径；本次新增任务接口并更新运行指纹。
 
-当前容器已使用腾讯云仓库 `ccr.ccs.tencentyun.com/visa-helper/visa-helper` 的固定摘要镜像运行，服务器直接拉取、独立数据预检、正式切换和原申请恢复均通过。`current` 指向 `releases/0.8.2-48f2a80acdfa-registry`。仓库凭据位于服务器 `ubuntu` 用户配置，命令需使用 `sudo docker --config /home/ubuntu/.docker ...`。详见[仓库拉取与切换记录](container-deployment.md)。
+当前容器已使用腾讯云仓库 `ccr.ccs.tencentyun.com/visa-helper/visa-helper` 的固定摘要镜像运行，服务器直接拉取、独立数据预检、正式切换和原申请恢复均通过。`current` 指向 `releases/0.8.3-16bfe0c58cbc-registry`。仓库凭据位于服务器 `ubuntu` 用户配置，命令需使用 `sudo docker --config /home/ubuntu/.docker ...`。详见[仓库拉取与切换记录](container-deployment.md)。
 
 下列记录中的 systemd 启动方式仅描述历史发布。当前排查服务请用 Docker Compose 状态和日志，不再启动已退役的系统服务。
+
+## 2026年10月18日预填网页链接返回约定
+
+已部署 `0.8.3`，构建 `16bfe0c58cbc`，UI `39b231ebb1b9`。原 `ui/open-link` 是默认浏览器打开请求，不能当作已在当前会话右侧显示的证据。用户报告卡片只提示“已请求”而未打开，因此改为 MCP 返回预填网页链接，GPT 或用户负责打开。
+
+`start_task` / `advance_task` 在整理资料和等待填写阶段返回 `nextAction.type: open_url`、URL、到期时间及右侧位置提示，原业务步骤保存在 `taskAction`。其他步骤仍可从模型可见的 `guidePresentation` 取得链接。卡片提供普通链接及“让助手打开填写对照页”，后者把用户意图交给当前会话再读取任务获得链接。下载在隐藏 HTML 元数据缺失时使用网页 resource_link。
+
+11 个自动测试文件通过，增加了移除私有元数据后模型仍能读取 URL 的验证。真实 Chromium 与 MCP 测试桥验证普通链接、助手交接、无私有元数据的下载及原任务生命周期。镜像已从仓库拉取，容器健康及发布检查通过，切换后原数据校验和未变化。通过实际 SDK 确认 `open_url` URL 与可访问页面一致，公网页面返回 200，公网页端口 POST `/mcp` 为 404。通过用户实际 Visa Helper 连接确认，即使 `_meta` 不返回给模型，`guidePresentation.url` 也可读取，原任务仍处于等待填写。
+
+本次工具集合和工具指纹未改变，无需刷新插件或重填资料。在原会话直接说“打开当前申请表的填写对照页”验证 GPT 的客户端打开行为。网页生成和传输已验证，右侧浏览器实际显示仍由宿主执行，不提前声称已显示。
 
 ## 2026年10月18日浏览器独立对照页
 
