@@ -8,6 +8,10 @@ services:
     init: true
     ports:
       - "127.0.0.1:${VISA_HELPER_PORT:-18081}:8787"
+      - "${VISA_HELPER_GUIDE_BIND:-127.0.0.1}:${VISA_HELPER_GUIDE_PORT:-18080}:8788"
+    environment:
+      VISA_HELPER_GUIDE_BASE_URL: ${VISA_HELPER_GUIDE_BASE_URL:-}
+      VISA_HELPER_GUIDE_ALLOW_HTTP: ${VISA_HELPER_GUIDE_ALLOW_HTTP:-0}
     volumes:
       - type: bind
         source: ${VISA_HELPER_DATA_DIR:?Set VISA_HELPER_DATA_DIR to the existing application data directory}

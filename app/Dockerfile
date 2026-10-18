@@ -21,7 +21,7 @@ ENV NODE_ENV=production
 ENV PORT=8787
 ENV HOST=0.0.0.0
 ENV VISA_HELPER_PRIVATE_CONTAINER=1
-EXPOSE 8787
+EXPOSE 8787 8788
 HEALTHCHECK --interval=15s --timeout=5s --start-period=5s --retries=3 \
   CMD node -e "fetch('http://127.0.0.1:8787/version').then(async r => { if (!r.ok || (await r.json()).service !== 'visa-helper') process.exit(1) }).catch(() => process.exit(1))"
 CMD ["node", "src/server.js"]

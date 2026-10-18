@@ -8,7 +8,7 @@
 
 镜像内部 `/app/data` 挂载宿主机 `/home/ubuntu/visa-helper-mcp/data`。申请答案、任务进度和历史执行轨迹留在这个目录，不放入镜像。容器以非 root 用户 `node`（UID 1000）运行，数据目录必须允许该用户读写；当前服务器的 `ubuntu` 也是 UID 1000。容器根文件系统只读，仅数据挂载可写。
 
-Compose 要求显式指定已存在的数据目录，并拒绝自动创建缺失目录，避免路径写错后看起来像申请数据被清空。只将端口绑定到宿主机回环地址；通过原有 SSH/Tunnel 访问。Docker 服务已启用开机启动，容器使用 `unless-stopped` 自动恢复。
+Compose 要求显式指定已存在的数据目录，并拒绝自动创建缺失目录，避免路径写错后看起来像申请数据被清空。MCP 端口只绑定宿主机回环地址，通过原有 SSH/Tunnel 访问。独立只读填写对照页可另外启用，默认关闭；当前按用户指定的临时 IP 加端口方式启用，说明见文末。Docker 服务已启用开机启动，容器使用 `unless-stopped` 自动恢复。
 
 ## 在开发机构建
 
@@ -174,3 +174,18 @@ ccr.ccs.tencentyun.com/visa-helper/visa-helper:0.7.0-589a244540ab
 ## 2026年10月18日任务界面更新
 
 当前镜像 `0.8.1-565fae4fcce8`，仓库摘要 `sha256:7b8693315fa9d80fad3f6460c7520bb94f13d4c53c6e106de90a0707996d8b72`，发布目录 `/home/ubuntu/visa-helper-mcp/releases/0.8.1-565fae4fcce8-registry`，`current` 已切换。更新前数据备份在 `backups/before-focused-guide-*`，更新后校验和不变。容器健康、HTTP/MCP 发布检查及实际 Visa Helper 连接确认通过。工具集合、接口契约和任务模型指纹未变化；此次主要更新任务专注界面及基于已确认资料的网页版填写对照表。
+
+## 2026年10月18日独立填写对照页发布
+
+当前镜像 `0.8.2-48f2a80acdfa`，仓库摘要 `sha256:5323028d56f22745a65567fbc5d5b5e4ed4bd02e21c7fa1fa242056f7ddecbc6`，发布目录 `/home/ubuntu/visa-helper-mcp/releases/0.8.2-48f2a80acdfa-registry`。镜像已从仓库拉取并切换，原申请文件校验和未变化；切换前数据备份在 `backups/before-browser-guide-*`。环境旧配置保存在 `deploy/container.env.before-guide`。
+
+当前独立页面使用以下显式测试配置：
+
+```dotenv
+VISA_HELPER_GUIDE_BASE_URL=http://129.204.29.242:18080
+VISA_HELPER_GUIDE_BIND=0.0.0.0
+VISA_HELPER_GUIDE_PORT=18080
+VISA_HELPER_GUIDE_ALLOW_HTTP=1
+```
+
+容器 8788 提供只读令牌页面，18080 仅转发该监听器；不会转发 8787 的 MCP。18080 是旧应用退役后空出的端口。公网访问有效指引链接为 200，根路径与 `/mcp` 为 404，MCP 仍绑定本机 18081。链接由 MCP 当前进程内存维护，15 分钟有效，服务重启后原链接失效；从任务重新点击即可取得新链接。关闭公网页面时，清空 base URL、将 bind 改回 127.0.0.1 后重新启动；正式环境改用 HTTPS 并关闭 ALLOW_HTTP。

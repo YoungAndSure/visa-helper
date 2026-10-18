@@ -68,7 +68,7 @@
     let lastReceiptKey = null;
     let application = null;
     let tasksExpanded = false;
-    let guideOpen = false;
+    let guideLink = null;
     let busy = false;
     let hydrationStartedFor = null;
     let rpcId = 0;
@@ -92,9 +92,10 @@
         versionEl.textContent = `界面 ${embeddedVersion} · 服务 ${info.version} · 构建 ${info.buildHash.slice(0, 12)} · UI ${embeddedUiHash.slice(0, 12)}`;
       }
       const fullState = result?._meta?.application ?? result?.structuredContent?.application;
+      if (result?._meta && "guideLink" in result._meta) guideLink = result._meta.guideLink;
       if (fullState?.id) {
         if (fullState.id !== application?.id || fullState.activeTask?.id !== application?.activeTask?.id) {
-          tasksExpanded = false; guideOpen = false;
+          tasksExpanded = false;
         }
         application = fullState.id === application?.id && fullState.status === "tasks_ready" && !Array.isArray(fullState.tasks)
           ? { ...application, ...fullState }
@@ -188,40 +189,26 @@
         } }));
       });
     }
-    function guideContents(flow) {
-      const section = element("section", "", "form-guide");
-      section.append(element("h2", "申请表填写对照页"),
-        element("p", "按原表编号对照填写。已有信息给出填写内容，其余项目说明需要填什么；请自行核对并填写原始 PDF。", "muted"));
-      if (flow.needsRecheck) section.append(element("p", "申请资料有变化，以下内容需要重新核对。", "notice"));
-      for (const field of flow.guide) {
-        const item = element("section", "", "guide-item");
-        item.append(element("small", field.reference, "muted"), element("h3", field.label));
-        if (field.value !== null) {
-          item.append(element("div", field.value, "guide-value"));
-          item.append(element("p", "填写提示：" + field.guidance, "muted"));
-        } else item.append(element("p", "请填写：" + field.guidance, "guide-instruction"));
-        section.append(item);
-      }
-      return section;
-    }
-    function downloadGuide(flow) {
-      const body = guideContents(flow);
-      const original = element("a", "下载官方原始申请表 PDF"); original.href = flow.source.formUrl;
-      body.prepend(original);
-      const checkSection = element("section", "", "guide-item");
-      checkSection.append(element("h2", "填好后的自查"));
-      for (const check of flow.checkCatalog) checkSection.append(element("p", "□ " + check.label));
-      checkSection.append(element("p", "□ 已填妥并由本人按要求签字"));
-      body.append(checkSection);
-      // All user values are DOM text nodes before serialization, never interpolated into HTML.
-      const html = '<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">'
-        + '<title>申根申请表填写对照页</title><style>body{font:16px/1.6 system-ui,sans-serif;color:#172d36;background:#fff;max-width:850px;margin:auto;padding:24px}.guide-item{padding:12px 0;border-bottom:1px solid #ddd;break-inside:avoid}.guide-item h3{margin:4px 0}.guide-value{background:#edf6f3;padding:12px;white-space:pre-wrap;overflow-wrap:anywhere}.muted{color:#596c77}.notice{padding:12px;background:#fff6dc}@media print{body{padding:0;font-size:11pt}a{color:inherit}}</style><body>'
-        + body.outerHTML + '</body></html>';
+    function guidePresentation(flow, { download = false } = {}) {
       return perform(async () => {
+        const latest = await request("tools/call", { name: "advance_task", arguments: {
+          applicationId: application.id, taskId: flow.taskId,
+        } });
+        applyResult(latest);
+        if (!download) {
+          const link = latest._meta?.guideLink;
+          if (!link?.url) throw new Error("独立对照页入口尚未配置，可先下载网页版对照表。");
+          const opened = await request("ui/open-link", { url: link.url });
+          if (opened?.isError) throw new Error("打开链接未获允许，请使用下载网页版对照表。");
+          statusEl.textContent = "已请求在浏览器打开填写对照页，链接有效期为 15 分钟。";
+          return;
+        }
+        const html = latest._meta?.guideDocument;
+        if (!html) throw new Error("未取得填写指引，请刷新任务进度后重试。");
         const result = await request("ui/download-file", { contents: [{ type: "resource", resource: {
           uri: "file:///schengen-form-guide.html", mimeType: "text/html", text: html,
         } }] });
-        if (result?.isError) throw new Error("下载未获允许，可打开填写对照页查看或复制。");
+        if (result?.isError) throw new Error("下载未获允许，可在浏览器打开填写对照页查看或复制。");
       });
     }
     function renderTaskFlow(panel, flow, task) {
@@ -248,8 +235,11 @@
       if (flow.needsRecheck) panel.append(element("p", "申请资料已变化，请重新核对填写内容；旧检查和完成确认已清除。", "notice"));
       const known = flow.guide.filter((field) => field.value !== null).length;
       panel.append(element("p", `已整理 ${known} 项填写内容，其余项目提供填写说明。`));
-      panel.append(button("查看填写对照页", () => { guideOpen = true; render(); }));
-      panel.append(button("下载网页版对照表", () => downloadGuide(flow), "secondary"));
+      const link = element("a", "在浏览器中打开填写对照页");
+      link.href = guideLink?.url ?? "#"; link.target = "_blank"; link.rel = "noreferrer";
+      link.addEventListener("click", (event) => { event.preventDefault(); if (!versionMismatch) guidePresentation(flow); });
+      panel.append(link, element("p", "单独打开对照页；临时链接 15 分钟有效，资料变化后请重新打开。", "muted"));
+      panel.append(button("下载网页版对照表", () => guidePresentation(flow, { download: true }), "secondary"));
       const actions = element("div", "", "actions");
       if (flow.nextAction.events.includes("GUIDE_READY")) actions.append(button("使用填写指引", () => taskEvent("GUIDE_READY")));
       if (flow.nextAction.events.includes("FILLED")) actions.append(button("我已填好，选择检查方式", () => taskEvent("FILLED", { ...flow.data, filled: true })));
@@ -316,11 +306,11 @@
         return;
       }
       const activeTask = application.activeTask;
-      document.querySelector("h1").textContent = guideOpen ? "申请表填写指引" : activeTask ? "准备当前材料" : "你的签证材料清单";
+      document.querySelector("h1").textContent = activeTask ? "准备当前材料" : "你的签证材料清单";
       const completed = application.tasks.filter((task) => task.status === "done").length;
       const header = element("div", "", "workspace-header");
       header.append(element("h2", `已完成 ${completed} / ${application.tasks.length} 项材料`));
-      if (activeTask && !guideOpen) {
+      if (activeTask) {
         const toggle = button(tasksExpanded ? "收起任务" : "全部任务", () => { tasksExpanded = !tasksExpanded; render(); }, "secondary");
         toggle.setAttribute("aria-expanded", String(tasksExpanded)); toggle.setAttribute("aria-controls", "all-tasks");
         header.append(toggle);
@@ -328,13 +318,6 @@
       content.append(header);
       const progress = document.createElement("progress"); progress.max = application.tasks.length; progress.value = completed;
       progress.setAttribute("aria-label", "材料准备完成进度"); content.append(progress);
-      if (guideOpen && application.taskFlow) {
-        const flow = application.taskFlow;
-        content.append(button("返回当前任务", () => { guideOpen = false; render(); }, "secondary"));
-        content.append(button("下载网页版对照表", () => downloadGuide(flow)));
-        content.append(guideContents(flow));
-        return;
-      }
       if (!activeTask) content.append(element("p", "选择一项材料开始准备。"));
       const recommended = activeTask ?? application.tasks[0];
       if (recommended) {

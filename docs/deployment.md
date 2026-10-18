@@ -1,14 +1,22 @@
 # ChatGPT MCP App 部署与测试
 
-当前版本为 `0.8.1`，问答协议 `1.0`。服务注册 6 个接口：`advance_application`、`get_task_queue`、`start_task`、`advance_task`、`get_server_info` 和仅供 App 使用的 `report_ui_ready`。七个旧问答或重复入口、原生表单实现及旧 UI 资源别名均已删除，不提供旧接口兼容。接口参数与职责见 [MCP 接口说明](mcp-api.md)，问答循环见[完整问答协议](interview-protocol.md)。
+当前版本为 `0.8.2`，问答协议 `1.0`。服务注册 6 个接口：`advance_application`、`get_task_queue`、`start_task`、`advance_task`、`get_server_info` 和仅供 App 使用的 `report_ui_ready`。七个旧问答或重复入口、原生表单实现及旧 UI 资源别名均已删除，不提供旧接口兼容。接口参数与职责见 [MCP 接口说明](mcp-api.md)，问答循环见[完整问答协议](interview-protocol.md)。
 
 ## 当前部署方式
 
 当前已改用 Docker 镜像，详见[镜像构建与部署](container-deployment.md)。正式容器为 `visa-helper-mcp-server-1`，使用原有数据目录和 `127.0.0.1:18081`。旧版 `18080` 容器已删除，直接运行 Node 的 systemd 服务已停用并移除。SSH 转发与 Secure MCP Tunnel 保持原路径；本次新增任务接口并更新运行指纹。
 
-当前容器已使用腾讯云仓库 `ccr.ccs.tencentyun.com/visa-helper/visa-helper` 的固定摘要镜像运行，服务器直接拉取、独立数据预检、正式切换和原申请恢复均通过。`current` 指向 `releases/0.8.1-565fae4fcce8-registry`。仓库凭据位于服务器 `ubuntu` 用户配置，命令需使用 `sudo docker --config /home/ubuntu/.docker ...`。详见[仓库拉取与切换记录](container-deployment.md)。
+当前容器已使用腾讯云仓库 `ccr.ccs.tencentyun.com/visa-helper/visa-helper` 的固定摘要镜像运行，服务器直接拉取、独立数据预检、正式切换和原申请恢复均通过。`current` 指向 `releases/0.8.2-48f2a80acdfa-registry`。仓库凭据位于服务器 `ubuntu` 用户配置，命令需使用 `sudo docker --config /home/ubuntu/.docker ...`。详见[仓库拉取与切换记录](container-deployment.md)。
 
 下列记录中的 systemd 启动方式仅描述历史发布。当前排查服务请用 Docker Compose 状态和日志，不再启动已退役的系统服务。
+
+## 2026年10月18日浏览器独立对照页
+
+已部署 `0.8.2`，构建 `48f2a80acdfa`，UI `a77d24fa94ff`。嵌入式 App 中的“在浏览器中打开填写对照页”现在是链接，点击先只读取得最新指引，再通过 `ui/open-link` 请求客户端打开，不在 App 内切换视图；下载网页继续可用。打开位置由宿主客户端决定，不把已发送打开请求当成浏览器已显示。
+
+用户明确选择 IP 加端口进行临时测试，因此在 `http://129.204.29.242:18080` 开启独立只读页面监听器；仅随机令牌路径可读，根路径及 `/mcp` 返回 404。MCP 仍仅通过 `127.0.0.1:18081` 和既有 SSH/Tunnel 访问。链接有效期 15 分钟，资料或任务版本变化、服务重启后失效；无缓存、无索引、无第三方脚本。HTTP 入口仅用于当前临时测试，正式入口切换 HTTPS。
+
+11 个自动测试文件通过。真实 Chromium 与 MCP 测试桥验证 App 保留原任务视图、打开链接请求、独立 HTTP 页面加载、下载和原任务生命周期；服务器镜像发布检查、容器健康和原数据校验和检查通过。使用真实 MCP 只读取得现有申请链接，从服务器外访问独立页面返回 200，公网页端口 POST `/mcp` 返回 404。实际连接确认新版本及原任务仍处于等待填写。桌面浏览器打开请求在开发会话中返回 queued，不能据此认定用户测试会话右侧已经打开，需由用户点击链接验收。
 
 ## 2026年10月18日任务专注界面与填写对照页
 

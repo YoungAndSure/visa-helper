@@ -8,9 +8,11 @@ import { ApplicationStore, PATH, WorkflowError } from "./workflow.js";
 import { advanceInputSchema, advanceOutputSchema, interviewReply } from "./interview.js";
 import { APP_VERSION, WIDGET_HTML, UI_RESOURCE_URI, serverInfo, checkClient } from "./release.js";
 import { advanceTaskInputSchema, TaskError } from "./tasks.js";
+import { GuideLinks, createGuideHandler, renderGuideHtml } from "./form-guide.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const defaultStore = new ApplicationStore(process.env.VISA_HELPER_DATA_FILE ?? join(here, "../data/applications.json"));
+const defaultGuideLinks = new GuideLinks();
 const resourceUri = UI_RESOURCE_URI;
 const instructions = `Use advance_application as the ONLY interview/progress interface for both guided single-question answers and whole travel-plan descriptions. On first use call it with answers:{} and clientTools listing the Visa Helper tools YOU CAN ACTUALLY INVOKE, to obtain an application ID, revision and questionCatalog. Reuse that ID throughout; to resume, call with applicationId and OMIT answers, never send {} to read. get_server_info remains optional diagnostics. When supplying clientTools, list only tools you can actually invoke; never fabricate an inventory. If clientTools was omitted, compare returned serverInfo.requiredClientTools against your actual tool inventory before continuing. A not_checked result is not proof of compatibility. Missing tools must be reported with serverInfo version/build while preserving the application.
 GPT owns natural-language understanding and the COMPLETE questionId-to-canonical-string answer map; MCP owns validation, persistence, decision-tree routing and nextAction. Offer a brief choice of answering one question at a time or describing a whole plan. No separate mode or workflow. Use questionCatalog IDs, option.value codes and unambiguous YYYY-MM-DD dates. Reuse every explicit fact from the conversation, including later branches, before asking anything. After each answer or paragraph update the COMPLETE map and submit it with applicationId and latest revision. This is full replacement: omitted fields are withdrawn, not retained. Keep unchanged facts; omit unknown/withdrawn facts. Use returned answers as the accepted baseline. Never invent an answer, treat silence as no, or change facts merely to match an option.
@@ -49,7 +51,7 @@ async function safely(action) {
   }
 }
 
-export function createVisaServer(store = defaultStore) {
+export function createVisaServer(store = defaultStore, guideLinks = defaultGuideLinks) {
   const server = new McpServer({ name: "visa-helper", version: APP_VERSION }, { instructions });
   const contracts = [];
   const currentInfo = () => serverInfo(contracts, store.configDir);
@@ -72,7 +74,9 @@ export function createVisaServer(store = defaultStore) {
         receivedAt: receipt?.receivedAt ?? null,
       } : undefined;
       return { ...result, structuredContent: { ...result.structuredContent, serverInfo: info, ...(presentation ? { presentation } : {}) },
-        _meta: { ...result._meta, serverInfo: info } };
+        _meta: { ...result._meta, serverInfo: info, ...(application?.taskFlow ? {
+          guideLink: guideLinks.create(application, application.taskFlow), guideDocument: renderGuideHtml(application.taskFlow),
+        } : {}) } };
     });
   }
 
@@ -207,4 +211,10 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
   httpServer.listen(port, host, () => {
     console.log(`Visa Helper MCP App listening on http://${host}:${port}/mcp`);
   });
+  if (defaultGuideLinks.baseUrl) {
+    const guidePort = Number(process.env.VISA_HELPER_GUIDE_PORT ?? 8788);
+    createServer(createGuideHandler(defaultStore, defaultGuideLinks)).listen(guidePort, host, () => {
+      console.log(`Visa Helper read-only guide listener on port ${guidePort}`);
+    });
+  }
 }
