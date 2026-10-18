@@ -42,7 +42,7 @@ export function publicState(record, configDir = DEFAULT_CONFIG_DIR, evaluation) 
     tasks,
     activeTask: tasks.find((task) => task.id === record.activeTaskId) ?? null,
     taskFlow: record.activeTaskId && tasks.some((task) => task.id === record.activeTaskId)
-      ? taskState(record.activeTaskId, record.taskProgress?.[record.activeTaskId]) : null,
+      ? taskState(record.activeTaskId, record.taskProgress?.[record.activeTaskId], record.answers) : null,
     uiReceipt: record.uiReceipt ?? null,
     reviewNotes: result.reviewNotes ?? [],
     reason: result.reason?.replaceAll("本模拟", "当前流程").replaceAll("当前模拟", "当前版本") ?? null,
@@ -168,7 +168,7 @@ export class ApplicationStore {
       if (state.status !== "tasks_ready") throw new WorkflowError("QUESTIONS_INCOMPLETE", "请先补齐申请信息。");
       if (!state.tasks.some((task) => task.id === taskId)) throw new WorkflowError("TASK_NOT_FOUND", "任务不在当前清单中。");
       if (!supportsTask(taskId)) throw new WorkflowError("TASK_NOT_IMPLEMENTED", "这项材料的独立流程尚未开放。");
-      return { application: state, taskFlow: taskState(taskId, record.taskProgress?.[taskId]) };
+      return { application: state, taskFlow: taskState(taskId, record.taskProgress?.[taskId], record.answers) };
     }
     return this.mutate((records) => {
       const record = records[applicationId];
@@ -182,7 +182,7 @@ export class ApplicationStore {
       record.taskProgress[taskId] = advanceTask(progress, { revision, event, data });
       record.activeTaskId = taskId;
       record.updatedAt = new Date().toISOString();
-      return { application: publicState(record, this.configDir), taskFlow: taskState(taskId, record.taskProgress[taskId]) };
+      return { application: publicState(record, this.configDir), taskFlow: taskState(taskId, record.taskProgress[taskId], record.answers) };
     });
   }
 

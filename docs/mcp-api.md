@@ -1,6 +1,6 @@
 # Visa Helper MCP 接口
 
-应用版本 `0.8.0`，问答协议 `1.0`。MCP 服务仅注册以下 **6 个工具**，其中 5 个供 GPT 调用，1 个仅供 App UI 调用。问答全过程只使用 `advance_application`；其他接口分别负责展示、材料处理和诊断。
+应用版本 `0.8.1`，问答协议 `1.0`。MCP 服务仅注册以下 **6 个工具**，其中 5 个供 GPT 调用，1 个仅供 App UI 调用。问答全过程只使用 `advance_application`；其他接口分别负责展示、材料处理和诊断。
 
 ## 接口总览
 
@@ -76,7 +76,11 @@
 - `data.checks`：自查项 ID 到布尔值的映射；`filled`、`signed` 只记录用户明确确认。
 - `data.review`：可选辅助检查报告，包含 `documentRead`、已读页码、逐项 checks 和 findings（issue、unreadable 或 note）。仅由 GPT 确实读取聊天附件后提交；MCP 不保存原附件，不执行独立 OCR，也不将此结果标为官方审核通过。
 
-返回 `application`、`taskFlow`、`nextAction`。事件只能从返回的 `nextAction.events` 选择：`GUIDE_READY`、`FILLED`、`SELF_CHECK`、`ASSISTED_CHECK`、`REVIEW`、`FINISH`、`RETRY`、`EDIT`。
+返回 `application`、`taskFlow`、`nextAction`。指引的每个字段带 `reference`（原表页码及项目）、`value`、`guidance` 和 `valueStatus`。明确的已保存任务字段优先；可直接确定的申请答案（现居中国且中国国籍、旅游目的、仅冰岛目的地及已确认日期）自动用于展示，不猜测首入国、入境次数、出生国等未知信息。派生展示不改写任务快照；申请变化时仍要求重新核对。
+
+清单选择任务后默认收起，顶部显示已完成数量和进度，右上角“全部任务”可展开或收起。任务中可查看独立填写对照页：已知项目显示填写内容，未知项目直接显示说明；通过宿主下载通道输出可独立打开、可打印的 HTML 网页，内容使用文本节点转义。
+
+事件只能从返回的 `nextAction.events` 选择：`GUIDE_READY`、`FILLED`、`SELF_CHECK`、`ASSISTED_CHECK`、`REVIEW`、`FINISH`、`RETRY`、`EDIT`。
 
 原 PDF 始终可下载；指引可包含待确认项。自行检查允许不提供个人字段、不上传文件完成。FINISH 要求填妥、签字及全部自查项确认；辅助检查分支还要求报告覆盖四页、各检查项通过、无未解决错误或模糊项。记录区分 `user_self_check` 与 `assistant_reported_review`，均由用户最终确认。任何辅助检查步骤可切回自行检查。
 

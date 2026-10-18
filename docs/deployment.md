@@ -1,14 +1,20 @@
 # ChatGPT MCP App 部署与测试
 
-当前版本为 `0.8.0`，问答协议 `1.0`。服务注册 6 个接口：`advance_application`、`get_task_queue`、`start_task`、`advance_task`、`get_server_info` 和仅供 App 使用的 `report_ui_ready`。七个旧问答或重复入口、原生表单实现及旧 UI 资源别名均已删除，不提供旧接口兼容。接口参数与职责见 [MCP 接口说明](mcp-api.md)，问答循环见[完整问答协议](interview-protocol.md)。
+当前版本为 `0.8.1`，问答协议 `1.0`。服务注册 6 个接口：`advance_application`、`get_task_queue`、`start_task`、`advance_task`、`get_server_info` 和仅供 App 使用的 `report_ui_ready`。七个旧问答或重复入口、原生表单实现及旧 UI 资源别名均已删除，不提供旧接口兼容。接口参数与职责见 [MCP 接口说明](mcp-api.md)，问答循环见[完整问答协议](interview-protocol.md)。
 
 ## 当前部署方式
 
 当前已改用 Docker 镜像，详见[镜像构建与部署](container-deployment.md)。正式容器为 `visa-helper-mcp-server-1`，使用原有数据目录和 `127.0.0.1:18081`。旧版 `18080` 容器已删除，直接运行 Node 的 systemd 服务已停用并移除。SSH 转发与 Secure MCP Tunnel 保持原路径；本次新增任务接口并更新运行指纹。
 
-当前容器已使用腾讯云仓库 `ccr.ccs.tencentyun.com/visa-helper/visa-helper` 的固定摘要镜像运行，服务器直接拉取、独立数据预检、正式切换和原申请恢复均通过。`current` 指向 `releases/0.8.0-8e992a64cc53-registry`。仓库凭据位于服务器 `ubuntu` 用户配置，命令需使用 `sudo docker --config /home/ubuntu/.docker ...`。详见[仓库拉取与切换记录](container-deployment.md)。
+当前容器已使用腾讯云仓库 `ccr.ccs.tencentyun.com/visa-helper/visa-helper` 的固定摘要镜像运行，服务器直接拉取、独立数据预检、正式切换和原申请恢复均通过。`current` 指向 `releases/0.8.1-565fae4fcce8-registry`。仓库凭据位于服务器 `ubuntu` 用户配置，命令需使用 `sudo docker --config /home/ubuntu/.docker ...`。详见[仓库拉取与切换记录](container-deployment.md)。
 
 下列记录中的 systemd 启动方式仅描述历史发布。当前排查服务请用 Docker Compose 状态和日志，不再启动已退役的系统服务。
+
+## 2026年10月18日任务专注界面与填写对照页
+
+已部署 `0.8.1`，构建 `565fae4fcce8`，UI `8bc04e2a3916`。选择任务后默认收起总清单，顶部显示已完成数量与进度，右上角“全部任务”可展开、切换和收起。填写指引有独立对照页，已知项目显示填写内容，未知项目给出说明；通过宿主下载通道输出可独立打开、可打印的 HTML 网页，仍由用户填写原 PDF。可直接确定的申请资料自动用于对照展示，未知首入国、入境次数等不猜测。
+
+沿用六个工具和原任务模型版本，工具指纹仍为 `735ec322dc9a`；无需为本次更新创建新对话。原会话重新调用 `get_task_queue` 打开清单即可加载新版页面。服务器从腾讯云镜像仓库拉取并切换，原申请数据校验和未变化；容器健康与发布检查通过，真实 Visa Helper 连接确认新版本。10 个自动测试文件通过；真实 Chromium 与 MCP 测试桥验证默认折叠、展开收起、完成进度、已知值、未知项目说明、安全 HTML 下载及原任务完成/重开流程。真实宿主页面呈现仍由用户继续验收。
 
 ## 2026年10月18日申根申请表任务
 

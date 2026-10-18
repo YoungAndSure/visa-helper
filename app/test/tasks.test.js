@@ -28,7 +28,9 @@ const checked = (flow) => Object.fromEntries(flow.checkCatalog.map((check) => [c
 test("self-check completes without uploading or sharing any personal fields, persists, resumes and reopens", async () => {
   const f = await fixture();
   assert.match(f.flow.source.formUrl, /\.pdf$/);
-  assert.equal(f.flow.guide.every((field) => field.value === null), true);
+  assert.equal(f.flow.guide.find((field) => field.id === "1").value, null);
+  assert.equal(f.flow.guide.find((field) => field.id === "23").value, "Tourism");
+  assert.equal(f.flow.guide.find((field) => field.id === "27.arrival").value, "01-06-2027");
   await f.step("GUIDE_READY");
   await f.step("FILLED", { ...f.flow.data, filled: true });
   await f.step("SELF_CHECK");
@@ -81,6 +83,22 @@ test("stale revisions, out-of-order events and unsupported fields do not mutate 
   assert.equal(result.taskFlow.node, "filling");
   assert.equal(result.taskFlow.data.fields["1"], "TEST");
   assert.equal(result.taskFlow.revision, 1);
+});
+
+test("form guide uses confirmed application facts and saved fields without guessing missing facts", async () => {
+  const f = await fixture();
+  const guide = () => Object.fromEntries(f.flow.guide.map((field) => [field.id, field]));
+  assert.equal(guide()["20"].value, "No");
+  assert.equal(guide()["25"].value, "Iceland");
+  assert.equal(guide()["26"].value, null); // Flight route, not destination alone, determines first entry.
+  assert.equal(guide()["27.entries"].value, null);
+  assert.equal(guide()["1"].guidance.length > 0, true);
+  assert.equal(guide()["27.arrival"].reference, "第 2 页 · 第 27 项");
+  assert.equal(guide()["27.arrival"].valueStatus, "from_application");
+  await f.step(undefined, { ...f.flow.data, fields: { "1": "TEST", "25": "Iceland (confirmed itinerary)" } });
+  assert.equal(guide()["1"].value, "TEST");
+  assert.equal(guide()["25"].value, "Iceland (confirmed itinerary)");
+  assert.deepEqual(f.flow.data.fields, { "1": "TEST", "25": "Iceland (confirmed itinerary)" });
 });
 
 test("changing interview facts invalidates checks without losing user field notes", async () => {

@@ -28,6 +28,14 @@
     td, th { text-align: left; border-bottom: 1px solid #dce5e9; padding: 8px; vertical-align: top; white-space: pre-wrap; overflow-wrap: anywhere; }
     label.check { display: block; margin: 12px 0; line-height: 1.5; }
     .actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+    .workspace-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .workspace-header h2 { margin: 0; }
+    progress { width: 100%; height: 9px; accent-color: #176e65; }
+    .guide-item { padding: 14px 0; border-bottom: 1px solid #dce5e9; break-inside: avoid; }
+    .guide-item h3 { margin: 4px 0 8px; font-size: 1rem; }
+    .guide-value { background: #edf6f3; color: #173c32; padding: 10px 12px; border-radius: 8px; white-space: pre-wrap; overflow-wrap: anywhere; }
+    .guide-instruction { line-height: 1.6; margin: 8px 0; }
+    [hidden] { display: none !important; }
     a { color: #176e65; }
     @media (prefers-color-scheme: dark) {
       body { background: #1a2831; color: #e7eff3; }
@@ -35,6 +43,8 @@
       .notice { background: #3a3321; }
       .panel, .task { border-color: #35505f; }
       .secondary { background: #354b57; color: #e7eff3; }
+      .guide-value { background: #244b41; color: #e7eff3; }
+      .guide-item { border-color: #35505f; }
     }
   </style>
 </head>
@@ -57,6 +67,8 @@
     let versionMismatch = false;
     let lastReceiptKey = null;
     let application = null;
+    let tasksExpanded = false;
+    let guideOpen = false;
     let busy = false;
     let hydrationStartedFor = null;
     let rpcId = 0;
@@ -81,6 +93,9 @@
       }
       const fullState = result?._meta?.application ?? result?.structuredContent?.application;
       if (fullState?.id) {
+        if (fullState.id !== application?.id || fullState.activeTask?.id !== application?.activeTask?.id) {
+          tasksExpanded = false; guideOpen = false;
+        }
         application = fullState.id === application?.id && fullState.status === "tasks_ready" && !Array.isArray(fullState.tasks)
           ? { ...application, ...fullState }
           : fullState;
@@ -173,16 +188,40 @@
         } }));
       });
     }
+    function guideContents(flow) {
+      const section = element("section", "", "form-guide");
+      section.append(element("h2", "申请表填写对照页"),
+        element("p", "按原表编号对照填写。已有信息给出填写内容，其余项目说明需要填什么；请自行核对并填写原始 PDF。", "muted"));
+      if (flow.needsRecheck) section.append(element("p", "申请资料有变化，以下内容需要重新核对。", "notice"));
+      for (const field of flow.guide) {
+        const item = element("section", "", "guide-item");
+        item.append(element("small", field.reference, "muted"), element("h3", field.label));
+        if (field.value !== null) {
+          item.append(element("div", field.value, "guide-value"));
+          item.append(element("p", "填写提示：" + field.guidance, "muted"));
+        } else item.append(element("p", "请填写：" + field.guidance, "guide-instruction"));
+        section.append(item);
+      }
+      return section;
+    }
     function downloadGuide(flow) {
-      const lines = ["统一申根签证申请表 · 填写对照表", "这份指引不是正式申请表；请自行填写原表并签字。",
-        `原表：${flow.source.formUrl}`, flow.needsRecheck ? "申请情况已变化，全部字段需要重新核对。" : "",
-        ...flow.guide.map((field) => `\n第 ${field.id} 项 · ${field.label}（第 ${field.page} 页）\n填写内容：${field.value ?? "待确认"}\n说明：${field.guidance}`),
-        "\n自查：", ...flow.checkCatalog.map((check) => `□ ${check.label}`), "□ 已填妥并由本人签字"];
+      const body = guideContents(flow);
+      const original = element("a", "下载官方原始申请表 PDF"); original.href = flow.source.formUrl;
+      body.prepend(original);
+      const checkSection = element("section", "", "guide-item");
+      checkSection.append(element("h2", "填好后的自查"));
+      for (const check of flow.checkCatalog) checkSection.append(element("p", "□ " + check.label));
+      checkSection.append(element("p", "□ 已填妥并由本人按要求签字"));
+      body.append(checkSection);
+      // All user values are DOM text nodes before serialization, never interpolated into HTML.
+      const html = '<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">'
+        + '<title>申根申请表填写对照页</title><style>body{font:16px/1.6 system-ui,sans-serif;color:#172d36;background:#fff;max-width:850px;margin:auto;padding:24px}.guide-item{padding:12px 0;border-bottom:1px solid #ddd;break-inside:avoid}.guide-item h3{margin:4px 0}.guide-value{background:#edf6f3;padding:12px;white-space:pre-wrap;overflow-wrap:anywhere}.muted{color:#596c77}.notice{padding:12px;background:#fff6dc}@media print{body{padding:0;font-size:11pt}a{color:inherit}}</style><body>'
+        + body.outerHTML + '</body></html>';
       return perform(async () => {
         const result = await request("ui/download-file", { contents: [{ type: "resource", resource: {
-          uri: "file:///schengen-form-guide.txt", mimeType: "text/plain", text: lines.join("\n"),
+          uri: "file:///schengen-form-guide.html", mimeType: "text/html", text: html,
         } }] });
-        if (result?.isError) throw new Error("下载未获允许，可展开填写指引查看或复制。");
+        if (result?.isError) throw new Error("下载未获允许，可打开填写对照页查看或复制。");
       });
     }
     function renderTaskFlow(panel, flow, task) {
@@ -196,21 +235,21 @@
         });
       });
       panel.append(original, element("p", "可自行手写或用软件填写；无需先提供个人资料，也无需上传表格。", "muted"));
-      panel.append(element("h2", flow.nextAction.title), element("p", flow.nextAction.guidance));
+      const stepGuidance = {
+        prepare: "先看看每一项需要填什么。已有的申请信息会整理到填写对照页中，不确定的内容可以在对话中补充。",
+        filling: "打开填写对照页，一边对照，一边填写原始申请表。你可以使用软件，也可以打印后手写。",
+        review_choice: "表格填好后，可以按清单自行核对，也可以自愿上传，让助手协助检查。",
+        self_check: "请逐项核对下面的内容，确认表格已填妥并签字。无需上传表格。",
+        await_upload: "如果愿意，请在当前聊天中上传 PDF 或清晰照片。也可以随时改为自行检查。",
+        assisted_check: "请查看检查结果并处理提示的问题，最后确认表格已填妥并签字。",
+        done: "这项材料已准备好。需要修改时，可以重新打开并核对。",
+      };
+      panel.append(element("h2", flow.nextAction.title), element("p", stepGuidance[flow.node] ?? flow.nextAction.title));
       if (flow.needsRecheck) panel.append(element("p", "申请资料已变化，请重新核对填写内容；旧检查和完成确认已清除。", "notice"));
-      const guide = element("details", "");
-      guide.append(element("summary", "查看逐项填写指引（缺少的信息标注待确认）"));
-      const table = document.createElement("table");
-      const head = document.createElement("tr");
-      for (const title of ["位置与字段", "填写内容", "填写说明"]) head.append(element("th", title));
-      table.append(head);
-      for (const field of flow.guide) {
-        const row = document.createElement("tr");
-        row.append(element("td", `第${field.page}页 · ${field.id} ${field.label}`), element("td", field.value ?? "待确认"), element("td", field.guidance));
-        table.append(row);
-      }
-      guide.append(table); panel.append(guide);
-      panel.append(button("下载填写对照表", () => downloadGuide(flow), "secondary"));
+      const known = flow.guide.filter((field) => field.value !== null).length;
+      panel.append(element("p", `已整理 ${known} 项填写内容，其余项目提供填写说明。`));
+      panel.append(button("查看填写对照页", () => { guideOpen = true; render(); }));
+      panel.append(button("下载网页版对照表", () => downloadGuide(flow), "secondary"));
       const actions = element("div", "", "actions");
       if (flow.nextAction.events.includes("GUIDE_READY")) actions.append(button("使用填写指引", () => taskEvent("GUIDE_READY")));
       if (flow.nextAction.events.includes("FILLED")) actions.append(button("我已填好，选择检查方式", () => taskEvent("FILLED", { ...flow.data, filled: true })));
@@ -276,9 +315,27 @@
         })))));
         return;
       }
-      content.append(element("p", `共 ${application.tasks.length} 项材料。选择一项开始准备，每项对应一份文件。`));
-      content.append(element("p", application.notice, "muted"));
       const activeTask = application.activeTask;
+      document.querySelector("h1").textContent = guideOpen ? "申请表填写指引" : activeTask ? "准备当前材料" : "你的签证材料清单";
+      const completed = application.tasks.filter((task) => task.status === "done").length;
+      const header = element("div", "", "workspace-header");
+      header.append(element("h2", `已完成 ${completed} / ${application.tasks.length} 项材料`));
+      if (activeTask && !guideOpen) {
+        const toggle = button(tasksExpanded ? "收起任务" : "全部任务", () => { tasksExpanded = !tasksExpanded; render(); }, "secondary");
+        toggle.setAttribute("aria-expanded", String(tasksExpanded)); toggle.setAttribute("aria-controls", "all-tasks");
+        header.append(toggle);
+      }
+      content.append(header);
+      const progress = document.createElement("progress"); progress.max = application.tasks.length; progress.value = completed;
+      progress.setAttribute("aria-label", "材料准备完成进度"); content.append(progress);
+      if (guideOpen && application.taskFlow) {
+        const flow = application.taskFlow;
+        content.append(button("返回当前任务", () => { guideOpen = false; render(); }, "secondary"));
+        content.append(button("下载网页版对照表", () => downloadGuide(flow)));
+        content.append(guideContents(flow));
+        return;
+      }
+      if (!activeTask) content.append(element("p", "选择一项材料开始准备。"));
       const recommended = activeTask ?? application.tasks[0];
       if (recommended) {
         const next = element("section", "", "panel");
@@ -298,6 +355,7 @@
         content.append(next);
       }
       const list = element("section", "", "panel");
+      list.id = "all-tasks"; list.hidden = Boolean(activeTask && !tasksExpanded);
       list.append(element("h2", "全部材料"));
       application.tasks.forEach((task, index) => {
         const row = element("div", "", "task");
@@ -308,6 +366,7 @@
         list.append(row);
       });
       content.append(list);
+      content.append(element("p", application.notice, "muted"));
       for (const note of application.reviewNotes ?? []) content.append(element("p", `待核实：${note}`, "notice"));
       content.append(element("p", "情况有变化？直接在对话中说明，材料清单会随答案重新计算。", "muted"));
     }

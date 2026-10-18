@@ -170,3 +170,7 @@ ccr.ccs.tencentyun.com/visa-helper/visa-helper:0.7.0-589a244540ab
 当前镜像标签为 `0.8.0-8e992a64cc53`，仓库摘要 `sha256:96f025128f7c1f526630deeccb73962676b09208bf605e5ce29ffce692a3a5b7`。发布目录为 `/home/ubuntu/visa-helper-mcp/releases/0.8.0-8e992a64cc53-registry`，`current` 已切换到该目录。服务器从仓库直接拉取，沿用原数据挂载；切换前备份到 `backups/before-pdf-task-*`，切换后原文件校验和未变化。旧发布目录保留供回退。最终容器健康检查及镜像内发布检查通过；真实 Visa Helper 连接已确认更新到新版本。
 
 本次增加独立申请表任务配置，镜像包含 `config/tasks/`，版本信息增加 `taskWorkflow` 模型指纹。构建和发布检查要求六个工具且包含 `advance_task`。此变更要求宿主重载工具列表、重新打开材料清单；不改变 Tunnel 路径和服务器端口。
+
+## 2026年10月18日任务界面更新
+
+当前镜像 `0.8.1-565fae4fcce8`，仓库摘要 `sha256:7b8693315fa9d80fad3f6460c7520bb94f13d4c53c6e106de90a0707996d8b72`，发布目录 `/home/ubuntu/visa-helper-mcp/releases/0.8.1-565fae4fcce8-registry`，`current` 已切换。更新前数据备份在 `backups/before-focused-guide-*`，更新后校验和不变。容器健康、HTTP/MCP 发布检查及实际 Visa Helper 连接确认通过。工具集合、接口契约和任务模型指纹未变化；此次主要更新任务专注界面及基于已确认资料的网页版填写对照表。

@@ -1,6 +1,6 @@
 # Visa Helper MCP App
 
-首版在 ChatGPT 中完成一位申请人的材料决策树，走到终点后展示 MCP App 材料工作台。`0.8.0` 的第一阶段统一使用 `advance_application`：逐题回答或整段描述均由 GPT 整理为完整问答快照，服务端校验、保存并从根节点执行 XState，返回明确类型的下一步。问答阶段不加载自建 App。完整约定见 [GPT 与 MCP 问答协议](../docs/interview-protocol.md)。
+首版在 ChatGPT 中完成一位申请人的材料决策树，走到终点后展示 MCP App 材料工作台。`0.8.1` 的第一阶段统一使用 `advance_application`：逐题回答或整段描述均由 GPT 整理为完整问答快照，服务端校验、保存并从根节点执行 XState，返回明确类型的下一步。问答阶段不加载自建 App。完整约定见 [GPT 与 MCP 问答协议](../docs/interview-protocol.md)。
 
 当前材料依据是用户提供的 **2025 年冰岛旅游审核表**，官方现行要求仍待复核；申请记录按用户实际准备申请处理。工作台支持选择材料、记录「准备中」并回到对话准备这一项；文件上传、生成和完成验收尚未实现。
 
@@ -66,8 +66,12 @@ UI 使用 MCP Apps 的 `ui/initialize`、`ui/notifications/tool-result`、`tools
 
 ## 申根申请表任务
 
-`config/tasks/schengen-form-v1.json` 定义字段、自查项和 XState 流程；`src/tasks.js` 执行流程，任务实例、版本、完整数据和执行历史保存在申请的 `taskProgress.schengen_form`。原 PDF 随时下载；对照表可下载为文字文件，用户自行填表。上传是可选的，用户可按自查清单确认填妥和签字后完成。辅助检查由 GPT 读取聊天附件后提交观察结果；服务不保存原附件，也不执行独立 OCR。
+`config/tasks/schengen-form-v1.json` 定义字段、自查项和 XState 流程；`src/tasks.js` 执行流程，任务实例、版本、完整数据和执行历史保存在申请的 `taskProgress.schengen_form`。原 PDF 随时下载；对照表可查看或下载为独立 HTML 网页，用户自行填表。上传是可选的，用户可按自查清单确认填妥和签字后完成。辅助检查由 GPT 读取聊天附件后提交观察结果；服务不保存原附件，也不执行独立 OCR。
 
 生成图：`npm run task:graph`。回放：`npm run task:replay -- APPLICATIONS_FILE APPLICATION_ID`，只读验证配置指纹、每步输入和最终状态，不输出个人字段。[任务流程图](../docs/task-workflow-graph.md)。
 
 聊天测试：刷新 Visa Helper 连接后新开对话，恢复已有申请并打开材料清单，点击第一项“统一申根签证申请表”。可以先下载原表和填写对照表，再点击已填好、选择自行检查、逐项确认并确认签字，最后完成任务。也可选择自愿上传，在聊天中提供文件，由 GPT 辅助检查；不愿继续上传时随时切回自查。其他材料的独立准备流程尚未实现。
+
+### 任务专注界面
+
+选择材料后总清单默认收起，右上角“全部任务”展开后可切换任务，顶部进度只按实际完成项计算。填写对照页独立展示原表编号、已知填写内容或未知项目的填写说明，也能下载为可打印 HTML；用户仍自行填写原 PDF。已有明确申请资料会自动显示在对照页，缺失内容不猜测。此更新不增加工具、不修改任务模型版本，已有任务无需重建。

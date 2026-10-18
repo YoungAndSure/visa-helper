@@ -70,7 +70,19 @@ export function replayTaskHistory(progress) {
   return { valid: true, node: replayed.node, revision: replayed.revision, transitions: progress.history.length, modelHash };
 }
 
-export function taskState(id, progress) {
+function knownFormValues(answers) {
+  const values = {};
+  if (answers.nationality === "CN" && answers.residence === "CN") values["20"] = "No";
+  if (answers.purpose === "tourism") values["23"] = "Tourism";
+  if (answers.destination === "IS" && answers.otherSchengenCountries === "no") values["25"] = "Iceland";
+  const formDate = (value) => typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value)
+    ? value.split("-").reverse().join("-") : null;
+  if (formDate(answers.arrivalDate)) values["27.arrival"] = formDate(answers.arrivalDate);
+  if (formDate(answers.departureDate)) values["27.departure"] = formDate(answers.departureDate);
+  return values;
+}
+
+export function taskState(id, progress, applicationAnswers = {}) {
   if (!supportsTask(id)) return null;
   const current = progress?.version ? progress : newTaskProgress();
   if (current.version !== definition.version || current.modelHash !== modelHash) {
@@ -78,12 +90,15 @@ export function taskState(id, progress) {
   }
   const node = definition.machine.states[current.node];
   if (!node) throw new TaskError("TASK_STATE_INVALID", "任务状态无效，不能继续。");
+  const knownValues = knownFormValues(applicationAnswers);
   return { taskId: id, version: current.version, modelHash, revision: current.revision, node: current.node,
     status: current.status, data: current.data, confirmation: current.confirmation,
     needsRecheck: current.needsRecheck ?? false, source: definition.source,
     fieldCatalog: definition.fields, checkCatalog: definition.checks,
-    guide: definition.fields.map((field) => ({ ...field, value: current.data.fields[field.id] ?? null,
-      valueStatus: current.data.fields[field.id] ? "provided" : "needs_confirmation" })),
+    guide: definition.fields.map((field) => ({ ...field,
+      reference: field.id === "signature" ? `第 ${field.page} 页 · 签字区` : `第 ${field.page} 页 · 第 ${field.id.split(".")[0]} 项`,
+      value: current.data.fields[field.id] ?? knownValues[field.id] ?? null,
+      valueStatus: current.data.fields[field.id] ? "provided" : knownValues[field.id] ? "from_application" : "needs_confirmation" })),
     nextAction: { type: node.meta.action, title: node.meta.title, guidance: node.meta.guidance,
       events: Object.keys(node.on ?? {}), tool: "advance_task" } };
 }
