@@ -25,7 +25,7 @@ docker build --platform linux/amd64 --build-arg "NODE_IMAGE=$node_image" \
 docker run --rm --network none "$image_tag" node --input-type=module -e '
   import { createVisaServer } from "./src/server.js";
   const info = createVisaServer().releaseInfo();
-  if (info.buildHash !== process.argv[1] || info.rules.engine !== "xstate" || info.tools.length !== 5) process.exit(1);
+  if (info.buildHash !== process.argv[1] || info.rules.engine !== "xstate" || !info.tools.includes("advance_task") || info.tools.length !== 6) process.exit(1);
   console.log(JSON.stringify({ version: info.version, build: info.buildHash, tools: info.tools.length, engine: info.rules.engine }));
 ' "$app_build_hash"
 

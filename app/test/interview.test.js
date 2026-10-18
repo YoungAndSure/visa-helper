@@ -38,7 +38,7 @@ test("bootstrap rejects an incompatible actual tool inventory before creating an
   assert.equal(result.isError, true);
   assert.equal(result.structuredContent.nextAction.type, "blocked");
   assert.equal(result.structuredContent.nextAction.code, "CLIENT_TOOLS_MISMATCH");
-  assert.deepEqual(result.structuredContent.compatibility.missingTools, ["advance_application", "get_task_queue"]);
+  assert.deepEqual(result.structuredContent.compatibility.missingTools, ["advance_application", "get_task_queue", "advance_task"]);
   assert.deepEqual(await store.readAll(), {});
 });
 
@@ -50,7 +50,7 @@ test("one interface supports guided and paragraph snapshots and hands off only a
   assert.ok(tool.outputSchema);
   assert.equal(tool._meta?.ui?.resourceUri, undefined);
   assert.ok(tool.description.includes("COMPLETE"));
-  assert.deepEqual(tools.map((tool) => tool.name).sort(), ["advance_application", "get_server_info", "get_task_queue", "report_ui_ready", "start_task"]);
+  assert.deepEqual(tools.map((tool) => tool.name).sort(), ["advance_application", "advance_task", "get_server_info", "get_task_queue", "report_ui_ready", "start_task"]);
   let guided = await advance({ answers: {} });
   assert.equal(guided.protocolVersion, "1.0");
   assert.equal(guided.revision, 1);

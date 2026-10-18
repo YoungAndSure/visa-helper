@@ -9,7 +9,7 @@ import { createVisaServer } from "../src/server.js";
 import { ApplicationStore } from "../src/workflow.js";
 
 const removed = ["open_visa_helper", "create_application", "get_application", "get_questions", "submit_answers", "ask_next_question", "show_material_checklist"];
-test("MCP exposes exactly five tools and rejects removed endpoints and resource aliases", async () => {
+test("MCP exposes exactly six tools and rejects removed endpoints and resource aliases", async () => {
   const dir = await mkdtemp(join(tmpdir(), "visa-helper-mcp-"));
   const store = new ApplicationStore(join(dir, "applications.json"));
   const server = createVisaServer(store);
@@ -18,11 +18,11 @@ test("MCP exposes exactly five tools and rejects removed endpoints and resource 
   try {
     await server.connect(st); await client.connect(ct);
     const { tools } = await client.listTools();
-    assert.deepEqual(tools.map((t) => t.name).sort(), ["advance_application", "get_server_info", "get_task_queue", "report_ui_ready", "start_task"]);
+    assert.deepEqual(tools.map((t) => t.name).sort(), ["advance_application", "advance_task", "get_server_info", "get_task_queue", "report_ui_ready", "start_task"]);
     for (const name of removed) await assert.rejects(client.callTool({ name, arguments: {} }), /not found|not exist|unknown/i);
     assert.deepEqual(await store.readAll(), {});
     const modelTools = tools.filter((t) => t._meta?.ui?.visibility?.includes("model") ?? true);
-    assert.equal(modelTools.length, 4);
+    assert.equal(modelTools.length, 5);
     assert.deepEqual(tools.find((t) => t.name === "report_ui_ready")._meta.ui.visibility, ["app"]);
     assert.equal(tools.find((t) => t.name === "advance_application")._meta?.ui?.resourceUri, undefined);
     const { resources } = await client.listResources();

@@ -1,0 +1,388 @@
+{
+  "id": "schengen_form",
+  "version": "schengen-form-v1",
+  "title": "统一申根签证申请表",
+  "source": {
+    "url": "https://www.vfsglobal.com/one-pager/iceland/china/chinese/index.html",
+    "formUrl": "https://www.vfsglobal.com/one-pager/iceland/china/chinese/pdf/Schengen-Visa-Form-EN-CN-Mar-2025.pdf",
+    "verifiedDate": "2026-10-18",
+    "pages": 4,
+    "note": "已核对VFS中国页面提供的PDF和填写说明；未确认是否另有适用于中国申请人的在线填表要求。"
+  },
+  "fields": [
+    {
+      "id": "1",
+      "label": "姓",
+      "guidance": "与护照姓氏栏一致。",
+      "group": "identity",
+      "page": 1
+    },
+    {
+      "id": "2",
+      "label": "出生时姓氏／曾用姓",
+      "guidance": "确认是否与现姓不同，按实际情况填写。",
+      "group": "identity",
+      "page": 1
+    },
+    {
+      "id": "3",
+      "label": "名",
+      "guidance": "与护照名字栏一致。",
+      "group": "identity",
+      "page": 1
+    },
+    {
+      "id": "4",
+      "label": "出生日期",
+      "guidance": "按表格日-月-年格式填写。",
+      "group": "identity",
+      "page": 1
+    },
+    {
+      "id": "5",
+      "label": "出生地",
+      "guidance": "依据本人资料确认英文写法。",
+      "group": "identity",
+      "page": 1
+    },
+    {
+      "id": "6",
+      "label": "出生国",
+      "guidance": "填写出生国家，不从现国籍推断。",
+      "group": "identity",
+      "page": 1
+    },
+    {
+      "id": "7",
+      "label": "国籍",
+      "guidance": "现国籍、出生时国籍及其他国籍分别核对。",
+      "group": "identity",
+      "page": 1
+    },
+    {
+      "id": "8",
+      "label": "性别",
+      "guidance": "按本人旅行证件确认。",
+      "group": "identity",
+      "page": 1
+    },
+    {
+      "id": "9",
+      "label": "婚姻状况",
+      "guidance": "选择符合本人实际情况的选项。",
+      "group": "identity",
+      "page": 1
+    },
+    {
+      "id": "10",
+      "label": "未成年人的亲权人／合法监护人",
+      "guidance": "未成年或涉及合法监护时补齐姓名、地址、电话、邮箱及国籍。",
+      "group": "identity",
+      "page": 1
+    },
+    {
+      "id": "11",
+      "label": "公民身份证号码",
+      "guidance": "适用时填写。",
+      "group": "identity",
+      "page": 1
+    },
+    {
+      "id": "12",
+      "label": "旅行证件类型",
+      "guidance": "根据实际证件选择，不能仅凭国籍推断。",
+      "group": "passport",
+      "page": 1
+    },
+    {
+      "id": "13",
+      "label": "旅行证件编号",
+      "guidance": "逐字核对护照号码。",
+      "group": "passport",
+      "page": 1
+    },
+    {
+      "id": "14",
+      "label": "签发日期",
+      "guidance": "依据护照填写并核对日期格式。",
+      "group": "passport",
+      "page": 1
+    },
+    {
+      "id": "15",
+      "label": "有效期至",
+      "guidance": "依据护照填写。",
+      "group": "passport",
+      "page": 1
+    },
+    {
+      "id": "16",
+      "label": "签发国",
+      "guidance": "填写签发国家。",
+      "group": "passport",
+      "page": 1
+    },
+    {
+      "id": "17",
+      "label": "符合表内规定的欧洲家庭成员资料",
+      "guidance": "仅在符合表内适用条件时填写，不能因同行就认定适用。",
+      "group": "contact",
+      "page": 2
+    },
+    {
+      "id": "18",
+      "label": "与上述家庭成员的关系",
+      "guidance": "与第17项对应；不确定适用性时澄清。",
+      "group": "contact",
+      "page": 2
+    },
+    {
+      "id": "19",
+      "label": "住址、邮箱及电话",
+      "guidance": "提供可联系到本人的地址、邮箱和电话。",
+      "group": "contact",
+      "page": 2
+    },
+    {
+      "id": "20",
+      "label": "是否居住在现国籍以外的国家",
+      "guidance": "按实际居住情况选择；如是，补充居留许可编号及有效期。",
+      "group": "contact",
+      "page": 2
+    },
+    {
+      "id": "21",
+      "label": "当前职业",
+      "guidance": "根据实际职业填写英文；与职业证明核对。",
+      "group": "employment",
+      "page": 2
+    },
+    {
+      "id": "22",
+      "label": "工作单位／学校",
+      "guidance": "单位名称、地址和电话；学生填写学校名称和地址。",
+      "group": "employment",
+      "page": 2
+    },
+    {
+      "id": "23",
+      "label": "旅行目的",
+      "guidance": "根据已确认的真实旅行目的选择。",
+      "group": "travel",
+      "page": 2
+    },
+    {
+      "id": "24",
+      "label": "停留原因的补充信息",
+      "guidance": "有需要说明的真实情况时补充，不编造。",
+      "group": "travel",
+      "page": 2
+    },
+    {
+      "id": "25",
+      "label": "主要申根目的地及其他目的地",
+      "guidance": "与确认后的完整行程一致；不等同于首入申根国。",
+      "group": "travel",
+      "page": 2
+    },
+    {
+      "id": "26",
+      "label": "首入申根国",
+      "guidance": "按实际进入申根区的行程填写，不从申请国推断。",
+      "group": "travel",
+      "page": 2
+    },
+    {
+      "id": "27.entries",
+      "label": "申请入境次数",
+      "guidance": "根据是否离开后再进入申根区的完整行程确认，不默认单次。",
+      "group": "travel",
+      "page": 2
+    },
+    {
+      "id": "27.arrival",
+      "label": "预计首次抵达申根区日期",
+      "guidance": "与行程和交通资料一致。",
+      "group": "travel",
+      "page": 2
+    },
+    {
+      "id": "27.departure",
+      "label": "预计首次离开申根区日期",
+      "guidance": "与行程和交通资料一致。",
+      "group": "travel",
+      "page": 2
+    },
+    {
+      "id": "28",
+      "label": "以往申根签证指纹记录",
+      "guidance": "根据本人记录填写；日期、签证贴纸号码如已知则补充，不猜测。",
+      "group": "travel",
+      "page": 2
+    },
+    {
+      "id": "29",
+      "label": "最终目的地入境许可",
+      "guidance": "按实际路线判断适用性，不确定时澄清。",
+      "group": "travel",
+      "page": 2
+    },
+    {
+      "id": "30",
+      "label": "邀请人或酒店／暂住居所",
+      "guidance": "无邀请人时填写实际住宿名称、地址、邮箱和电话，并与住宿资料核对。",
+      "group": "stay",
+      "page": 3
+    },
+    {
+      "id": "31",
+      "label": "邀请公司／机构",
+      "guidance": "适用时填写机构及联系人的资料；个人旅游不能编造邀请机构。",
+      "group": "stay",
+      "page": 3
+    },
+    {
+      "id": "32",
+      "label": "旅费和生活费承担人及支付方式",
+      "guidance": "根据实际资助安排选择，与资金证明保持一致。",
+      "group": "stay",
+      "page": 3
+    },
+    {
+      "id": "33",
+      "label": "非申请人本人填表时的填表人",
+      "guidance": "按表格说明核实适用性，不把AI当作具有姓名地址的自然人填表人。",
+      "group": "signature",
+      "page": 3
+    },
+    {
+      "id": "signature",
+      "label": "地点、日期及本人签字",
+      "guidance": "阅读声明后填写地点和日期，由申请人本人签字；适用时由亲权人／监护人代签。",
+      "group": "signature",
+      "page": 4
+    }
+  ],
+  "checks": [
+    {
+      "id": "english",
+      "label": "已按要求使用英文填写"
+    },
+    {
+      "id": "identity",
+      "label": "姓名及护照资料已逐项与原件核对"
+    },
+    {
+      "id": "completeness",
+      "label": "适用项目已填写；不适用和不确定的项目已核实处理"
+    },
+    {
+      "id": "itinerary",
+      "label": "目的地、首入国、入境次数及日期与实际行程一致"
+    },
+    {
+      "id": "supporting",
+      "label": "职业、住宿、联系方式及费用信息与支持材料一致"
+    },
+    {
+      "id": "declaration",
+      "label": "已阅读声明并确认信息真实完整"
+    }
+  ],
+  "machine": {
+    "id": "schengen_form",
+    "initial": "prepare",
+    "states": {
+      "prepare": {
+        "meta": {
+          "title": "整理资料与填写指引",
+          "action": "prepare_guide",
+          "guidance": "原表随时可下载。按字段目录整理用户明确确认的信息；缺失或不确定的信息标记待确认，不能编造，也不强制用户提供全部个人资料。可生成部分指引，或用户自行填完后继续。"
+        },
+        "on": {
+          "GUIDE_READY": "filling",
+          "FILLED": "review_choice"
+        }
+      },
+      "filling": {
+        "meta": {
+          "title": "等待用户填写",
+          "action": "fill_form",
+          "guidance": "展示逐项填写对照表，用户自行手写或用软件填写原PDF。不是自动填表，不要求上传。"
+        },
+        "on": {
+          "FILLED": "review_choice",
+          "EDIT": "prepare"
+        }
+      },
+      "review_choice": {
+        "meta": {
+          "title": "选择检查方式",
+          "action": "choose_review",
+          "guidance": "同时提供上传辅助检查和不上传自行检查两种选项，尊重用户选择。"
+        },
+        "on": {
+          "SELF_CHECK": "self_check",
+          "ASSISTED_CHECK": "await_upload",
+          "EDIT": "prepare"
+        }
+      },
+      "self_check": {
+        "meta": {
+          "title": "自行核对",
+          "action": "self_check",
+          "guidance": "给出自查清单，用户可一次确认多项；不索取原文件。明确记录为用户自行确认。"
+        },
+        "on": {
+          "FINISH": {
+            "target": "done",
+            "guard": "selfConfirmed"
+          },
+          "ASSISTED_CHECK": "await_upload",
+          "EDIT": "prepare"
+        }
+      },
+      "await_upload": {
+        "meta": {
+          "title": "等待自愿上传",
+          "action": "optional_upload",
+          "guidance": "用户可在当前ChatGPT聊天上传PDF或清晰照片；若客户端不支持文件读取则说明限制并提供自行检查。始终允许改选不上传。"
+        },
+        "on": {
+          "REVIEW": {
+            "target": "assisted_check",
+            "guard": "reviewProvided"
+          },
+          "SELF_CHECK": "self_check",
+          "EDIT": "prepare"
+        }
+      },
+      "assisted_check": {
+        "meta": {
+          "title": "辅助检查结果",
+          "action": "review_findings",
+          "guidance": "仅保存GPT确实读取用户文件后提交的结构化观察，不代表MCP独立读取了原文件。列出覆盖页和问题；不清楚处不能判断通过。完成仍需用户确认。"
+        },
+        "on": {
+          "FINISH": {
+            "target": "done",
+            "guard": "assistedConfirmed"
+          },
+          "RETRY": "await_upload",
+          "SELF_CHECK": "self_check",
+          "EDIT": "prepare"
+        }
+      },
+      "done": {
+        "meta": {
+          "title": "申请表已准备",
+          "action": "complete",
+          "guidance": "说明是用户自行确认还是辅助检查后由用户确认。不是签证机构审核通过。允许重新编辑，编辑将清除旧检查和完成确认。"
+        },
+        "on": {
+          "EDIT": "prepare"
+        }
+      }
+    }
+  }
+}

@@ -1,6 +1,6 @@
 {
   "name": "visa-helper-mcp-app",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -8,7 +8,9 @@
     "test": "node --test test/*.test.js",
     "decision:graph": "node scripts/decision-artifacts.mjs",
     "decision:replay": "node scripts/decision-artifacts.mjs",
-    "check:release": "node scripts/check-release.mjs"
+    "check:release": "node scripts/check-release.mjs",
+    "task:graph": "node scripts/task-artifacts.mjs",
+    "task:replay": "node scripts/task-artifacts.mjs replay"
   },
   "dependencies": {
     "@modelcontextprotocol/ext-apps": "^1.0.1",

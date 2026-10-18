@@ -1,6 +1,6 @@
 # Visa Helper MCP 接口
 
-应用版本 `0.7.0`，问答协议 `1.0`。MCP 服务仅注册以下 **5 个工具**，其中 4 个供 GPT 调用，1 个仅供 App UI 调用。问答全过程只使用 `advance_application`；其他接口分别负责展示、材料处理和诊断。
+应用版本 `0.8.0`，问答协议 `1.0`。MCP 服务仅注册以下 **6 个工具**，其中 5 个供 GPT 调用，1 个仅供 App UI 调用。问答全过程只使用 `advance_application`；其他接口分别负责展示、材料处理和诊断。
 
 ## 接口总览
 
@@ -8,7 +8,8 @@
 | --- | --- | --- | --- |
 | `advance_application` | GPT | 创建或恢复申请，取得问题与选项；提交完整问答，运行决策树并返回 `nextAction` | 创建和提交时修改；恢复只读 |
 | `get_task_queue` | GPT 或 App UI | 展示材料清单 App，或刷新其完整任务数据 | 否 |
-| `start_task` | GPT 或 App UI | 选择清单中的一项材料，记录为准备中，取得该项要求 | 是，修改任务进度 |
+| `start_task` | GPT 或 App UI | 选择或恢复一项材料；申请表返回独立任务流程 | 是，选择任务；保留已有进度 |
+| `advance_task` | GPT 或 App UI | 读取或推进材料任务，保存完整任务数据与执行记录 | 提交时修改，读取不修改 |
 | `get_server_info` | GPT 或 App UI | 查询版本、构建、工具、规则和 UI 指纹；检查当前客户端工具是否齐全 | 否 |
 | `report_ui_ready` | 仅 App UI | 清单渲染完成后发送回执，校验服务和页面版本 | 是，仅写入载入回执 |
 
@@ -63,9 +64,23 @@
 
 **输入**：`{ "applicationId": "申请 UUID", "taskId": "任务ID" }`。
 
-检查任务仍属于当前清单，将它标为 `in_progress`，保存为当前任务。返回更新后的申请、该任务的原始要求，以及 `nextAction.type: work_on_task`，供 GPT 继续帮助用户准备这一份材料。
+检查任务仍属于当前清单，选择为当前任务；已有进度和完成状态不会重置。`schengen_form` 返回 `taskFlow`：独立任务版本、任务 revision、当前节点、完整字段目录、自查目录、填写指引和 `nextAction`。其他材料暂时仅返回原表要求。
 
-问题未完成时拒绝；任务不在当前清单中时返回 `TASK_NOT_FOUND`。这个接口只开始准备，不表示文件已收集或任务已完成。文件上传、生成与完成验收尚未实现。
+## advance_task
+
+独立材料任务的统一推进接口，目前实现 `schengen_form`。问答仍使用 `advance_application`，两者的 revision 分别维护。
+
+- 只读恢复：`{ "applicationId": "申请 UUID", "taskId": "schengen_form" }`。
+- 保存或推进：增加最新任务 `revision`、可选 `event` 和可选 `data`。`data` 是完整快照，省略整个 data 保留旧数据；传入 data 时缺省字段按空值处理，不能作为局部补丁。
+- `data.fields`：字段 ID 到英文填写内容的映射，未知项不填，不以示例代替真实资料。字段目录覆盖原表全部编号项目及签字位置。
+- `data.checks`：自查项 ID 到布尔值的映射；`filled`、`signed` 只记录用户明确确认。
+- `data.review`：可选辅助检查报告，包含 `documentRead`、已读页码、逐项 checks 和 findings（issue、unreadable 或 note）。仅由 GPT 确实读取聊天附件后提交；MCP 不保存原附件，不执行独立 OCR，也不将此结果标为官方审核通过。
+
+返回 `application`、`taskFlow`、`nextAction`。事件只能从返回的 `nextAction.events` 选择：`GUIDE_READY`、`FILLED`、`SELF_CHECK`、`ASSISTED_CHECK`、`REVIEW`、`FINISH`、`RETRY`、`EDIT`。
+
+原 PDF 始终可下载；指引可包含待确认项。自行检查允许不提供个人字段、不上传文件完成。FINISH 要求填妥、签字及全部自查项确认；辅助检查分支还要求报告覆盖四页、各检查项通过、无未解决错误或模糊项。记录区分 `user_self_check` 与 `assistant_reported_review`，均由用户最终确认。任何辅助检查步骤可切回自行检查。
+
+修改填写内容需先 EDIT，清除旧检查和确认；修改申请问答也会令任务回到整理资料并提示重新核对。过期 revision、非法字段、越序事件和完成条件不足均拒绝保存。完整执行历史包含配置版本、指纹、事件、数据快照、起点和终点，可离线回放。[任务流程图](task-workflow-graph.md)。
 
 ## get_server_info
 
@@ -105,7 +120,9 @@ advance_application：取得目录、提交完整问答、根据 nextAction 循�
     ↓ complete.presentation
 get_task_queue：展示清单
     ↓ 用户选择材料
-start_task：开始准备所选文件
+start_task：选择或恢复材料
+    ↓ schengen_form
+advance_task：填写指引、用户填表、可选检查、用户确认完成
 ```
 
 `get_server_info` 随需诊断；`report_ui_ready` 由页面自动回报，不增加用户问答步骤。

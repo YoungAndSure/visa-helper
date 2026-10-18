@@ -21,6 +21,7 @@ try {
   assert.equal(actual.ui.sourceHash, expected.ui.sourceHash, "UI source mismatch");
   assert.deepEqual(actual.rules, expected.rules, "Rule model or execution engine mismatch");
   assert.deepEqual(actual.interview, expected.interview, "Interview protocol mismatch");
+  assert.deepEqual(actual.taskWorkflow, expected.taskWorkflow, "Task workflow mismatch");
   assert.equal(result.structuredContent.compatibility.status, "compatible", JSON.stringify(result.structuredContent.compatibility));
   assert.deepEqual(listed.map((tool) => tool.name).sort(), [...expected.tools].sort(), "Unexpected or missing MCP tools");
   const ui = await client.readResource({ uri: actual.ui.resourceUri });

@@ -1,14 +1,22 @@
 # ChatGPT MCP App 部署与测试
 
-当前版本为 `0.7.0`，问答协议 `1.0`。服务仅注册 5 个接口：`advance_application`、`get_task_queue`、`start_task`、`get_server_info` 和仅供 App 使用的 `report_ui_ready`。七个旧问答或重复入口、原生表单实现及旧 UI 资源别名均已删除，不提供旧接口兼容。接口参数与职责见 [MCP 接口说明](mcp-api.md)，问答循环见[完整问答协议](interview-protocol.md)。
+当前版本为 `0.8.0`，问答协议 `1.0`。服务注册 6 个接口：`advance_application`、`get_task_queue`、`start_task`、`advance_task`、`get_server_info` 和仅供 App 使用的 `report_ui_ready`。七个旧问答或重复入口、原生表单实现及旧 UI 资源别名均已删除，不提供旧接口兼容。接口参数与职责见 [MCP 接口说明](mcp-api.md)，问答循环见[完整问答协议](interview-protocol.md)。
 
 ## 当前部署方式
 
-当前已改用 Docker 镜像，详见[镜像构建与部署](container-deployment.md)。正式容器为 `visa-helper-mcp-server-1`，使用原有数据目录和 `127.0.0.1:18081`。旧版 `18080` 容器已删除，直接运行 Node 的 systemd 服务已停用并移除。SSH 转发与 Secure MCP Tunnel 保持原路径，接口及运行指纹未变化。
+当前已改用 Docker 镜像，详见[镜像构建与部署](container-deployment.md)。正式容器为 `visa-helper-mcp-server-1`，使用原有数据目录和 `127.0.0.1:18081`。旧版 `18080` 容器已删除，直接运行 Node 的 systemd 服务已停用并移除。SSH 转发与 Secure MCP Tunnel 保持原路径；本次新增任务接口并更新运行指纹。
 
-当前容器已使用腾讯云仓库 `ccr.ccs.tencentyun.com/visa-helper/visa-helper` 的固定摘要镜像运行，服务器直接拉取、独立数据预检、正式切换和原申请恢复均通过。`current` 指向 `releases/0.7.0-589a244540ab-registry`。仓库凭据位于服务器 `ubuntu` 用户配置，命令需使用 `sudo docker --config /home/ubuntu/.docker ...`。详见[仓库拉取与切换记录](container-deployment.md)。
+当前容器已使用腾讯云仓库 `ccr.ccs.tencentyun.com/visa-helper/visa-helper` 的固定摘要镜像运行，服务器直接拉取、独立数据预检、正式切换和原申请恢复均通过。`current` 指向 `releases/0.8.0-8e992a64cc53-registry`。仓库凭据位于服务器 `ubuntu` 用户配置，命令需使用 `sudo docker --config /home/ubuntu/.docker ...`。详见[仓库拉取与切换记录](container-deployment.md)。
 
 下列记录中的 systemd 启动方式仅描述历史发布。当前排查服务请用 Docker Compose 状态和日志，不再启动已退役的系统服务。
+
+## 2026年10月18日申根申请表任务
+
+已实现第一项材料的独立 XState 任务流程：原表随时下载、生成逐项填写指引、用户自行填表、选择自查或自愿上传辅助检查、确认填妥和签字。支持恢复、重新编辑、完整输入历史及离线回放；修改申请答案后任务要求重新核对。其他材料的独立流程暂未实现。字段与图见[任务流程图](task-workflow-graph.md)，协议见[接口说明](mcp-api.md)。
+
+版本 `0.8.0`，最终构建 `8e992a64cc53`。镜像已推送腾讯云仓库并由服务器按摘要拉取，数据切换前已备份，切换后现有文件校验和一致。容器健康和镜像内发布检查通过。10 个自动测试文件通过；隔离容器走通自查完成；真实 Chromium 与 MCP 宿主测试桥走通原表打开、下载指引、可选上传切回自查、完成条件拦截、完成、重开和聊天交接。打开链接及下载通过 `ui/open-link` / `ui/download-file`，不使用沙箱内直接下载。以上不等同于已通过真实 ChatGPT 宿主验收，用户正在进行该项测试。
+
+本次新增 `advance_task`，客户端缺失时返回明确版本差异并保留申请。刷新连接后在新对话恢复原申请，确认工具列表含 `advance_task`。旧卡片也需重新打开清单；不能把服务已更新当成旧对话已加载新工具。已有申请和问答无需重建。
 
 ## 2026-10-17 接口精简
 

@@ -7,6 +7,7 @@ import { z } from "zod";
 import { ApplicationStore, PATH, WorkflowError } from "./workflow.js";
 import { advanceInputSchema, advanceOutputSchema, interviewReply } from "./interview.js";
 import { APP_VERSION, WIDGET_HTML, UI_RESOURCE_URI, serverInfo, checkClient } from "./release.js";
+import { advanceTaskInputSchema, TaskError } from "./tasks.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const defaultStore = new ApplicationStore(process.env.VISA_HELPER_DATA_FILE ?? join(here, "../data/applications.json"));
@@ -14,23 +15,24 @@ const resourceUri = UI_RESOURCE_URI;
 const instructions = `Use advance_application as the ONLY interview/progress interface for both guided single-question answers and whole travel-plan descriptions. On first use call it with answers:{} and clientTools listing the Visa Helper tools YOU CAN ACTUALLY INVOKE, to obtain an application ID, revision and questionCatalog. Reuse that ID throughout; to resume, call with applicationId and OMIT answers, never send {} to read. get_server_info remains optional diagnostics. When supplying clientTools, list only tools you can actually invoke; never fabricate an inventory. If clientTools was omitted, compare returned serverInfo.requiredClientTools against your actual tool inventory before continuing. A not_checked result is not proof of compatibility. Missing tools must be reported with serverInfo version/build while preserving the application.
 GPT owns natural-language understanding and the COMPLETE questionId-to-canonical-string answer map; MCP owns validation, persistence, decision-tree routing and nextAction. Offer a brief choice of answering one question at a time or describing a whole plan. No separate mode or workflow. Use questionCatalog IDs, option.value codes and unambiguous YYYY-MM-DD dates. Reuse every explicit fact from the conversation, including later branches, before asking anything. After each answer or paragraph update the COMPLETE map and submit it with applicationId and latest revision. This is full replacement: omitted fields are withdrawn, not retained. Keep unchanged facts; omit unknown/withdrawn facts. Use returned answers as the accepted baseline. Never invent an answer, treat silence as no, or change facts merely to match an option.
 Read nextAction on EVERY response. ask: use known explicit information first, otherwise ask just its question in ChatGPT with its choices. Keep interview questions in ChatGPT; do not load an App questionnaire. repair: the submitted snapshot was NOT saved; repair encoding/format yourself only when meaning is unambiguous, keep all other intended answers and resubmit the COMPLETE corrected snapshot. Clarify ambiguity instead of guessing. clarify: resolve contradictions; for REVISION_CONFLICT reconcile the user's explicit changes onto returned latest answers/revision, never blindly overwrite. blocked: explain the reason and do not invent a checklist or bypass the tree's branch/else policy. Avoid automatic retry loops when no new information can resolve an action.
-complete: follow nextAction.presentation and call the available get_task_queue display tool. This is presentation only, not another interview step. If unavailable, report the tool mismatch and preserve applicationId; never claim a checklist is visible from data alone. App UI is only for the completed material checklist; do not duplicate materials in a long chat response. presentation.status loaded is confirmed by a matching App load receipt, not merely a successful tool call. When the user selects a material use start_task and help with only that task. These are actual application-preparation records; the supplied source still awaits official verification.`;
+complete: follow nextAction.presentation and call the available get_task_queue display tool. This is presentation only, not another interview step. If unavailable, report the tool mismatch and preserve applicationId; never claim a checklist is visible from data alone. App UI is for the completed checklist and selected material guidance; do not duplicate the checklist in a long chat response. presentation.status loaded is confirmed by a matching App load receipt, not merely a successful tool call. When the user selects a material use start_task and help with only that task. These are actual application-preparation records; the supplied source still awaits official verification.
+For a returned taskFlow, use advance_task to read/resume or submit its nextAction events with the latest TASK revision (separate from interview revision). data is the COMPLETE task data snapshot, not a patch. Keep user-confirmed facts, never invent missing fields; the fieldCatalog contains exact form locations and guidance. Show original PDF immediately if wanted, even without personal data. The user fills the original PDF themselves; the guide is not an official replacement form. Offer optional upload in ChatGPT OR private self-check with equal access to completion. Only submit REVIEW after actually reading the user's uploaded pages, recording coverage, every check and unresolved/unreadable findings; MCP stores your reported observations, not the attachment and not independent OCR verification. If file reading is unavailable, explain and offer self-check. Never assert regulatory approval. FINISH requires explicit user confirmation of filling, signing and relevant checks; do not infer consent from silence. EDIT reopens and clears confirmations; changes to interview facts also require rechecking. On conflicts read latest advance_task state before reconciling. Other material flows remain unimplemented.`;
 
 function taskReply(application, { workingOnTask = false } = {}) {
   const nextAction = workingOnTask
-    ? { type: "work_on_task", task: application.activeTask }
+    ? application.taskFlow?.nextAction ?? { type: "work_on_task", task: application.activeTask }
     : { type: "choose_task", recommendedTask: application.activeTask ?? application.tasks[0] };
   const message = workingOnTask ? `正在准备：${application.activeTask.title}。`
     : `材料清单共 ${application.tasks.length} 项。点击一项材料开始准备。`;
   return {
     content: [{ type: "text", text: message }],
-    structuredContent: { application, supportedPath: PATH, nextAction, assistantGuidance: instructions },
+    structuredContent: { application, taskFlow: workingOnTask ? application.taskFlow : undefined, supportedPath: PATH, nextAction, assistantGuidance: instructions },
     _meta: { application },
   };
 }
 
 function failure(error) {
-  if (!(error instanceof WorkflowError)) throw error;
+  if (!(error instanceof WorkflowError) && !(error instanceof TaskError)) throw error;
   return {
     isError: true,
     content: [{ type: "text", text: error.message }],
@@ -122,11 +124,24 @@ export function createVisaServer(store = defaultStore) {
 
   registerTool("start_task", {
     title: "Start preparing one material",
-    description: "Select a file task from a completed checklist, save its in-progress state, and return its original checklist note. Help the user prepare only this selected material; do not invent requirements or claim completion without a file. Available from the task workspace and conversation.",
+    description: "Select or resume a material task without resetting its progress. The Schengen PDF form returns its XState taskFlow, full field catalog, guide, optional self-check/upload branches and nextAction; continue with advance_task. Other tasks return original requirements only. Upload is optional; never demand a file to complete self-check.",
     inputSchema: { applicationId: z.string().uuid(), taskId: z.string().min(1) },
     annotations: { readOnlyHint: false, openWorldHint: false, destructiveHint: false },
     _meta: { ui: { visibility: ["model", "app"] }, "openai/widgetAccessible": true },
   }, async ({ applicationId, taskId }) => safely(async () => taskReply(await store.startTask(applicationId, taskId), { workingOnTask: true })));
+
+  registerTool("advance_task", {
+    title: "Continue one material preparation task",
+    description: "Read/resume with applicationId and taskId only. To save or advance, provide latest task revision and optionally COMPLETE data plus an event from nextAction.events. Only schengen_form is implemented. Returns field/check catalogs, printable guide and nextAction. Original form is always available; user fills it themselves. Upload review is optional, self-check can complete without personal fields or an attachment. Record REVIEW only after reading the user's file; findings are assistant-reported observations. FINISH requires explicit user filling/signing/check confirmations. EDIT clears old checks. Never substitute task revision for interview revision.",
+    inputSchema: advanceTaskInputSchema,
+    annotations: { readOnlyHint: false, openWorldHint: false, destructiveHint: true },
+    _meta: { ui: { visibility: ["model", "app"] }, "openai/widgetAccessible": true },
+  }, async (args) => safely(async () => {
+    const result = await store.advanceTask(args);
+    return { content: [{ type: "text", text: result.taskFlow.nextAction.title }],
+      structuredContent: { ...result, nextAction: result.taskFlow.nextAction, assistantGuidance: instructions },
+      _meta: { application: result.application } };
+  }));
 
   registerTool("report_ui_ready", {
     title: "Confirm checklist loaded",

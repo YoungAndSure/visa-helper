@@ -24,6 +24,11 @@
     .secondary { background: #edf2f4; color: #203b45; }
     #error { color: #a13227; }
     #status { min-height: 1em; }
+    table { width: 100%; border-collapse: collapse; font-size: .85rem; }
+    td, th { text-align: left; border-bottom: 1px solid #dce5e9; padding: 8px; vertical-align: top; white-space: pre-wrap; overflow-wrap: anywhere; }
+    label.check { display: block; margin: 12px 0; line-height: 1.5; }
+    .actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+    a { color: #176e65; }
     @media (prefers-color-scheme: dark) {
       body { background: #1a2831; color: #e7eff3; }
       .muted, .task small { color: #a8bdc9; }
@@ -159,6 +164,87 @@
         statusEl.textContent = "已在当前对话中继续，请查看聊天回复。";
       });
     }
+    function taskEvent(event, data) {
+      return perform(async () => {
+        const flow = application.taskFlow;
+        applyResult(await request("tools/call", { name: "advance_task", arguments: {
+          applicationId: application.id, taskId: flow.taskId, revision: flow.revision,
+          event, data: data ?? flow.data,
+        } }));
+      });
+    }
+    function downloadGuide(flow) {
+      const lines = ["统一申根签证申请表 · 填写对照表", "这份指引不是正式申请表；请自行填写原表并签字。",
+        `原表：${flow.source.formUrl}`, flow.needsRecheck ? "申请情况已变化，全部字段需要重新核对。" : "",
+        ...flow.guide.map((field) => `\n第 ${field.id} 项 · ${field.label}（第 ${field.page} 页）\n填写内容：${field.value ?? "待确认"}\n说明：${field.guidance}`),
+        "\n自查：", ...flow.checkCatalog.map((check) => `□ ${check.label}`), "□ 已填妥并由本人签字"];
+      return perform(async () => {
+        const result = await request("ui/download-file", { contents: [{ type: "resource", resource: {
+          uri: "file:///schengen-form-guide.txt", mimeType: "text/plain", text: lines.join("\n"),
+        } }] });
+        if (result?.isError) throw new Error("下载未获允许，可展开填写指引查看或复制。");
+      });
+    }
+    function renderTaskFlow(panel, flow, task) {
+      const original = element("a", "下载原始申请表 PDF");
+      original.href = flow.source.formUrl; original.target = "_blank"; original.rel = "noopener noreferrer";
+      original.addEventListener("click", (event) => {
+        event.preventDefault();
+        perform(async () => {
+          const result = await request("ui/open-link", { url: flow.source.formUrl });
+          if (result?.isError) throw new Error("打开链接未获允许，请在聊天中索取原表链接。");
+        });
+      });
+      panel.append(original, element("p", "可自行手写或用软件填写；无需先提供个人资料，也无需上传表格。", "muted"));
+      panel.append(element("h2", flow.nextAction.title), element("p", flow.nextAction.guidance));
+      if (flow.needsRecheck) panel.append(element("p", "申请资料已变化，请重新核对填写内容；旧检查和完成确认已清除。", "notice"));
+      const guide = element("details", "");
+      guide.append(element("summary", "查看逐项填写指引（缺少的信息标注待确认）"));
+      const table = document.createElement("table");
+      const head = document.createElement("tr");
+      for (const title of ["位置与字段", "填写内容", "填写说明"]) head.append(element("th", title));
+      table.append(head);
+      for (const field of flow.guide) {
+        const row = document.createElement("tr");
+        row.append(element("td", `第${field.page}页 · ${field.id} ${field.label}`), element("td", field.value ?? "待确认"), element("td", field.guidance));
+        table.append(row);
+      }
+      guide.append(table); panel.append(guide);
+      panel.append(button("下载填写对照表", () => downloadGuide(flow), "secondary"));
+      const actions = element("div", "", "actions");
+      if (flow.nextAction.events.includes("GUIDE_READY")) actions.append(button("使用填写指引", () => taskEvent("GUIDE_READY")));
+      if (flow.nextAction.events.includes("FILLED")) actions.append(button("我已填好，选择检查方式", () => taskEvent("FILLED", { ...flow.data, filled: true })));
+      if (flow.nextAction.events.includes("SELF_CHECK")) actions.append(button("不上传，自己检查", () => taskEvent("SELF_CHECK"), "secondary"));
+      if (flow.nextAction.events.includes("ASSISTED_CHECK")) actions.append(button("自愿上传，请协助检查", () => taskEvent("ASSISTED_CHECK"), "secondary"));
+      const checkbox = (label, checked, change) => {
+        const wrapper = element("label", "", "check");
+        const input = document.createElement("input"); input.type = "checkbox"; input.checked = checked;
+        input.disabled = busy || versionMismatch; input.addEventListener("change", () => change(input.checked));
+        wrapper.append(input, document.createTextNode(` ${label}`)); panel.append(wrapper);
+      };
+      if (flow.node === "self_check") {
+        for (const check of flow.checkCatalog) checkbox(check.label, flow.data.checks[check.id] === true,
+          (value) => { flow.data.checks[check.id] = value; });
+      }
+      if (["self_check", "assisted_check"].includes(flow.node)) {
+        if (flow.data.review && flow.node === "assisted_check") {
+          panel.append(element("p", `助手报告已读取第 ${flow.data.review.pages.join("、")} 页。此结果不代表签证机构审核通过。`, "muted"));
+          for (const finding of flow.data.review.findings) panel.append(element("p", finding.message, finding.severity === "note" ? "muted" : "notice"));
+        }
+        checkbox("我确认申请表已填妥", flow.data.filled, (value) => { flow.data.filled = value; });
+        checkbox("我已阅读声明，并已按要求在原表上签字", flow.data.signed, (value) => { flow.data.signed = value; });
+        actions.append(button("确认完成这项材料", () => taskEvent("FINISH")));
+      }
+      if (flow.nextAction.events.includes("RETRY")) actions.append(button("修正后重新上传检查", () => taskEvent("RETRY"), "secondary"));
+      if (flow.nextAction.events.includes("EDIT")) actions.append(button("返回修改并重新核对", () => taskEvent("EDIT"), "secondary"));
+      if (flow.node === "done") panel.append(element("p", flow.confirmation?.method === "user_self_check"
+        ? "已完成 · 用户自行检查并确认。" : "已完成 · 辅助检查后由用户确认。"));
+      actions.append(button("在对话中继续", () => continueInChat(task), "secondary"));
+      actions.append(button("刷新任务进度", () => perform(async () => applyResult(await request("tools/call", {
+        name: "advance_task", arguments: { applicationId: application.id, taskId: flow.taskId },
+      }))), "secondary"));
+      panel.append(actions);
+    }
     function element(tag, text, className = "") {
       const node = document.createElement(tag);
       node.textContent = text;
@@ -201,8 +287,11 @@
           const method = { form: "填写并核对表格，按要求整理成文件。", collect: "取得或整理这份材料，核对后保留所需文件。", draft: "根据已确认的行程资料起草并核对文件。" }[activeTask.handling];
           if (method) next.append(element("p", method));
           if (activeTask.note) next.append(element("p", activeTask.note));
-          next.append(element("p", "下一步在对话中继续准备这项材料。文件上传、生成和完成验收尚未开放。", "muted"));
-          next.append(button("在对话中继续准备", () => continueInChat(activeTask)));
+          if (application.taskFlow) renderTaskFlow(next, application.taskFlow, activeTask);
+          else {
+            next.append(element("p", "下一步在对话中继续准备这项材料。这项材料的独立流程尚未开放。", "muted"));
+            next.append(button("在对话中继续准备", () => continueInChat(activeTask)));
+          }
         } else {
           next.append(button("开始准备", () => startTask(recommended)));
         }
@@ -214,7 +303,7 @@
         const row = element("div", "", "task");
         const text = element("div", "", "task-text");
         text.append(element("strong", `${index + 1}. ${task.title}`));
-        text.append(element("small", task.status === "in_progress" ? "准备中" : "待准备"));
+        text.append(element("small", task.status === "done" ? "已完成" : task.status === "in_progress" ? "准备中" : "待准备"));
         row.append(text, button(task.id === activeTask?.id ? "查看当前项" : "开始准备", () => startTask(task), "secondary"));
         list.append(row);
       });

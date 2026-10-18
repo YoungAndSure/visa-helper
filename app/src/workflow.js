@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 import { DEFAULT_CONFIG_DIR, answerIssues, evaluateChecklist, evaluateChecklistWithTrace, getActiveRuleVersion, loadRulePack } from "./checklist.js";
+import { supportsTask, newTaskProgress, taskState, advanceTask, invalidateTask } from "./tasks.js";
 
 export const PATH = Object.freeze({
   id: "cn-passport-cn-resident-is-tourism",
@@ -40,6 +41,8 @@ export function publicState(record, configDir = DEFAULT_CONFIG_DIR, evaluation) 
     questionCatalog,
     tasks,
     activeTask: tasks.find((task) => task.id === record.activeTaskId) ?? null,
+    taskFlow: record.activeTaskId && tasks.some((task) => task.id === record.activeTaskId)
+      ? taskState(record.activeTaskId, record.taskProgress?.[record.activeTaskId]) : null,
     uiReceipt: record.uiReceipt ?? null,
     reviewNotes: result.reviewNotes ?? [],
     reason: result.reason?.replaceAll("本模拟", "当前流程").replaceAll("当前模拟", "当前版本") ?? null,
@@ -93,6 +96,9 @@ export class ApplicationStore {
   commitAnswers(record, answers) {
     const { result, execution } = evaluateChecklistWithTrace(answers, record.ruleVersion, this.configDir);
     record.answers = structuredClone(answers);
+    for (const [id, progress] of Object.entries(record.taskProgress ?? {})) {
+      if (supportsTask(id) && progress.version) record.taskProgress[id] = invalidateTask(progress);
+    }
     record.revision = (record.revision ?? 0) + 1;
     delete record.uiReceipt;
     if (!result.tasks.some((task) => task.id === record.activeTaskId)) delete record.activeTaskId;
@@ -145,10 +151,38 @@ export class ApplicationStore {
       if (state.status !== "tasks_ready") throw new WorkflowError("QUESTIONS_INCOMPLETE", "请先在对话中补齐申请信息。");
       if (!state.tasks.some((task) => task.id === taskId)) throw new WorkflowError("TASK_NOT_FOUND", "这项材料不在当前清单中，请刷新清单。");
       record.taskProgress ??= {};
-      record.taskProgress[taskId] = { status: "in_progress" };
+      record.taskProgress[taskId] ??= supportsTask(taskId) ? newTaskProgress() : { status: "in_progress" };
+      if (supportsTask(taskId) && !record.taskProgress[taskId].version) record.taskProgress[taskId] = newTaskProgress();
       record.activeTaskId = taskId;
       record.updatedAt = new Date().toISOString();
       return publicState(record, this.configDir);
+    });
+  }
+
+  async advanceTask({ applicationId, taskId, revision, event, data }) {
+    const readOnly = event === undefined && data === undefined;
+    if (readOnly) {
+      const record = (await this.readAll())[applicationId];
+      if (!record) throw new WorkflowError("NOT_FOUND", "找不到该申请。");
+      const state = publicState(record, this.configDir);
+      if (state.status !== "tasks_ready") throw new WorkflowError("QUESTIONS_INCOMPLETE", "请先补齐申请信息。");
+      if (!state.tasks.some((task) => task.id === taskId)) throw new WorkflowError("TASK_NOT_FOUND", "任务不在当前清单中。");
+      if (!supportsTask(taskId)) throw new WorkflowError("TASK_NOT_IMPLEMENTED", "这项材料的独立流程尚未开放。");
+      return { application: state, taskFlow: taskState(taskId, record.taskProgress?.[taskId]) };
+    }
+    return this.mutate((records) => {
+      const record = records[applicationId];
+      if (!record) throw new WorkflowError("NOT_FOUND", "找不到该申请。");
+      const state = publicState(record, this.configDir);
+      if (state.status !== "tasks_ready") throw new WorkflowError("QUESTIONS_INCOMPLETE", "请先补齐申请信息。");
+      if (!state.tasks.some((task) => task.id === taskId)) throw new WorkflowError("TASK_NOT_FOUND", "任务不在当前清单中。");
+      if (!supportsTask(taskId)) throw new WorkflowError("TASK_NOT_IMPLEMENTED", "这项材料的独立流程尚未开放。");
+      record.taskProgress ??= {};
+      const progress = record.taskProgress[taskId]?.version ? record.taskProgress[taskId] : newTaskProgress();
+      record.taskProgress[taskId] = advanceTask(progress, { revision, event, data });
+      record.activeTaskId = taskId;
+      record.updatedAt = new Date().toISOString();
+      return { application: publicState(record, this.configDir), taskFlow: taskState(taskId, record.taskProgress[taskId]) };
     });
   }
 

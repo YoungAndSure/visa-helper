@@ -164,3 +164,9 @@ ccr.ccs.tencentyun.com/visa-helper/visa-helper:0.7.0-589a244540ab
 - 原数据在切换前后 SHA-256 一致；正式容器通过原 SSH 转发成功恢复先前的退休申请，版本未变、清单仍为 11 项；实际 Secure MCP Tunnel 的版本探测也已到达新容器。
 - 切换备份位于 `/home/ubuntu/visa-helper-mcp/backups/before-container-20261017T070837Z`，包含原数据、系统服务定义和旧容器元数据，权限限制为当前服务器用户可读。
 - 旧版 `deploy-visa-helper-1` 容器和直接运行 Node 的 `visa-helper-mcp.service` 已退役。旧版命名数据卷保留，未作为当前申请目录使用；预检容器和开发机临时测试容器已清理。
+
+## 2026年10月18日申请表任务发布
+
+当前镜像标签为 `0.8.0-8e992a64cc53`，仓库摘要 `sha256:96f025128f7c1f526630deeccb73962676b09208bf605e5ce29ffce692a3a5b7`。发布目录为 `/home/ubuntu/visa-helper-mcp/releases/0.8.0-8e992a64cc53-registry`，`current` 已切换到该目录。服务器从仓库直接拉取，沿用原数据挂载；切换前备份到 `backups/before-pdf-task-*`，切换后原文件校验和未变化。旧发布目录保留供回退。最终容器健康检查及镜像内发布检查通过；真实 Visa Helper 连接已确认更新到新版本。
+
+本次增加独立申请表任务配置，镜像包含 `config/tasks/`，版本信息增加 `taskWorkflow` 模型指纹。构建和发布检查要求六个工具且包含 `advance_task`。此变更要求宿主重载工具列表、重新打开材料清单；不改变 Tunnel 路径和服务器端口。

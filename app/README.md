@@ -1,6 +1,6 @@
 # Visa Helper MCP App
 
-首版在 ChatGPT 中完成一位申请人的材料决策树，走到终点后展示 MCP App 材料工作台。`0.7.0` 的第一阶段统一使用 `advance_application`：逐题回答或整段描述均由 GPT 整理为完整问答快照，服务端校验、保存并从根节点执行 XState，返回明确类型的下一步。问答阶段不加载自建 App。完整约定见 [GPT 与 MCP 问答协议](../docs/interview-protocol.md)。
+首版在 ChatGPT 中完成一位申请人的材料决策树，走到终点后展示 MCP App 材料工作台。`0.8.0` 的第一阶段统一使用 `advance_application`：逐题回答或整段描述均由 GPT 整理为完整问答快照，服务端校验、保存并从根节点执行 XState，返回明确类型的下一步。问答阶段不加载自建 App。完整约定见 [GPT 与 MCP 问答协议](../docs/interview-protocol.md)。
 
 当前材料依据是用户提供的 **2025 年冰岛旅游审核表**，官方现行要求仍待复核；申请记录按用户实际准备申请处理。工作台支持选择材料、记录「准备中」并回到对话准备这一项；文件上传、生成和完成验收尚未实现。
 
@@ -29,7 +29,8 @@ npm start
 | --- | --- |
 | `advance_application` | 唯一的问答推进接口；创建、只读恢复、完整快照提交，返回问题目录及 `ask/repair/clarify/blocked/complete` |
 | `get_task_queue` | 只读展示完成后的 App 材料清单，由 `complete.presentation` 指定；不是第二个问答接口 |
-| `start_task` | 选择一项适用材料，保存准备中状态并返回该材料的原表说明 |
+| `start_task` | 选择或恢复材料任务；申请表返回独立 XState 流程 |
+| `advance_task` | 读取或推进材料任务，生成填写指引，处理可选辅助检查和自行检查 |
 | `get_server_info` | 可选诊断：版本、构建/工具/UI 指纹，以及实际客户端工具列表兼容性 |
 | `report_ui_ready` | App 专用载入回执；校验页面和服务版本，区分数据返回与页面载入 |
 
@@ -37,9 +38,9 @@ npm start
 
 逐题或整段输入均由 GPT 维护相同结构，不分两套模式。GPT 可以依据用户已明确表达的事实修正编码，无法确定选项归属时应澄清，不能为了命中分支改变事实。`complete` 的 `presentation` 指示调用 `get_task_queue` 展示清单；聊天只简短提示选择材料，不重复长清单。由于宿主 UI 模板绑定在工具声明上，问答接口不挂模板；最终展示使用现有只读工具，详见协议中的宿主边界。
 
-服务只注册上表 5 个接口，其中 `report_ui_ready` 仅供 App 使用。七个旧问答或重复入口已删除，内部增量提交方法、原生表单代码及依赖也已删除，不保留接口兼容实现。完整参数、返回值和调用顺序见 [MCP 接口说明](../docs/mcp-api.md)。
+服务只注册上表 6 个接口，其中 `report_ui_ready` 仅供 App 使用。七个旧问答或重复入口已删除，内部增量提交方法、原生表单代码及依赖也已删除，不保留接口兼容实现。完整参数、返回值和调用顺序见 [MCP 接口说明](../docs/mcp-api.md)。
 
-清单使用 `ui://visa-helper/material-checklist-v4.html`，无旧资源别名。每次响应附带运行版本与 `serverInfo.interview` 协议信息。`get_server_info` 不传实际客户端工具列表时明确显示未检查；界面载入需独立回执。部署后运行 `npm run check:release -- http://127.0.0.1:18081/mcp` 比对本地与部署指纹；追加工具名 JSON 文件可核对当前聊天快照。新会话应能调用 `advance_application`、`get_task_queue`、`start_task`，旧会话缺少这些工具时保留申请并报告差异。详见[版本诊断与发布记录](../docs/deployment.md)。
+清单使用 `ui://visa-helper/material-checklist-v4.html`，无旧资源别名。每次响应附带运行版本与 `serverInfo.interview` 协议信息。`get_server_info` 不传实际客户端工具列表时明确显示未检查；界面载入需独立回执。部署后运行 `npm run check:release -- http://127.0.0.1:18081/mcp` 比对本地与部署指纹；追加工具名 JSON 文件可核对当前聊天快照。新会话应能调用 `advance_application`、`get_task_queue`、`start_task`、`advance_task`，旧会话缺少这些工具时保留申请并报告差异。详见[版本诊断与发布记录](../docs/deployment.md)。
 
 UI 使用 MCP Apps 的 `ui/initialize`、`ui/notifications/tool-result`、`tools/call` 和 `ui/message` 桥；后者由用户点击「在对话中继续准备」触发，带上申请和材料任务 ID。状态写入 `app/data/applications.json`，该路径已忽略提交。
 
@@ -62,3 +63,11 @@ UI 使用 MCP Apps 的 `ui/initialize`、`ui/notifications/tool-result`、`tools
 之后需要核实中国居民赴冰岛旅游路径的官方材料和适用条件，发布有来源和复核日期的规则，再实现第二阶段的材料准备、字段采集、文件生成和递交前检查。
 
 开发结构：`config/` 保存问题、任务和 XState 模型，`src/decision-machine.js` 通过 XState 执行并捕获路径，`src/checklist.js` 加载规则与校验输入，`src/workflow.js` 管理服务端状态和求值历史，`src/server.js` 提供 MCP 工具和 UI 资源，`public/application.html` 是嵌入式 UI。早期演示记录需要新建申请才能使用当前决策树。
+
+## 申根申请表任务
+
+`config/tasks/schengen-form-v1.json` 定义字段、自查项和 XState 流程；`src/tasks.js` 执行流程，任务实例、版本、完整数据和执行历史保存在申请的 `taskProgress.schengen_form`。原 PDF 随时下载；对照表可下载为文字文件，用户自行填表。上传是可选的，用户可按自查清单确认填妥和签字后完成。辅助检查由 GPT 读取聊天附件后提交观察结果；服务不保存原附件，也不执行独立 OCR。
+
+生成图：`npm run task:graph`。回放：`npm run task:replay -- APPLICATIONS_FILE APPLICATION_ID`，只读验证配置指纹、每步输入和最终状态，不输出个人字段。[任务流程图](../docs/task-workflow-graph.md)。
+
+聊天测试：刷新 Visa Helper 连接后新开对话，恢复已有申请并打开材料清单，点击第一项“统一申根签证申请表”。可以先下载原表和填写对照表，再点击已填好、选择自行检查、逐项确认并确认签字，最后完成任务。也可选择自愿上传，在聊天中提供文件，由 GPT 辅助检查；不愿继续上传时随时切回自查。其他材料的独立准备流程尚未实现。
