@@ -59,6 +59,8 @@ HTML使用共用模板 `app/public/templates/material-guide.html` 和各任务�
 
 ## 图与测试
 
+提交和PR自动运行流程覆盖、结构契约及图一致性检查，具体场景与迭代要求见[流程自动回归](automated-regression.md)。
+
 运行 `npm run task:graph --prefix app`，生成[全部25种材料与流程索引](material-task-workflows.md)及各任务的实际 XState 图。运行 `npm run task:replay --prefix app -- APPLICATIONS_FILE APPLICATION_ID TASK_ID` 只读回放历史，不输出个人字段。
 
 自动测试逐项验证全部材料的自查及辅助检查、覆盖范围、用户确认、任务隔离、并发版本、修改失效、规则和回放；浏览器测试桥覆盖代表性材料及原申请表、护照回归。真实宿主中的自然语言引导及附件阅读仍需用户验收。当前配置依据已有冰岛清单，覆盖软件流程不代表已完成全部现行官方规则的审查。

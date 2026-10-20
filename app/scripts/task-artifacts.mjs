@@ -3,6 +3,17 @@ import { dirname } from "node:path";
 import { replayTaskHistory } from "../src/tasks.js";
 import { taskDefinitions } from "../src/task-definitions.js";
 
+const checkOnly = process.argv.includes("--check");
+async function emit(file, content) {
+  if (checkOnly) {
+    let actual;
+    try { actual = await readFile(file, "utf8"); } catch { throw new Error(`Missing generated graph: ${file.pathname}`); }
+    if (actual !== content) throw new Error(`Generated graph is stale: ${file.pathname}; run npm run task:graph --prefix app`);
+  } else {
+    await mkdir(dirname(file.pathname), { recursive: true }); await writeFile(file, content);
+  }
+}
+
 if (process.argv[2] === "replay") {
   const [, , , file, applicationId, taskId = "schengen_form"] = process.argv;
   if (!file || !applicationId) throw new Error("Usage: task-artifacts.mjs replay APPLICATIONS_FILE APPLICATION_ID [TASK_ID]");
@@ -29,9 +40,9 @@ if (process.argv[2] === "replay") {
     lines.push("");
     const name = pack.id === "schengen_form" ? "task-workflow-graph.md" : pack.id === "passport" ? "passport-task-workflow-graph.md" : `task-workflows/${pack.id}.md`;
     const file = new URL(`../../docs/${name}`, import.meta.url);
-    await mkdir(dirname(file.pathname), { recursive: true }); await writeFile(file, lines.join("\n"));
+    await emit(file, lines.join("\n"));
     index.push(`| \`${pack.id}\` | [${pack.title}](${name}) | \`${pack.workflow}\` |`);
   }
-  await writeFile(new URL("../../docs/material-task-workflows.md", import.meta.url), index.join("\n") + "\n");
-  console.log(`Generated ${taskDefinitions().length} task diagrams and shared-workflow index.`);
+  await emit(new URL("../../docs/material-task-workflows.md", import.meta.url), index.join("\n") + "\n");
+  console.log(`${checkOnly ? "Checked" : "Generated"} ${taskDefinitions().length} task diagrams and shared-workflow index.`);
 }

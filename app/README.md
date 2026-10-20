@@ -15,6 +15,10 @@ npm start
 
 服务默认监听 `127.0.0.1:8787/mcp`。运行 `npm test` 验证完整快照、版本冲突、修正与撤回、分支和回放、清单展示、HTTP 调用及旧接口已删除。用 MCP Inspector 连接本地端点，从 `advance_application` 的 `{"answers":{}}` 开始；根据问题目录提交完整答案和当前 `revision`，遵循 `nextAction`，完成后执行其中的清单展示动作。
 
+## 自动回归
+
+`npm run test:regression --prefix app` 在仓库根目录执行完整回归：业务与MCP接口、实际流程的节点/连线/可达条件覆盖、已审查结构契约，以及生成图与运行配置一致性。提交和PR由GitHub Actions自动执行并保存覆盖报告。新增流程必须补充对应场景，流程有意变动时审查契约差异；不能只更新基线消除未覆盖路径。维护约定见[流程自动回归](../docs/automated-regression.md)。
+
 ## 镜像部署
 
 当前通过 Docker 镜像部署到腾讯云。运行 `scripts/build-image.sh` 构建并导出完整镜像；发布包包含镜像、Compose 配置和校验信息。镜像包括业务代码、XState 和完整决策树配置，不包含本机密钥及申请数据。

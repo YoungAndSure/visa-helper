@@ -1,0 +1,58 @@
+name: MCP regression
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mcp-regression-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  regression:
+    name: Flow regression
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+      - name: Install locked dependencies
+        id: install
+        run: npm ci --prefix app --no-audit --no-fund
+      - name: Business and MCP regression
+        run: npm test --prefix app
+      - name: Verify executed flow coverage and reviewed contract
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: npm run test:flows --prefix app
+      - name: Check diagrams match runtime models
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: |
+          npm run task:graph:check --prefix app
+          npm run decision:graph:check --prefix app
+      - name: Publish flow summary
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: |
+          if [ -f app/.local/test-results/flow-coverage.md ]; then
+            cat app/.local/test-results/flow-coverage.md >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - name: Retain synthetic coverage reports
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: flow-regression-${{ github.run_id }}
+          path: |
+            app/.local/test-results/flow-coverage.json
+            app/.local/test-results/flow-coverage.md
+          include-hidden-files: true
+          if-no-files-found: warn
+          retention-days: 14

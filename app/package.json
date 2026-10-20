@@ -10,7 +10,12 @@
     "decision:replay": "node scripts/decision-artifacts.mjs",
     "check:release": "node scripts/check-release.mjs",
     "task:graph": "node scripts/task-artifacts.mjs",
-    "task:replay": "node scripts/task-artifacts.mjs replay"
+    "task:replay": "node scripts/task-artifacts.mjs replay",
+    "test:flows": "node scripts/test-flows.mjs",
+    "test:flows:update-contract": "node scripts/test-flows.mjs --update-contract",
+    "task:graph:check": "node scripts/task-artifacts.mjs --check",
+    "test:regression": "npm test && npm run test:flows && npm run task:graph:check && npm run decision:graph:check",
+    "decision:graph:check": "node scripts/check-decision-graphs.mjs"
   },
   "dependencies": {
     "@modelcontextprotocol/ext-apps": "^1.0.1",

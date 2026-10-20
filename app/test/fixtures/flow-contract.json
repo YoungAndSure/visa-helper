@@ -1,0 +1,4749 @@
+{
+  "format": 1,
+  "interview": {
+    "id": "iceland-tourism-checklist",
+    "graph": {
+      "initial": "q_nationality",
+      "nodes": [
+        "check_dates",
+        "check_main_destination",
+        "check_scope",
+        "check_sponsor_consistency",
+        "check_sponsor_note",
+        "materials_common",
+        "materials_consent",
+        "materials_employed",
+        "materials_minor",
+        "materials_multi",
+        "materials_other_sponsor",
+        "materials_regular_income",
+        "materials_retired",
+        "materials_school",
+        "materials_spouse",
+        "note_guardian_abroad",
+        "note_no_school",
+        "note_other_guardian",
+        "note_sponsor",
+        "q_ageGroup",
+        "q_applicationCity",
+        "q_arrivalDate",
+        "q_departureDate",
+        "q_destination",
+        "q_guardianAbroad",
+        "q_icelandMainDestination",
+        "q_inSchool",
+        "q_maritalStatus",
+        "q_minorTravel",
+        "q_nationality",
+        "q_occupation",
+        "q_otherSchengenCountries",
+        "q_purpose",
+        "q_residence",
+        "q_sponsor",
+        "ready",
+        "route_age",
+        "route_consent_material",
+        "route_countries",
+        "route_guardian_abroad",
+        "route_guardian_question",
+        "route_marital_status",
+        "route_occupation",
+        "route_other_guardian",
+        "route_school",
+        "route_sponsor",
+        "stop_dates",
+        "stop_destination",
+        "stop_scope",
+        "stop_sponsor",
+        "stop_unsure"
+      ],
+      "edges": [
+        {
+          "source": "q_ageGroup",
+          "event": "always",
+          "target": "q_otherSchengenCountries",
+          "guard": {
+            "type": "answered",
+            "params": {
+              "field": "ageGroup",
+              "nodeId": "q_ageGroup"
+            }
+          }
+        },
+        {
+          "source": "route_age",
+          "event": "always",
+          "target": "q_occupation",
+          "guard": {
+            "type": "equals",
+            "params": {
+              "field": "ageGroup",
+              "value": "adult",
+              "nodeId": "route_age"
+            }
+          }
+        },
+        {
+          "source": "route_age",
+          "event": "always",
+          "target": "q_inSchool",
+          "guard": {
+            "type": "equals",
+            "params": {
+              "field": "ageGroup",
+              "value": "minor",
+              "nodeId": "route_age"
+            }
+          }
+        },
+        {
+          "source": "q_applicationCity",
+          "event": "always",
+          "target": "q_destination",
+          "guard": {
+            "type": "answered",
+            "params": {
+              "field": "applicationCity",
+              "nodeId": "q_applicationCity"
+            }
+          }
+        },
+        {
+          "source": "q_arrivalDate",
+          "event": "always",
+          "target": "q_departureDate",
+          "guard": {
+            "type": "answered",
+            "params": {
+              "field": "arrivalDate",
+              "nodeId": "q_arrivalDate"
+            }
+          }
+        },
+        {
+          "source": "q_departureDate",
+          "event": "always",
+          "target": "q_ageGroup",
+          "guard": {
+            "type": "answered",
+            "params": {
+              "field": "departureDate",
+              "nodeId": "q_departureDate"
+            }
+          }
+        },
+        {
+          "source": "q_destination",
+          "event": "always",
+          "target": "q_purpose",
+          "guard": {
+            "type": "answered",
+            "params": {
+              "field": "destination",
+              "nodeId": "q_destination"
+            }
+          }
+        },
+        {
+          "source": "q_guardianAbroad",
+          "event": "always",
+          "target": "materials_minor",
+          "guard": {
+            "type": "answered",
+            "params": {
+              "field": "guardianAbroad",
+              "nodeId": "q_guardianAbroad"
+            }
+          }
+        },
+        {
+          "source": "check_main_destination",
+          "event": "always",
+          "target": "stop_destination",
+          "guard": {
+            "type": "equals",
+            "params": {
+              "field": "icelandMainDestination",
+              "value": "no",
+              "nodeId": "check_main_destination"
+            }
+          }
+        },
+        {
+          "source": "check_main_destination",
+          "event": "always",
+          "target": "stop_unsure",
+          "guard": {
+            "type": "equals",
+            "params": {
+              "field": "icelandMainDestination",
+              "value": "unsure",
+              "nodeId": "check_main_destination"
+            }
+          }
+        },
+        {
+          "source": "check_main_destination",
+          "event": "always",
+          "target": "materials_multi",
+          "guard": {
+            "type": "equals",
+            "params": {
+              "field": "icelandMainDestination",
+              "value": "yes",
+              "nodeId": "check_main_destination"
+            }
+          }
+        },
+        {
+          "source": "q_icelandMainDestination",
+          "event": "always",
+          "target": "check_main_destination",
+          "guard": {
+            "type": "answered",
+            "params": {
+              "field": "icelandMainDestination",
+              "nodeId": "q_icelandMainDestination"
+            }
+          }
+        },
+        {
+          "source": "q_inSchool",
+          "event": "always",
+          "target": "q_minorTravel",
+          "guard": {
+            "type": "answered",
+            "params": {
+              "field": "inSchool",
+              "nodeId": "q_inSchool"
+            }
+          }
+        },
+        {
+          "source": "route_school",
+          "event": "always",
+          "target": "note_no_school",
+          "guard": {
+            "type": "equals",
+            "params": {
+              "field": "inSchool",
+              "value": "no",
+              "nodeId": "route_school"
+            }
+          }
+        },
+        {
+          "source": "route_school",
+          "event": "always",
+          "target": "materials_school",
+          "guard": {
+            "type": "equals",
+            "params": {
+              "field": "inSchool",
+              "value": "yes",
+              "nodeId": "route_school"
+            }
+          }
+        },
+        {
+          "source": "q_maritalStatus",
+          "event": "always",
+          "target": "q_sponsor",
+          "guard": {
+            "type": "answered",
+            "params": {
+              "field": "maritalStatus",
+              "nodeId": "q_maritalStatus"
+            }
+          }
+        },
+        {
+          "source": "route_marital_status",
+          "event": "always",
+          "target": "materials_spouse",
+          "guard": {
+            "type": "equals",
+            "params": {
+              "field": "maritalStatus",
+              "value": "married",
+              "nodeId": "route_marital_status"
+            }
+          }
+        },
+        {
+          "source": "route_marital_status",
+          "event": "always",
+          "target": "materials_regular_income",
+          "guard": {
+            "type": "oneOf",
+            "params": {
+              "field": "maritalStatus",
+              "values": [
+                "single",
+                "divorced",
+                "widowed"
+              ],
+              "nodeId": "route_marital_status"
+            }
+          }
+        },
+        {
+          "source": "q_minorTravel",
+          "event": "always",
+          "target": "route_guardian_question",
+          "guard": {
+            "type": "answered",
+            "params": {
+              "field": "minorTravel",
+              "nodeId": "q_minorTravel"
+            }
+          }
+        },
+        {
+          "source": "route_consent_material",
+          "event": "always",
+          "target": "materials_consent",
+          "guard": {
+            "type": "oneOf",
+            "params": {
+              "field": "minorTravel",
+              "values": [
+                "alone",
+                "one_parent"
+              ],
+              "nodeId": "route_consent_material"
+            }
+          }
+        },
+        {
+          "source": "route_guardian_question",
+          "event": "always",
+          "target": "q_guardianAbroad",
+          "guard": {
+            "type": "oneOf",
+            "params": {
+              "field": "minorTravel",
+              "values": [
+                "alone",
+                "one_parent",
+                "other_guardian"
+              ],
+              "nodeId": "route_guardian_question"
+            }
+          }
+        },
+        {
+          "source": "route_other_guardian",
+          "event": "always",
+          "target": "note_other_guardian",
+          "guard": {
+            "type": "equals",
+            "params": {
+              "field": "minorTravel",
+              "value": "other_guardian",
+              "nodeId": "route_other_guardian"
+            }
+          }
+        },
+        {
+          "source": "q_nationality",
+          "event": "always",
+          "target": "q_residence",
+          "guard": {
+            "type": "answered",
+            "params": {
+              "field": "nationality",
+              "nodeId": "q_nationality"
+            }
+          }
+        },
+        {
+          "source": "q_occupation",
+          "event": "always",
+          "target": "route_occupation",
+          "guard": {
+            "type": "answered",
+            "params": {
+              "field": "occupation",
+              "nodeId": "q_occupation"
+            }
+          }
+        },
+        {
+          "source": "route_occupation",
+          "event": "always",
+          "target": "materials_employed",
+          "guard": {
+            "type": "equals",
+            "params": {
+              "field": "occupation",
+              "value": "employed",
+              "nodeId": "route_occupation"
+            }
+          }
+        },
+        {
+          "source": "route_occupation",
+          "event": "always",
+          "target": "materials_retired",
+          "guard": {
+            "type": "equals",
+            "params": {
+              "field": "occupation",
+              "value": "retired",
+              "nodeId": "route_occupation"
+            }
+          }
+        },
+        {
+          "source": "route_occupation",
+          "event": "always",
+          "target": "q_maritalStatus",
+          "guard": {
+            "type": "equals",
+            "params": {
+              "field": "occupation",
+              "value": "unemployed",
+              "nodeId": "route_occupation"
+            }
+          }
+        },
+        {
+          "source": "q_otherSchengenCountries",
+          "event": "always",
+          "target": "check_dates",
+          "guard": {
+            "type": "answered",
+            "params": {
+              "field": "otherSchengenCountries",
+              "nodeId": "q_otherSchengenCountries"
+            }
+          }
+        },
+        {
+          "source": "route_countries",
+          "event": "always",
+          "target": "route_age",
+          "guard": {
+            "type": "equals",
+            "params": {
+              "field": "otherSchengenCountries",
+              "value": "no",
+              "nodeId": "route_countries"
+            }
+          }
+        },
+        {
+          "source": "route_countries",
+          "event": "always",
+          "target": "q_icelandMainDestination",
+          "guard": {
+            "type": "equals",
+            "params": {
+              "field": "otherSchengenCountries",
+              "value": "yes",
+              "nodeId": "route_countries"
+            }
+          }
+        },
+        {
+          "source": "q_purpose",
+          "event": "always",
+          "target": "q_arrivalDate",
+          "guard": {
+            "type": "answered",
+            "params": {
+              "field": "purpose",
+              "nodeId": "q_purpose"
+            }
+          }
+        },
+        {
+          "source": "q_residence",
+          "event": "always",
+          "target": "q_applicationCity",
+          "guard": {
+            "type": "answered",
+            "params": {
+              "field": "residence",
+              "nodeId": "q_residence"
+            }
+          }
+        },
+        {
+          "source": "q_sponsor",
+          "event": "always",
+          "target": "check_sponsor_consistency",
+          "guard": {
+            "type": "answered",
+            "params": {
+              "field": "sponsor",
+              "nodeId": "q_sponsor"
+            }
+          }
+        },
+        {
+          "source": "route_sponsor",
+          "event": "always",
+          "target": "materials_other_sponsor",
+          "guard": {
+            "type": "equals",
+            "params": {
+              "field": "sponsor",
+              "value": "other",
+              "nodeId": "route_sponsor"
+            }
+          }
+        },
+        {
+          "source": "check_dates",
+          "event": "always",
+          "target": "check_scope",
+          "guard": {
+            "type": "before",
+            "params": {
+              "left": "arrivalDate",
+              "right": "departureDate",
+              "nodeId": "check_dates"
+            }
+          }
+        },
+        {
+          "source": "check_scope",
+          "event": "always",
+          "target": "materials_common",
+          "guard": {
+            "type": "allEqual",
+            "params": {
+              "values": {
+                "nationality": "CN",
+                "residence": "CN",
+                "destination": "IS",
+                "purpose": "tourism"
+              },
+              "nodeId": "check_scope"
+            }
+          }
+        },
+        {
+          "source": "check_sponsor_consistency",
+          "event": "always",
+          "target": "stop_sponsor",
+          "guard": {
+            "type": "inconsistentSpouse",
+            "params": {
+              "nodeId": "check_sponsor_consistency"
+            }
+          }
+        },
+        {
+          "source": "check_sponsor_note",
+          "event": "always",
+          "target": "note_sponsor",
+          "guard": {
+            "type": "otherSponsorReview",
+            "params": {
+              "nodeId": "check_sponsor_note"
+            }
+          }
+        },
+        {
+          "source": "route_guardian_abroad",
+          "event": "always",
+          "target": "note_guardian_abroad",
+          "guard": {
+            "type": "guardianAbroadReview",
+            "params": {
+              "nodeId": "route_guardian_abroad"
+            }
+          }
+        },
+        {
+          "source": "check_dates",
+          "event": "always",
+          "target": "stop_dates"
+        },
+        {
+          "source": "check_scope",
+          "event": "always",
+          "target": "stop_scope"
+        },
+        {
+          "source": "check_sponsor_consistency",
+          "event": "always",
+          "target": "route_marital_status"
+        },
+        {
+          "source": "check_sponsor_note",
+          "event": "always",
+          "target": "ready"
+        },
+        {
+          "source": "materials_common",
+          "event": "always",
+          "target": "route_countries"
+        },
+        {
+          "source": "materials_consent",
+          "event": "always",
+          "target": "check_sponsor_note"
+        },
+        {
+          "source": "materials_employed",
+          "event": "always",
+          "target": "check_sponsor_note"
+        },
+        {
+          "source": "materials_minor",
+          "event": "always",
+          "target": "route_school"
+        },
+        {
+          "source": "materials_multi",
+          "event": "always",
+          "target": "route_age"
+        },
+        {
+          "source": "materials_other_sponsor",
+          "event": "always",
+          "target": "check_sponsor_note"
+        },
+        {
+          "source": "materials_regular_income",
+          "event": "always",
+          "target": "route_sponsor"
+        },
+        {
+          "source": "materials_retired",
+          "event": "always",
+          "target": "check_sponsor_note"
+        },
+        {
+          "source": "materials_school",
+          "event": "always",
+          "target": "route_other_guardian"
+        },
+        {
+          "source": "materials_spouse",
+          "event": "always",
+          "target": "route_sponsor"
+        },
+        {
+          "source": "note_guardian_abroad",
+          "event": "always",
+          "target": "route_consent_material"
+        },
+        {
+          "source": "note_no_school",
+          "event": "always",
+          "target": "route_other_guardian"
+        },
+        {
+          "source": "note_other_guardian",
+          "event": "always",
+          "target": "route_guardian_abroad"
+        },
+        {
+          "source": "note_sponsor",
+          "event": "always",
+          "target": "ready"
+        },
+        {
+          "source": "route_consent_material",
+          "event": "always",
+          "target": "check_sponsor_note"
+        },
+        {
+          "source": "route_guardian_abroad",
+          "event": "always",
+          "target": "route_consent_material"
+        },
+        {
+          "source": "route_guardian_question",
+          "event": "always",
+          "target": "materials_minor"
+        },
+        {
+          "source": "route_other_guardian",
+          "event": "always",
+          "target": "route_guardian_abroad"
+        },
+        {
+          "source": "route_sponsor",
+          "event": "always",
+          "target": "check_sponsor_note"
+        }
+      ]
+    },
+    "questionChoices": [
+      {
+        "id": "nationality",
+        "type": "choice",
+        "choices": [
+          "CN",
+          "other"
+        ]
+      },
+      {
+        "id": "residence",
+        "type": "choice",
+        "choices": [
+          "CN",
+          "other"
+        ]
+      },
+      {
+        "id": "applicationCity",
+        "type": "text"
+      },
+      {
+        "id": "destination",
+        "type": "choice",
+        "choices": [
+          "IS",
+          "other"
+        ]
+      },
+      {
+        "id": "purpose",
+        "type": "choice",
+        "choices": [
+          "other",
+          "tourism"
+        ]
+      },
+      {
+        "id": "arrivalDate",
+        "type": "date"
+      },
+      {
+        "id": "departureDate",
+        "type": "date"
+      },
+      {
+        "id": "ageGroup",
+        "type": "choice",
+        "choices": [
+          "adult",
+          "minor"
+        ]
+      },
+      {
+        "id": "otherSchengenCountries",
+        "type": "choice",
+        "choices": [
+          "no",
+          "yes"
+        ]
+      },
+      {
+        "id": "icelandMainDestination",
+        "type": "choice",
+        "choices": [
+          "no",
+          "unsure",
+          "yes"
+        ]
+      },
+      {
+        "id": "occupation",
+        "type": "choice",
+        "choices": [
+          "employed",
+          "retired",
+          "unemployed"
+        ]
+      },
+      {
+        "id": "maritalStatus",
+        "type": "choice",
+        "choices": [
+          "divorced",
+          "married",
+          "single",
+          "widowed"
+        ]
+      },
+      {
+        "id": "sponsor",
+        "type": "choice",
+        "choices": [
+          "other",
+          "self",
+          "spouse"
+        ]
+      },
+      {
+        "id": "inSchool",
+        "type": "choice",
+        "choices": [
+          "no",
+          "yes"
+        ]
+      },
+      {
+        "id": "minorTravel",
+        "type": "choice",
+        "choices": [
+          "alone",
+          "both_parents",
+          "one_parent",
+          "other_guardian"
+        ]
+      },
+      {
+        "id": "guardianAbroad",
+        "type": "choice",
+        "choices": [
+          "no",
+          "yes"
+        ]
+      }
+    ],
+    "materialIds": [
+      "accommodation",
+      "bank_statements",
+      "chinese_id_copy",
+      "daily_itinerary",
+      "employer_license",
+      "employment_letter",
+      "family_guardianship_certificate",
+      "hukou_copy",
+      "intra_schengen_transport",
+      "marriage_certificate",
+      "other_regular_income",
+      "passport",
+      "pension_income",
+      "photo",
+      "round_trip_reservation",
+      "schengen_form",
+      "school_letter",
+      "sponsor_bank_statements",
+      "sponsor_employment_income",
+      "sponsor_passport_copy",
+      "sponsorship_letter",
+      "spouse_employment_income",
+      "student_card",
+      "travel_consent_certificate",
+      "travel_insurance"
+    ],
+    "nodeEffects": {
+      "q_nationality": {
+        "entry": [],
+        "questionId": "nationality",
+        "groupId": "basic",
+        "status": null
+      },
+      "q_residence": {
+        "entry": [],
+        "questionId": "residence",
+        "groupId": "basic",
+        "status": null
+      },
+      "q_applicationCity": {
+        "entry": [],
+        "questionId": "applicationCity",
+        "groupId": "basic",
+        "status": null
+      },
+      "q_destination": {
+        "entry": [],
+        "questionId": "destination",
+        "groupId": "basic",
+        "status": null
+      },
+      "q_purpose": {
+        "entry": [],
+        "questionId": "purpose",
+        "groupId": "basic",
+        "status": null
+      },
+      "q_arrivalDate": {
+        "entry": [],
+        "questionId": "arrivalDate",
+        "groupId": "basic",
+        "status": null
+      },
+      "q_departureDate": {
+        "entry": [],
+        "questionId": "departureDate",
+        "groupId": "basic",
+        "status": null
+      },
+      "q_ageGroup": {
+        "entry": [],
+        "questionId": "ageGroup",
+        "groupId": "basic",
+        "status": null
+      },
+      "q_otherSchengenCountries": {
+        "entry": [],
+        "questionId": "otherSchengenCountries",
+        "groupId": "basic",
+        "status": null
+      },
+      "check_dates": {
+        "entry": [],
+        "questionId": null,
+        "groupId": null,
+        "status": null
+      },
+      "stop_dates": {
+        "entry": [],
+        "questionId": null,
+        "groupId": "basic",
+        "status": "needs_correction"
+      },
+      "check_scope": {
+        "entry": [],
+        "questionId": null,
+        "groupId": null,
+        "status": null
+      },
+      "stop_scope": {
+        "entry": [],
+        "questionId": null,
+        "groupId": null,
+        "status": "unsupported"
+      },
+      "materials_common": {
+        "entry": [
+          {
+            "type": "addTasks",
+            "params": {
+              "ids": [
+                "schengen_form",
+                "passport",
+                "photo",
+                "travel_insurance",
+                "round_trip_reservation",
+                "daily_itinerary",
+                "accommodation",
+                "chinese_id_copy",
+                "hukou_copy",
+                "bank_statements"
+              ]
+            }
+          },
+          {
+            "type": "addNotes",
+            "params": {
+              "ids": []
+            }
+          }
+        ],
+        "questionId": null,
+        "groupId": null,
+        "status": null
+      },
+      "route_countries": {
+        "entry": [],
+        "questionId": null,
+        "groupId": null,
+        "status": null
+      },
+      "q_icelandMainDestination": {
+        "entry": [],
+        "questionId": "icelandMainDestination",
+        "groupId": "multi_country",
+        "status": null
+      },
+      "check_main_destination": {
+        "entry": [],
+        "questionId": null,
+        "groupId": null,
+        "status": null
+      },
+      "stop_destination": {
+        "entry": [],
+        "questionId": null,
+        "groupId": null,
+        "status": "unsupported"
+      },
+      "stop_unsure": {
+        "entry": [],
+        "questionId": null,
+        "groupId": null,
+        "status": "needs_review"
+      },
+      "materials_multi": {
+        "entry": [
+          {
+            "type": "addTasks",
+            "params": {
+              "ids": [
+                "intra_schengen_transport"
+              ]
+            }
+          },
+          {
+            "type": "addNotes",
+            "params": {
+              "ids": []
+            }
+          }
+        ],
+        "questionId": null,
+        "groupId": null,
+        "status": null
+      },
+      "route_age": {
+        "entry": [],
+        "questionId": null,
+        "groupId": null,
+        "status": null
+      },
+      "q_occupation": {
+        "entry": [],
+        "questionId": "occupation",
+        "groupId": "adult",
+        "status": null
+      },
+      "route_occupation": {
+        "entry": [],
+        "questionId": null,
+        "groupId": null,
+        "status": null
+      },
+      "materials_employed": {
+        "entry": [
+          {
+            "type": "addTasks",
+            "params": {
+              "ids": [
+                "employer_license",
+                "employment_letter"
+              ]
+            }
+          },
+          {
+            "type": "addNotes",
+            "params": {
+              "ids": []
+            }
+          }
+        ],
+        "questionId": null,
+        "groupId": null,
+        "status": null
+      },
+      "materials_retired": {
+        "entry": [
+          {
+            "type": "addTasks",
+            "params": {
+              "ids": [
+                "pension_income"
+              ]
+            }
+          },
+          {
+            "type": "addNotes",
+            "params": {
+              "ids": []
+            }
+          }
+        ],
+        "questionId": null,
+        "groupId": null,
+        "status": null
+      },
+      "q_maritalStatus": {
+        "entry": [],
+        "questionId": "maritalStatus",
+        "groupId": "unemployed",
+        "status": null
+      },
+      "q_sponsor": {
+        "entry": [],
+        "questionId": "sponsor",
+        "groupId": "unemployed",
+        "status": null
+      },
+      "check_sponsor_consistency": {
+        "entry": [],
+        "questionId": null,
+        "groupId": null,
+        "status": null
+      },
+      "stop_sponsor": {
+        "entry": [],
+        "questionId": null,
+        "groupId": "unemployed",
+        "status": "needs_correction"
+      },
+      "route_marital_status": {
+        "entry": [],
+        "questionId": null,
+        "groupId": null,
+        "status": null
+      },
+      "materials_spouse": {
+        "entry": [
+          {
+            "type": "addTasks",
+            "params": {
+              "ids": [
+                "spouse_employment_income",
+                "marriage_certificate"
+              ]
+            }
+          },
+          {
+            "type": "addNotes",
+            "params": {
+              "ids": []
+            }
+          }
+        ],
+        "questionId": null,
+        "groupId": null,
+        "status": null
+      },
+      "materials_regular_income": {
+        "entry": [
+          {
+            "type": "addTasks",
+            "params": {
+              "ids": [
+                "other_regular_income"
+              ]
+            }
+          },
+          {
+            "type": "addNotes",
+            "params": {
+              "ids": []
+            }
+          }
+        ],
+        "questionId": null,
+        "groupId": null,
+        "status": null
+      },
+      "route_sponsor": {
+        "entry": [],
+        "questionId": null,
+        "groupId": null,
+        "status": null
+      },
+      "materials_other_sponsor": {
+        "entry": [
+          {
+            "type": "addTasks",
+            "params": {
+              "ids": [
+                "sponsor_employment_income",
+                "sponsor_bank_statements",
+                "sponsorship_letter",
+                "sponsor_passport_copy"
+              ]
+            }
+          },
+          {
+            "type": "addNotes",
+            "params": {
+              "ids": []
+            }
+          }
+        ],
+        "questionId": null,
+        "groupId": null,
+        "status": null
+      },
+      "q_inSchool": {
+        "entry": [],
+        "questionId": "inSchool",
+        "groupId": "minor",
+        "status": null
+      },
+      "q_minorTravel": {
+        "entry": [],
+        "questionId": "minorTravel",
+        "groupId": "minor",
+        "status": null
+      },
+      "route_guardian_question": {
+        "entry": [],
+        "questionId": null,
+        "groupId": null,
+        "status": null
+      },
+      "q_guardianAbroad": {
+        "entry": [],
+        "questionId": "guardianAbroad",
+        "groupId": "minor_consent",
+        "status": null
+      },
+      "materials_minor": {
+        "entry": [
+          {
+            "type": "addTasks",
+            "params": {
+              "ids": [
+                "family_guardianship_certificate"
+              ]
+            }
+          },
+          {
+            "type": "addNotes",
+            "params": {
+              "ids": [
+                "minor_bank"
+              ]
+            }
+          }
+        ],
+        "questionId": null,
+        "groupId": null,
+        "status": null
+      },
+      "route_school": {
+        "entry": [],
+        "questionId": null,
+        "groupId": null,
+        "status": null
+      },
+      "materials_school": {
+        "entry": [
+          {
+            "type": "addTasks",
+            "params": {
+              "ids": [
+                "student_card",
+                "school_letter"
+              ]
+            }
+          },
+          {
+            "type": "addNotes",
+            "params": {
+              "ids": []
+            }
+          }
+        ],
+        "questionId": null,
+        "groupId": null,
+        "status": null
+      },
+      "note_no_school": {
+        "entry": {
+          "type": "addNotes",
+          "params": {
+            "ids": [
+              "minor_not_school"
+            ]
+          }
+        },
+        "questionId": null,
+        "groupId": null,
+        "status": null
+      },
+      "route_other_guardian": {
+        "entry": [],
+        "questionId": null,
+        "groupId": null,
+        "status": null
+      },
+      "note_other_guardian": {
+        "entry": {
+          "type": "addNotes",
+          "params": {
+            "ids": [
+              "other_guardian"
+            ]
+          }
+        },
+        "questionId": null,
+        "groupId": null,
+        "status": null
+      },
+      "route_guardian_abroad": {
+        "entry": [],
+        "questionId": null,
+        "groupId": null,
+        "status": null
+      },
+      "note_guardian_abroad": {
+        "entry": {
+          "type": "addNotes",
+          "params": {
+            "ids": [
+              "guardian_abroad"
+            ]
+          }
+        },
+        "questionId": null,
+        "groupId": null,
+        "status": null
+      },
+      "route_consent_material": {
+        "entry": [],
+        "questionId": null,
+        "groupId": null,
+        "status": null
+      },
+      "materials_consent": {
+        "entry": [
+          {
+            "type": "addTasks",
+            "params": {
+              "ids": [
+                "travel_consent_certificate"
+              ]
+            }
+          },
+          {
+            "type": "addNotes",
+            "params": {
+              "ids": []
+            }
+          }
+        ],
+        "questionId": null,
+        "groupId": null,
+        "status": null
+      },
+      "check_sponsor_note": {
+        "entry": [],
+        "questionId": null,
+        "groupId": null,
+        "status": null
+      },
+      "note_sponsor": {
+        "entry": {
+          "type": "addNotes",
+          "params": {
+            "ids": [
+              "sponsor_overlap"
+            ]
+          }
+        },
+        "questionId": null,
+        "groupId": null,
+        "status": null
+      },
+      "ready": {
+        "entry": [],
+        "questionId": null,
+        "groupId": null,
+        "status": "tasks_ready"
+      }
+    }
+  },
+  "tasks": [
+    {
+      "id": "accommodation",
+      "workflow": "collect-v1",
+      "policy": "material",
+      "graph": {
+        "initial": "prepare",
+        "nodes": [
+          "acquiring",
+          "assisted_check",
+          "await_upload",
+          "done",
+          "prepare",
+          "self_check"
+        ],
+        "edges": [
+          {
+            "source": "prepare",
+            "event": "ACQUIRE",
+            "target": "acquiring"
+          },
+          {
+            "source": "prepare",
+            "event": "ASSISTED_CHECK",
+            "target": "await_upload"
+          },
+          {
+            "source": "self_check",
+            "event": "ASSISTED_CHECK",
+            "target": "await_upload"
+          },
+          {
+            "source": "acquiring",
+            "event": "EDIT",
+            "target": "prepare"
+          },
+          {
+            "source": "assisted_check",
+            "event": "EDIT",
+            "target": "prepare"
+          },
+          {
+            "source": "await_upload",
+            "event": "EDIT",
+            "target": "prepare"
+          },
+          {
+            "source": "done",
+            "event": "EDIT",
+            "target": "prepare"
+          },
+          {
+            "source": "self_check",
+            "event": "EDIT",
+            "target": "prepare"
+          },
+          {
+            "source": "assisted_check",
+            "event": "FINISH",
+            "target": "done",
+            "guard": "assistedConfirmed"
+          },
+          {
+            "source": "self_check",
+            "event": "FINISH",
+            "target": "done",
+            "guard": "selfConfirmed"
+          },
+          {
+            "source": "acquiring",
+            "event": "READY",
+            "target": "prepare"
+          },
+          {
+            "source": "assisted_check",
+            "event": "RETRY",
+            "target": "await_upload"
+          },
+          {
+            "source": "await_upload",
+            "event": "REVIEW",
+            "target": "assisted_check",
+            "guard": "reviewProvided"
+          },
+          {
+            "source": "assisted_check",
+            "event": "SELF_CHECK",
+            "target": "self_check"
+          },
+          {
+            "source": "await_upload",
+            "event": "SELF_CHECK",
+            "target": "self_check"
+          },
+          {
+            "source": "prepare",
+            "event": "SELF_CHECK",
+            "target": "self_check"
+          }
+        ]
+      },
+      "fields": [],
+      "checks": [
+        {
+          "id": "identity",
+          "evidence": "document"
+        },
+        {
+          "id": "nights",
+          "evidence": "document"
+        },
+        {
+          "id": "dates",
+          "evidence": "document"
+        },
+        {
+          "id": "readable",
+          "evidence": "document"
+        }
+      ],
+      "coverage": [
+        "bookings"
+      ],
+      "rules": [],
+      "document": null
+    },
+    {
+      "id": "bank_statements",
+      "workflow": "collect-v1",
+      "policy": "material",
+      "graph": {
+        "initial": "prepare",
+        "nodes": [
+          "acquiring",
+          "assisted_check",
+          "await_upload",
+          "done",
+          "prepare",
+          "self_check"
+        ],
+        "edges": [
+          {
+            "source": "prepare",
+            "event": "ACQUIRE",
+            "target": "acquiring"
+          },
+          {
+            "source": "prepare",
+            "event": "ASSISTED_CHECK",
+            "target": "await_upload"
+          },
+          {
+            "source": "self_check",
+            "event": "ASSISTED_CHECK",
+            "target": "await_upload"
+          },
+          {
+            "source": "acquiring",
+            "event": "EDIT",
+            "target": "prepare"
+          },
+          {
+            "source": "assisted_check",
+            "event": "EDIT",
+            "target": "prepare"
+          },
+          {
+            "source": "await_upload",
+            "event": "EDIT",
+            "target": "prepare"
+          },
+          {
+            "source": "done",
+            "event": "EDIT",
+            "target": "prepare"
+          },
+          {
+            "source": "self_check",
+            "event": "EDIT",
+            "target": "prepare"
+          },
+          {
+            "source": "assisted_check",
+            "event": "FINISH",
+            "target": "done",
+            "guard": "assistedConfirmed"
+          },
+          {
+            "source": "self_check",
+            "event": "FINISH",
+            "target": "done",
+            "guard": "selfConfirmed"
+          },
+          {
+            "source": "acquiring",
+            "event": "READY",
+            "target": "prepare"
+          },
+          {
+            "source": "assisted_check",
+            "event": "RETRY",
+            "target": "await_upload"
+          },
+          {
+            "source": "await_upload",
+            "event": "REVIEW",
+            "target": "assisted_check",
+            "guard": "reviewProvided"
+          },
+          {
+            "source": "assisted_check",
+            "event": "SELF_CHECK",
+            "target": "self_check"
+          },
+          {
+            "source": "await_upload",
+            "event": "SELF_CHECK",
+            "target": "self_check"
+          },
+          {
+            "source": "prepare",
+            "event": "SELF_CHECK",
+            "target": "self_check"
+          }
+        ]
+      },
+      "fields": [],
+      "checks": [
+        {
+          "id": "holder",
+          "evidence": "document"
+        },
+        {
+          "id": "provider_rule",
+          "evidence": "user"
+        },
+        {
+          "id": "consecutive",
+          "evidence": "document"
+        },
+        {
+          "id": "account_type",
+          "evidence": "document"
+        },
+        {
+          "id": "readable",
+          "evidence": "document"
+        }
+      ],
+      "coverage": [
+        "statements"
+      ],
+      "rules": [],
+      "document": null
+    },
+    {
+      "id": "chinese_id_copy",
+      "workflow": "collect-v1",
+      "policy": "material",
+      "graph": {
+        "initial": "prepare",
+        "nodes": [
+          "acquiring",
+          "assisted_check",
+          "await_upload",
+          "done",
+          "prepare",
+          "self_check"
+        ],
+        "edges": [
+          {
+            "source": "prepare",
+            "event": "ACQUIRE",
+            "target": "acquiring"
+          },
+          {
+            "source": "prepare",
+            "event": "ASSISTED_CHECK",
+            "target": "await_upload"
+          },
+          {
+            "source": "self_check",
+            "event": "ASSISTED_CHECK",
+            "target": "await_upload"
+          },
+          {
+            "source": "acquiring",
+            "event": "EDIT",
+            "target": "prepare"
+          },
+          {
+            "source": "assisted_check",
+            "event": "EDIT",
+            "target": "prepare"
+          },
+          {
+            "source": "await_upload",
+            "event": "EDIT",
+            "target": "prepare"
+          },
+          {
+            "source": "done",
+            "event": "EDIT",
+            "target": "prepare"
+          },
+          {
+            "source": "self_check",
+            "event": "EDIT",
+            "target": "prepare"
+          },
+          {
+            "source": "assisted_check",
+            "event": "FINISH",
+            "target": "done",
+            "guard": "assistedConfirmed"
+          },
+          {
+            "source": "self_check",
+            "event": "FINISH",
+            "target": "done",
+            "guard": "selfConfirmed"
+          },
+          {
+            "source": "acquiring",
+            "event": "READY",
+            "target": "prepare"
+          },
+          {
+            "source": "assisted_check",
+            "event": "RETRY",
+            "target": "await_upload"
+          },
+          {
+            "source": "await_upload",
+            "event": "REVIEW",
+            "target": "assisted_check",
+            "guard": "reviewProvided"
+          },
+          {
+            "source": "assisted_check",
+            "event": "SELF_CHECK",
+            "target": "self_check"
+          },
+          {
+            "source": "await_upload",
+            "event": "SELF_CHECK",
+            "target": "self_check"
+          },
+          {
+            "source": "prepare",
+            "event": "SELF_CHECK",
+            "target": "self_check"
+          }
+        ]
+      },
+      "fields": [],
+      "checks": [
+        {
+          "id": "identity",
+          "evidence": "document"
+        },
+        {
+          "id": "both_sides",
+          "evidence": "document"
+        },
+        {
+          "id": "readable",
+          "evidence": "document"
+        },
+        {
+          "id": "original",
+          "evidence": "user"
+        }
+      ],
+      "coverage": [
+        "back",
+        "front"
+      ],
+      "rules": [],
+      "document": null
+    },
+    {
+      "id": "daily_itinerary",
+      "workflow": "draft-v1",
+      "policy": "material",
+      "graph": {
+        "initial": "prepare",
+        "nodes": [
+          "assisted_check",
+          "await_upload",
+          "done",
+          "filling",
+          "prepare",
+          "review_choice",
+          "self_check"
+        ],
+        "edges": [
+          {
+            "source": "review_choice",
+            "event": "ASSISTED_CHECK",
+            "target": "await_upload"
+          },
+          {
+            "source": "self_check",
+            "event": "ASSISTED_CHECK",
+            "target": "await_upload"
+          },
+          {
+            "source": "assisted_check",
+            "event": "EDIT",
+            "target": "prepare"
+          },
+          {
+            "source": "await_upload",
+            "event": "EDIT",
+            "target": "prepare"
+          },
+          {
+            "source": "done",
+            "event": "EDIT",
+            "target": "prepare"
+          },
+          {
+            "source": "filling",
+            "event": "EDIT",
+            "target": "prepare"
+          },
+          {
+            "source": "review_choice",
+            "event": "EDIT",
+            "target": "prepare"
+          },
+          {
+            "source": "self_check",
+            "event": "EDIT",
+            "target": "prepare"
+          },
+          {
+            "source": "filling",
+            "event": "FILLED",
+            "target": "review_choice"
+          },
+          {
+            "source": "prepare",
+            "event": "FILLED",
+            "target": "review_choice"
+          },
+          {
+            "source": "assisted_check",
+            "event": "FINISH",
+            "target": "done",
+            "guard": "assistedConfirmed"
+          },
+          {
+            "source": "self_check",
+            "event": "FINISH",
+            "target": "done",
+            "guard": "selfConfirmed"
+          },
+          {
+            "source": "prepare",
+            "event": "GUIDE_READY",
+            "target": "filling"
+          },
+          {
+            "source": "assisted_check",
+            "event": "RETRY",
+            "target": "await_upload"
+          },
+          {
+            "source": "await_upload",
+            "event": "REVIEW",
+            "target": "assisted_check",
+            "guard": "reviewProvided"
+          },
+          {
+            "source": "assisted_check",
+            "event": "SELF_CHECK",
+            "target": "self_check"
+          },
+          {
+            "source": "await_upload",
+            "event": "SELF_CHECK",
+            "target": "self_check"
+          },
+          {
+            "source": "review_choice",
+            "event": "SELF_CHECK",
+            "target": "self_check"
+          }
+        ]
+      },
+      "fields": [
+        {
+          "id": "applicantName",
+          "type": "string"
+        }
+      ],
+      "checks": [
+        {
+          "id": "days",
+          "evidence": "document"
+        },
+        {
+          "id": "route",
+          "evidence": "document"
+        },
+        {
+          "id": "consistent",
+          "evidence": "document"
+        },
+        {
+          "id": "language",
+          "evidence": "document"
+        }
+      ],
+      "coverage": [
+        "itinerary"
+      ],
+      "rules": [
+        {
+          "kind": "itinerary_days",
+          "checkId": "days"
+        }
+      ],
+      "document": "itinerary"
+    },
+    {
+      "id": "employer_license",
+      "workflow": "collect-v1",
+      "policy": "material",
+      "graph": {
+        "initial": "prepare",
+        "nodes": [
+          "acquiring",
+          "assisted_check",
+          "await_upload",
+          "done",
+          "prepare",
+          "self_check"
+        ],
+        "edges": [
+          {
+            "source": "prepare",
+            "event": "ACQUIRE",
+            "target": "acquiring"
+          },
+          {
+            "source": "prepare",
+            "event": "ASSISTED_CHECK",
+            "target": "await_upload"
+          },
+          {
+            "source": "self_check",
+            "event": "ASSISTED_CHECK",
+            "target": "await_upload"
+          },
+          {
+            "source": "acquiring",
+            "event": "EDIT",
+            "target": "prepare"
+          },
+          {
+            "source": "assisted_check",
+            "event": "EDIT",
+            "target": "prepare"
+          },
+          {
+            "source": "await_upload",
+            "event": "EDIT",
+            "target": "prepare"
+          },
+          {
+            "source": "done",
+            "event": "EDIT",
+            "target": "prepare"
+          },
+          {
+            "source": "self_check",
+            "event": "EDIT",
+            "target": "prepare"
+          },
+          {
+            "source": "assisted_check",
+            "event": "FINISH",
+            "target": "done",
+            "guard": "assistedConfirmed"
+          },
+          {
+            "source": "self_check",
+            "event": "FINISH",
+            "target": "done",
+            "guard": "selfConfirmed"
+          },
+          {
+            "source": "acquiring",
+            "event": "READY",
+            "target": "prepare"
+          },
+          {
+            "source": "assisted_check",
+            "event": "RETRY",
+            "target": "await_upload"
+          },
+          {
+            "source": "await_upload",
+            "event": "REVIEW",
+            "target": "assisted_check",
+            "guard": "reviewProvided"
+          },
+          {
+            "source": "assisted_check",
+            "event": "SELF_CHECK",
+            "target": "self_check"
+          },
+          {
+            "source": "await_upload",
+            "event": "SELF_CHECK",
+            "target": "self_check"
+          },
+          {
+            "source": "prepare",
+            "event": "SELF_CHECK",
+            "target": "self_check"
+          }
+        ]
+      },
+      "fields": [],
+      "checks": [
+        {
+          "id": "employer",
+          "evidence": "document"
+        },
+        {
+          "id": "readable",
+          "evidence": "document"
+        }
+      ],
+      "coverage": [
+        "license"
+      ],
+      "rules": [],
+      "document": null
+    },
+    {
+      "id": "employment_letter",
+      "workflow": "draft-v1",
+      "policy": "material",
+      "graph": {
+        "initial": "prepare",
+        "nodes": [
+          "assisted_check",
+          "await_upload",
+          "done",
+          "filling",
+          "prepare",
+          "review_choice",
+          "self_check"
+        ],
+        "edges": [
+          {
+            "source": "review_choice",
+            "event": "ASSISTED_CHECK",
+            "target": "await_upload"
+          },
+          {
+            "source": "self_check",
+            "event": "ASSISTED_CHECK",
+            "target": "await_upload"
+          },
+          {
+            "source": "assisted_check",
+            "event": "EDIT",
+            "target": "prepare"
+          },
+          {
+            "source": "await_upload",
+            "event": "EDIT",
+            "target": "prepare"
+          },
+          {
+            "source": "done",
+            "event": "EDIT",
+            "target": "prepare"
+          },
+          {
+            "source": "filling",
+            "event": "EDIT",
+            "target": "prepare"
+          },
+          {
+            "source": "review_choice",
+            "event": "EDIT",
+            "target": "prepare"
+          },
+          {
+            "source": "self_check",
+            "event": "EDIT",
+            "target": "prepare"
+          },
+          {
+            "source": "filling",
+            "event": "FILLED",
+            "target": "review_choice"
+          },
+          {
+            "source": "prepare",
+            "event": "FILLED",
+            "target": "review_choice"
+          },
+          {
+            "source": "assisted_check",
+            "event": "FINISH",
+            "target": "done",
+            "guard": "assistedConfirmed"
+          },
+          {
+            "source": "self_check",
+            "event": "FINISH",
+            "target": "done",
+            "guard": "selfConfirmed"
+          },
+          {
+            "source": "prepare",
+            "event": "GUIDE_READY",
+            "target": "filling"
+          },
+          {
+            "source": "assisted_check",
+            "event": "RETRY",
+            "target": "await_upload"
+          },
+          {
+            "source": "await_upload",
+            "event": "REVIEW",
+            "target": "assisted_check",
+            "guard": "reviewProvided"
+          },
+          {
+            "source": "assisted_check",
+            "event": "SELF_CHECK",
+            "target": "self_check"
+          },
+          {
+            "source": "await_upload",
+            "event": "SELF_CHECK",
+            "target": "self_check"
+          },
+          {
+            "source": "review_choice",
+            "event": "SELF_CHECK",
+            "target": "self_check"
+          }
+        ]
+      },
+      "fields": [
+        {
+          "id": "applicantName",
+          "type": "string"
+        },
+        {
+          "id": "issuerName",
+          "type": "string"
+        },
+        {
+          "id": "contact",
+          "type": "string"
+        },
+        {
+          "id": "body",
+          "type": "string"
+        },
+        {
+          "id": "documentDate",
+          "type": "string"
+        },
+        {
+          "id": "position",
+          "type": "string"
+        },
+        {
+          "id": "salary",
+          "type": "string"
+        },
+        {
+          "id": "employmentSince",
+          "type": "string"
+        },
+        {
+          "id": "leaveDates",
+          "type": "string"
+        }
+      ],
+      "checks": [
+        {
+          "id": "identity",
+          "evidence": "document"
+        },
+        {
+          "id": "contents",
+          "evidence": "document"
+        },
+        {
+          "id": "language",
+          "evidence": "document"
+        },
+        {
+          "id": "execution",
+          "evidence": "user"
+        }
+      ],
+      "coverage": [
+        "letter"
+      ],
+      "rules": [],
+      "document": "employment"
+    },
+    {
+      "id": "family_guardianship_certificate",
+      "workflow": "collect-v1",
+      "policy": "material",
+      "graph": {
+        "initial": "prepare",
+        "nodes": [
+          "acquiring",
+          "assisted_check",
+          "await_upload",
+          "done",
+          "prepare",
+          "self_check"
+        ],
+        "edges": [
+          {
+            "source": "prepare",
+            "event": "ACQUIRE",
+            "target": "acquiring"
+          },
+          {
+            "source": "prepare",
+            "event": "ASSISTED_CHECK",
+            "target": "await_upload"
+          },
+          {
+            "source": "self_check",
+            "event": "ASSISTED_CHECK",
+            "target": "await_upload"
+          },
+          {
+            "source": "acquiring",
+            "event": "EDIT",
+            "target": "prepare"
+          },
+          {
+            "source": "assisted_check",
+            "event": "EDIT",
+            "target": "prepare"
+          },
+          {
+            "source": "await_upload",
+            "event": "EDIT",
+            "target": "prepare"
+          },
+          {
+            "source": "done",
+            "event": "EDIT",
+            "target": "prepare"
+          },
+          {
+            "source": "self_check",
+            "event": "EDIT",
+            "target": "prepare"
+          },
+          {
+            "source": "assisted_check",
+            "event": "FINISH",
+            "target": "done",
+            "guard": "assistedConfirmed"
+          },
+          {
+            "source": "self_check",
+            "event": "FINISH",
+            "target": "done",
+            "guard": "selfConfirmed"
+          },
+          {
+            "source": "acquiring",
+            "event": "READY",
+            "target": "prepare"
+          },
+          {
+            "source": "assisted_check",
+            "event": "RETRY",
+            "target": "await_upload"
+          },
+          {
+            "source": "await_upload",
+            "event": "REVIEW",
+            "target": "assisted_check",
+            "guard": "reviewProvided"
+          },
+          {
+            "source": "assisted_check",
+            "event": "SELF_CHECK",
+            "target": "self_check"
+          },
+          {
+            "source": "await_upload",
+            "event": "SELF_CHECK",
+            "target": "self_check"
+          },
+          {
+            "source": "prepare",
+            "event": "SELF_CHECK",
+            "target": "self_check"
+          }
+        ]
+      },
+      "fields": [],
+      "checks": [
+        {
+          "id": "scope",
+          "evidence": "user"
+        },
+        {
+          "id": "relationship",
+          "evidence": "document"
+        },
+        {
+          "id": "formalities",
+          "evidence": "user"
+        },
+        {
+          "id": "readable",
+          "evidence": "document"
+        }
+      ],
+      "coverage": [
+        "certificate"
+      ],
+      "rules": [],
+      "document": null
+    },
+    {
+      "id": "hukou_copy",
+      "workflow": "collect-v1",
+      "policy": "material",
+      "graph": {
+        "initial": "prepare",
+        "nodes": [
+          "acquiring",
+          "assisted_check",
+          "await_upload",
+          "done",
+          "prepare",
+          "self_check"
+        ],
+        "edges": [
+          {
+            "source": "prepare",
+            "event": "ACQUIRE",
+            "target": "acquiring"
+          },
+          {
+            "source": "prepare",
+            "event": "ASSISTED_CHECK",
+            "target": "await_upload"
+          },
+          {
+            "source": "self_check",
+            "event": "ASSISTED_CHECK",
+            "target": "await_upload"
+          },
+          {
+            "source": "acquiring",
+            "event": "EDIT",
+            "target": "prepare"
+          },
+          {
+            "source": "assisted_check",
+            "event": "EDIT",
+            "target": "prepare"
+          },
+          {
+            "source": "await_upload",
+            "event": "EDIT",
+            "target": "prepare"
+          },
+          {
+            "source": "done",
+            "event": "EDIT",
+            "target": "prepare"
+          },
+          {
+            "source": "self_check",
+            "event": "EDIT",
+            "target": "prepare"
+          },
+          {
+            "source": "assisted_check",
+            "event": "FINISH",
+            "target": "done",
+            "guard": "assistedConfirmed"
+          },
+          {
+            "source": "self_check",
+            "event": "FINISH",
+            "target": "done",
+            "guard": "selfConfirmed"
+          },
+          {
+            "source": "acquiring",
+            "event": "READY",
+            "target": "prepare"
+          },
+          {
+            "source": "assisted_check",
+            "event": "RETRY",
+            "target": "await_upload"
+          },
+          {
+            "source": "await_upload",
+            "event": "REVIEW",
+            "target": "assisted_check",
+            "guard": "reviewProvided"
+          },
+          {
+            "source": "assisted_check",
+            "event": "SELF_CHECK",
+            "target": "self_check"
+          },
+          {
+            "source": "await_upload",
+            "event": "SELF_CHECK",
+            "target": "self_check"
+          },
+          {
+            "source": "prepare",
+            "event": "SELF_CHECK",
+            "target": "self_check"
+          }
+        ]
+      },
+      "fields": [],
+      "checks": [
+        {
+          "id": "identity",
+          "evidence": "document"
+        },
+        {
+          "id": "pages",
+          "evidence": "user"
+        },
+        {
+          "id": "readable",
+          "evidence": "document"
+        }
+      ],
+      "coverage": [
+        "hukou"
+      ],
+      "rules": [],
+      "document": null
+    },
+    {
+      "id": "intra_schengen_transport",
+      "workflow": "collect-v1",
+      "policy": "material",
+      "graph": {
+        "initial": "prepare",
+        "nodes": [
+          "acquiring",
+          "assisted_check",
+          "await_upload",
+          "done",
+          "prepare",
+          "self_check"
+        ],
+        "edges": [
+          {
+            "source": "prepare",
+            "event": "ACQUIRE",
+            "target": "acquiring"
+          },
+          {
+            "source": "prepare",
+            "event": "ASSISTED_CHECK",
+            "target": "await_upload"
+          },
+          {
+            "source": "self_check",
+            "event": "ASSISTED_CHECK",
+            "target": "await_upload"
+          },
+          {
+            "source": "acquiring",
+            "event": "EDIT",
+            "target": "prepare"
+          },
+          {
+            "source": "assisted_check",
+            "event": "EDIT",
+            "target": "prepare"
+          },
+          {
+            "source": "await_upload",
+            "event": "EDIT",
+            "target": "prepare"
+          },
+          {
+            "source": "done",
+            "event": "EDIT",
+            "target": "prepare"
+          },
+          {
+            "source": "self_check",
+            "event": "EDIT",
+            "target": "prepare"
+          },
+          {
+            "source": "assisted_check",
+            "event": "FINISH",
+            "target": "done",
+            "guard": "assistedConfirmed"
+          },
+          {
+            "source": "self_check",
+            "event": "FINISH",
+            "target": "done",
+            "guard": "selfConfirmed"
+          },
+          {
+            "source": "acquiring",
+            "event": "READY",
+            "target": "prepare"
+          },
+          {
+            "source": "assisted_check",
+            "event": "RETRY",
+            "target": "await_upload"
+          },
+          {
+            "source": "await_upload",
+            "event": "REVIEW",
+            "target": "assisted_check",
+            "guard": "reviewProvided"
+          },
+          {
+            "source": "assisted_check",
+            "event": "SELF_CHECK",
+            "target": "self_check"
+          },
+          {
+            "source": "await_upload",
+            "event": "SELF_CHECK",
+            "target": "self_check"
+          },
+          {
+            "source": "prepare",
+            "event": "SELF_CHECK",
+            "target": "self_check"
+          }
+        ]
+      },
+      "fields": [],
+      "checks": [
+        {
+          "id": "identity",
+          "evidence": "document"
+        },
+        {
+          "id": "legs",
+          "evidence": "document"
+        },
+        {
+          "id": "dates",
+          "evidence": "document"
+        },
+        {
+          "id": "readable",
+          "evidence": "document"
+        }
+      ],
+      "coverage": [
+        "transport"
+      ],
+      "rules": [],
+      "document": null
+    },
+    {
+      "id": "marriage_certificate",
+      "workflow": "collect-v1",
+      "policy": "material",
+      "graph": {
+        "initial": "prepare",
+        "nodes": [
+          "acquiring",
+          "assisted_check",
+          "await_upload",
+          "done",
+          "prepare",
+          "self_check"
+        ],
+        "edges": [
+          {
+            "source": "prepare",
+            "event": "ACQUIRE",
+            "target": "acquiring"
+          },
+          {
+            "source": "prepare",
+            "event": "ASSISTED_CHECK",
+            "target": "await_upload"
+          },
+          {
+            "source": "self_check",
+            "event": "ASSISTED_CHECK",
+            "target": "await_upload"
+          },
+          {
+            "source": "acquiring",
+            "event": "EDIT",
+            "target": "prepare"
+          },
+          {
+            "source": "assisted_check",
+            "event": "EDIT",
+            "target": "prepare"
+          },
+          {
+            "source": "await_upload",
+            "event": "EDIT",
+            "target": "prepare"
+          },
+          {
+            "source": "done",
+            "event": "EDIT",
+            "target": "prepare"
+          },
+          {
+            "source": "self_check",
+            "event": "EDIT",
+            "target": "prepare"
+          },
+          {
+            "source": "assisted_check",
+            "event": "FINISH",
+            "target": "done",
+            "guard": "assistedConfirmed"
+          },
+          {
+            "source": "self_check",
+            "event": "FINISH",
+            "target": "done",
+            "guard": "selfConfirmed"
+          },
+          {
+            "source": "acquiring",
+            "event": "READY",
+            "target": "prepare"
+          },
+          {
+            "source": "assisted_check",
+            "event": "RETRY",
+            "target": "await_upload"
+          },
+          {
+            "source": "await_upload",
+            "event": "REVIEW",
+            "target": "assisted_check",
+            "guard": "reviewProvided"
+          },
+          {
+            "source": "assisted_check",
+            "event": "SELF_CHECK",
+            "target": "self_check"
+          },
+          {
+            "source": "await_upload",
+            "event": "SELF_CHECK",
+            "target": "self_check"
+          },
+          {
+            "source": "prepare",
+            "event": "SELF_CHECK",
+            "target": "self_check"
+          }
+        ]
+      },
+      "fields": [],
+      "checks": [
+        {
+          "id": "scope",
+          "evidence": "user"
+        },
+        {
+          "id": "relationship",
+          "evidence": "document"
+        },
+        {
+          "id": "formalities",
+          "evidence": "user"
+        },
+        {
+          "id": "readable",
+          "evidence": "document"
+        }
+      ],
+      "coverage": [
+        "certificate"
+      ],
+      "rules": [],
+      "document": null
+    },
+    {
+      "id": "other_regular_income",
+      "workflow": "collect-v1",
+      "policy": "material",
+      "graph": {
+        "initial": "prepare",
+        "nodes": [
+          "acquiring",
+          "assisted_check",
+          "await_upload",
+          "done",
+          "prepare",
+          "self_check"
+        ],
+        "edges": [
+          {
+            "source": "prepare",
+            "event": "ACQUIRE",
+            "target": "acquiring"
+          },
+          {
+            "source": "prepare",
+            "event": "ASSISTED_CHECK",
+            "target": "await_upload"
+          },
+          {
+            "source": "self_check",
+            "event": "ASSISTED_CHECK",
+            "target": "await_upload"
+          },
+          {
+            "source": "acquiring",
+            "event": "EDIT",
+            "target": "prepare"
+          },
+          {
+            "source": "assisted_check",
+            "event": "EDIT",
+            "target": "prepare"
+          },
+          {
+            "source": "await_upload",
+            "event": "EDIT",
+            "target": "prepare"
+          },
+          {
+            "source": "done",
+            "event": "EDIT",
+            "target": "prepare"
+          },
+          {
+            "source": "self_check",
+            "event": "EDIT",
+            "target": "prepare"
+          },
+          {
+            "source": "assisted_check",
+            "event": "FINISH",
+            "target": "done",
+            "guard": "assistedConfirmed"
+          },
+          {
+            "source": "self_check",
+            "event": "FINISH",
+            "target": "done",
+            "guard": "selfConfirmed"
+          },
+          {
+            "source": "acquiring",
+            "event": "READY",
+            "target": "prepare"
+          },
+          {
+            "source": "assisted_check",
+            "event": "RETRY",
+            "target": "await_upload"
+          },
+          {
+            "source": "await_upload",
+            "event": "REVIEW",
+            "target": "assisted_check",
+            "guard": "reviewProvided"
+          },
+          {
+            "source": "assisted_check",
+            "event": "SELF_CHECK",
+            "target": "self_check"
+          },
+          {
+            "source": "await_upload",
+            "event": "SELF_CHECK",
+            "target": "self_check"
+          },
+          {
+            "source": "prepare",
+            "event": "SELF_CHECK",
+            "target": "self_check"
+          }
+        ]
+      },
+      "fields": [],
+      "checks": [
+        {
+          "id": "identity",
+          "evidence": "document"
+        },
+        {
+          "id": "income",
+          "evidence": "document"
+        },
+        {
+          "id": "readable",
+          "evidence": "document"
+        }
+      ],
+      "coverage": [
+        "income"
+      ],
+      "rules": [],
+      "document": null
+    },
+    {
+      "id": "passport",
+      "workflow": "collect-v1",
+      "policy": "passport",
+      "graph": {
+        "initial": "prepare",
+        "nodes": [
+          "assisted_check",
+          "await_upload",
+          "done",
+          "prepare",
+          "self_check"
+        ],
+        "edges": [
+          {
+            "source": "prepare",
+            "event": "ASSISTED_CHECK",
+            "target": "await_upload"
+          },
+          {
+            "source": "self_check",
+            "event": "ASSISTED_CHECK",
+            "target": "await_upload"
+          },
+          {
+            "source": "assisted_check",
+            "event": "EDIT",
+            "target": "prepare"
+          },
+          {
+            "source": "await_upload",
+            "event": "EDIT",
+            "target": "prepare"
+          },
+          {
+            "source": "done",
+            "event": "EDIT",
+            "target": "prepare"
+          },
+          {
+            "source": "self_check",
+            "event": "EDIT",
+            "target": "prepare"
+          },
+          {
+            "source": "assisted_check",
+            "event": "FINISH",
+            "target": "done",
+            "guard": "assistedConfirmed"
+          },
+          {
+            "source": "self_check",
+            "event": "FINISH",
+            "target": "done",
+            "guard": "selfConfirmed"
+          },
+          {
+            "source": "assisted_check",
+            "event": "RETRY",
+            "target": "await_upload"
+          },
+          {
+            "source": "await_upload",
+            "event": "REVIEW",
+            "target": "assisted_check",
+            "guard": "reviewProvided"
+          },
+          {
+            "source": "assisted_check",
+            "event": "SELF_CHECK",
+            "target": "self_check"
+          },
+          {
+            "source": "await_upload",
+            "event": "SELF_CHECK",
+            "target": "self_check"
+          },
+          {
+            "source": "prepare",
+            "event": "SELF_CHECK",
+            "target": "self_check"
+          }
+        ]
+      },
+      "fields": [
+        {
+          "id": "issueDate",
+          "type": "string"
+        },
+        {
+          "id": "expiryDate",
+          "type": "string"
+        }
+      ],
+      "checks": [
+        {
+          "id": "issued_within_ten_years",
+          "evidence": "document"
+        },
+        {
+          "id": "validity",
+          "evidence": "document"
+        },
+        {
+          "id": "blank_pages",
+          "evidence": "user"
+        }
+      ],
+      "coverage": [],
+      "rules": [],
+      "document": null
+    },
+    {
+      "id": "pension_income",
+      "workflow": "collect-v1",
+      "policy": "material",
+      "graph": {
+        "initial": "prepare",
+        "nodes": [
+          "acquiring",
+          "assisted_check",
+          "await_upload",
+          "done",
+          "prepare",
+          "self_check"
+        ],
+        "edges": [
+          {
+            "source": "prepare",
+            "event": "ACQUIRE",
+            "target": "acquiring"
+          },
+          {
+            "source": "prepare",
+            "event": "ASSISTED_CHECK",
+            "target": "await_upload"
+          },
+          {
+            "source": "self_check",
+            "event": "ASSISTED_CHECK",
+            "target": "await_upload"
+          },
+          {
+            "source": "acquiring",
+            "event": "EDIT",
+            "target": "prepare"
+          },
+          {
+            "source": "assisted_check",
+            "event": "EDIT",
+            "target": "prepare"
+          },
+          {
+            "source": "await_upload",
+            "event": "EDIT",
+            "target": "prepare"
+          },
+          {
+            "source": "done",
+            "event": "EDIT",
+            "target": "prepare"
+          },
+          {
+            "source": "self_check",
+            "event": "EDIT",
+            "target": "prepare"
+          },
+          {
+            "source": "assisted_check",
+            "event": "FINISH",
+            "target": "done",
+            "guard": "assistedConfirmed"
+          },
+          {
+            "source": "self_check",
+            "event": "FINISH",
+            "target": "done",
+            "guard": "selfConfirmed"
+          },
+          {
+            "source": "acquiring",
+            "event": "READY",
+            "target": "prepare"
+          },
+          {
+            "source": "assisted_check",
+            "event": "RETRY",
+            "target": "await_upload"
+          },
+          {
+            "source": "await_upload",
+            "event": "REVIEW",
+            "target": "assisted_check",
+            "guard": "reviewProvided"
+          },
+          {
+            "source": "assisted_check",
+            "event": "SELF_CHECK",
+            "target": "self_check"
+          },
+          {
+            "source": "await_upload",
+            "event": "SELF_CHECK",
+            "target": "self_check"
+          },
+          {
+            "source": "prepare",
+            "event": "SELF_CHECK",
+            "target": "self_check"
+          }
+        ]
+      },
+      "fields": [],
+      "checks": [
+        {
+          "id": "identity",
+          "evidence": "document"
+        },
+        {
+          "id": "income",
+          "evidence": "document"
+        },
+        {
+          "id": "readable",
+          "evidence": "document"
+        }
+      ],
+      "coverage": [
+        "income"
+      ],
+      "rules": [],
+      "document": null
+    },
+    {
+      "id": "photo",
+      "workflow": "collect-v1",
+      "policy": "material",
+      "graph": {
+        "initial": "prepare",
+        "nodes": [
+          "acquiring",
+          "assisted_check",
+          "await_upload",
+          "done",
+          "prepare",
+          "self_check"
+        ],
+        "edges": [
+          {
+            "source": "prepare",
+            "event": "ACQUIRE",
+            "target": "acquiring"
+          },
+          {
+            "source": "prepare",
+            "event": "ASSISTED_CHECK",
+            "target": "await_upload"
+          },
+          {
+            "source": "self_check",
+            "event": "ASSISTED_CHECK",
+            "target": "await_upload"
+          },
+          {
+            "source": "acquiring",
+            "event": "EDIT",
+            "target": "prepare"
+          },
+          {
+            "source": "assisted_check",
+            "event": "EDIT",
+            "target": "prepare"
+          },
+          {
+            "source": "await_upload",
+            "event": "EDIT",
+            "target": "prepare"
+          },
+          {
+            "source": "done",
+            "event": "EDIT",
+            "target": "prepare"
+          },
+          {
+            "source": "self_check",
+            "event": "EDIT",
+            "target": "prepare"
+          },
+          {
+            "source": "assisted_check",
+            "event": "FINISH",
+            "target": "done",
+            "guard": "assistedConfirmed"
+          },
+          {
+            "source": "self_check",
+            "event": "FINISH",
+            "target": "done",
+            "guard": "selfConfirmed"
+          },
+          {
+            "source": "acquiring",
+            "event": "READY",
+            "target": "prepare"
+          },
+          {
+            "source": "assisted_check",
+            "event": "RETRY",
+            "target": "await_upload"
+          },
+          {
+            "source": "await_upload",
+            "event": "REVIEW",
+            "target": "assisted_check",
+            "guard": "reviewProvided"
+          },
+          {
+            "source": "assisted_check",
+            "event": "SELF_CHECK",
+            "target": "self_check"
+          },
+          {
+            "source": "await_upload",
+            "event": "SELF_CHECK",
+            "target": "self_check"
+          },
+          {
+            "source": "prepare",
+            "event": "SELF_CHECK",
+            "target": "self_check"
+          }
+        ]
+      },
+      "fields": [],
+      "checks": [
+        {
+          "id": "appearance",
+          "evidence": "document"
+        },
+        {
+          "id": "recent",
+          "evidence": "user"
+        },
+        {
+          "id": "unedited",
+          "evidence": "user"
+        }
+      ],
+      "coverage": [
+        "photo"
+      ],
+      "rules": [],
+      "document": null
+    },
+    {
+      "id": "round_trip_reservation",
+      "workflow": "collect-v1",
+      "policy": "material",
+      "graph": {
+        "initial": "prepare",
+        "nodes": [
+          "acquiring",
+          "assisted_check",
+          "await_upload",
+          "done",
+          "prepare",
+          "self_check"
+        ],
+        "edges": [
+          {
+            "source": "prepare",
+            "event": "ACQUIRE",
+            "target": "acquiring"
+          },
+          {
+            "source": "prepare",
+            "event": "ASSISTED_CHECK",
+            "target": "await_upload"
+          },
+          {
+            "source": "self_check",
+            "event": "ASSISTED_CHECK",
+            "target": "await_upload"
+          },
+          {
+            "source": "acquiring",
+            "event": "EDIT",
+            "target": "prepare"
+          },
+          {
+            "source": "assisted_check",
+            "event": "EDIT",
+            "target": "prepare"
+          },
+          {
+            "source": "await_upload",
+            "event": "EDIT",
+            "target": "prepare"
+          },
+          {
+            "source": "done",
+            "event": "EDIT",
+            "target": "prepare"
+          },
+          {
+            "source": "self_check",
+            "event": "EDIT",
+            "target": "prepare"
+          },
+          {
+            "source": "assisted_check",
+            "event": "FINISH",
+            "target": "done",
+            "guard": "assistedConfirmed"
+          },
+          {
+            "source": "self_check",
+            "event": "FINISH",
+            "target": "done",
+            "guard": "selfConfirmed"
+          },
+          {
+            "source": "acquiring",
+            "event": "READY",
+            "target": "prepare"
+          },
+          {
+            "source": "assisted_check",
+            "event": "RETRY",
+            "target": "await_upload"
+          },
+          {
+            "source": "await_upload",
+            "event": "REVIEW",
+            "target": "assisted_check",
+            "guard": "reviewProvided"
+          },
+          {
+            "source": "assisted_check",
+            "event": "SELF_CHECK",
+            "target": "self_check"
+          },
+          {
+            "source": "await_upload",
+            "event": "SELF_CHECK",
+            "target": "self_check"
+          },
+          {
+            "source": "prepare",
+            "event": "SELF_CHECK",
+            "target": "self_check"
+          }
+        ]
+      },
+      "fields": [],
+      "checks": [
+        {
+          "id": "identity",
+          "evidence": "document"
+        },
+        {
+          "id": "round_trip",
+          "evidence": "document"
+        },
+        {
+          "id": "dates",
+          "evidence": "document"
+        },
+        {
+          "id": "readable",
+          "evidence": "document"
+        }
+      ],
+      "coverage": [
+        "outbound",
+        "return"
+      ],
+      "rules": [],
+      "document": null
+    },
+    {
+      "id": "schengen_form",
+      "workflow": "schengen-form-v1",
+      "policy": "form",
+      "graph": {
+        "initial": "prepare",
+        "nodes": [
+          "assisted_check",
+          "await_upload",
+          "done",
+          "filling",
+          "prepare",
+          "review_choice",
+          "self_check"
+        ],
+        "edges": [
+          {
+            "source": "review_choice",
+            "event": "ASSISTED_CHECK",
+            "target": "await_upload"
+          },
+          {
+            "source": "self_check",
+            "event": "ASSISTED_CHECK",
+            "target": "await_upload"
+          },
+          {
+            "source": "assisted_check",
+            "event": "EDIT",
+            "target": "prepare"
+          },
+          {
+            "source": "await_upload",
+            "event": "EDIT",
+            "target": "prepare"
+          },
+          {
+            "source": "done",
+            "event": "EDIT",
+            "target": "prepare"
+          },
+          {
+            "source": "filling",
+            "event": "EDIT",
+            "target": "prepare"
+          },
+          {
+            "source": "review_choice",
+            "event": "EDIT",
+            "target": "prepare"
+          },
+          {
+            "source": "self_check",
+            "event": "EDIT",
+            "target": "prepare"
+          },
+          {
+            "source": "filling",
+            "event": "FILLED",
+            "target": "review_choice"
+          },
+          {
+            "source": "prepare",
+            "event": "FILLED",
+            "target": "review_choice"
+          },
+          {
+            "source": "assisted_check",
+            "event": "FINISH",
+            "target": "done",
+            "guard": "assistedConfirmed"
+          },
+          {
+            "source": "self_check",
+            "event": "FINISH",
+            "target": "done",
+            "guard": "selfConfirmed"
+          },
+          {
+            "source": "prepare",
+            "event": "GUIDE_READY",
+            "target": "filling"
+          },
+          {
+            "source": "assisted_check",
+            "event": "RETRY",
+            "target": "await_upload"
+          },
+          {
+            "source": "await_upload",
+            "event": "REVIEW",
+            "target": "assisted_check",
+            "guard": "reviewProvided"
+          },
+          {
+            "source": "assisted_check",
+            "event": "SELF_CHECK",
+            "target": "self_check"
+          },
+          {
+            "source": "await_upload",
+            "event": "SELF_CHECK",
+            "target": "self_check"
+          },
+          {
+            "source": "review_choice",
+            "event": "SELF_CHECK",
+            "target": "self_check"
+          }
+        ]
+      },
+      "fields": [
+        {
+          "id": "1",
+          "type": "string"
+        },
+        {
+          "id": "2",
+          "type": "string"
+        },
+        {
+          "id": "3",
+          "type": "string"
+        },
+        {
+          "id": "4",
+          "type": "string"
+        },
+        {
+          "id": "5",
+          "type": "string"
+        },
+        {
+          "id": "6",
+          "type": "string"
+        },
+        {
+          "id": "7",
+          "type": "string"
+        },
+        {
+          "id": "8",
+          "type": "string"
+        },
+        {
+          "id": "9",
+          "type": "string"
+        },
+        {
+          "id": "10",
+          "type": "string"
+        },
+        {
+          "id": "11",
+          "type": "string"
+        },
+        {
+          "id": "12",
+          "type": "string"
+        },
+        {
+          "id": "13",
+          "type": "string"
+        },
+        {
+          "id": "14",
+          "type": "string"
+        },
+        {
+          "id": "15",
+          "type": "string"
+        },
+        {
+          "id": "16",
+          "type": "string"
+        },
+        {
+          "id": "17",
+          "type": "string"
+        },
+        {
+          "id": "18",
+          "type": "string"
+        },
+        {
+          "id": "19",
+          "type": "string"
+        },
+        {
+          "id": "20",
+          "type": "string"
+        },
+        {
+          "id": "21",
+          "type": "string"
+        },
+        {
+          "id": "22",
+          "type": "string"
+        },
+        {
+          "id": "23",
+          "type": "string"
+        },
+        {
+          "id": "24",
+          "type": "string"
+        },
+        {
+          "id": "25",
+          "type": "string"
+        },
+        {
+          "id": "26",
+          "type": "string"
+        },
+        {
+          "id": "27.entries",
+          "type": "string"
+        },
+        {
+          "id": "27.arrival",
+          "type": "string"
+        },
+        {
+          "id": "27.departure",
+          "type": "string"
+        },
+        {
+          "id": "28",
+          "type": "string"
+        },
+        {
+          "id": "29",
+          "type": "string"
+        },
+        {
+          "id": "30",
+          "type": "string"
+        },
+        {
+          "id": "31",
+          "type": "string"
+        },
+        {
+          "id": "32",
+          "type": "string"
+        },
+        {
+          "id": "33",
+          "type": "string"
+        },
+        {
+          "id": "signature",
+          "type": "string"
+        }
+      ],
+      "checks": [
+        {
+          "id": "english",
+          "evidence": "document"
+        },
+        {
+          "id": "identity",
+          "evidence": "document"
+        },
+        {
+          "id": "completeness",
+          "evidence": "document"
+        },
+        {
+          "id": "itinerary",
+          "evidence": "document"
+        },
+        {
+          "id": "supporting",
+          "evidence": "document"
+        },
+        {
+          "id": "declaration",
+          "evidence": "document"
+        }
+      ],
+      "coverage": [],
+      "rules": [],
+      "document": null
+    },
+    {
+      "id": "school_letter",
+      "workflow": "draft-v1",
+      "policy": "material",
+      "graph": {
+        "initial": "prepare",
+        "nodes": [
+          "assisted_check",
+          "await_upload",
+          "done",
+          "filling",
+          "prepare",
+          "review_choice",
+          "self_check"
+        ],
+        "edges": [
+          {
+            "source": "review_choice",
+            "event": "ASSISTED_CHECK",
+            "target": "await_upload"
+          },
+          {
+            "source": "self_check",
+            "event": "ASSISTED_CHECK",
+            "target": "await_upload"
+          },
+          {
+            "source": "assisted_check",
+            "event": "EDIT",
+            "target": "prepare"
+          },
+          {
+            "source": "await_upload",
+            "event": "EDIT",
+            "target": "prepare"
+          },
+          {
+            "source": "done",
+            "event": "EDIT",
+            "target": "prepare"
+          },
+          {
+            "source": "filling",
+            "event": "EDIT",
+            "target": "prepare"
+          },
+          {
+            "source": "review_choice",
+            "event": "EDIT",
+            "target": "prepare"
+          },
+          {
+            "source": "self_check",
+            "event": "EDIT",
+            "target": "prepare"
+          },
+          {
+            "source": "filling",
+            "event": "FILLED",
+            "target": "review_choice"
+          },
+          {
+            "source": "prepare",
+            "event": "FILLED",
+            "target": "review_choice"
+          },
+          {
+            "source": "assisted_check",
+            "event": "FINISH",
+            "target": "done",
+            "guard": "assistedConfirmed"
+          },
+          {
+            "source": "self_check",
+            "event": "FINISH",
+            "target": "done",
+            "guard": "selfConfirmed"
+          },
+          {
+            "source": "prepare",
+            "event": "GUIDE_READY",
+            "target": "filling"
+          },
+          {
+            "source": "assisted_check",
+            "event": "RETRY",
+            "target": "await_upload"
+          },
+          {
+            "source": "await_upload",
+            "event": "REVIEW",
+            "target": "assisted_check",
+            "guard": "reviewProvided"
+          },
+          {
+            "source": "assisted_check",
+            "event": "SELF_CHECK",
+            "target": "self_check"
+          },
+          {
+            "source": "await_upload",
+            "event": "SELF_CHECK",
+            "target": "self_check"
+          },
+          {
+            "source": "review_choice",
+            "event": "SELF_CHECK",
+            "target": "self_check"
+          }
+        ]
+      },
+      "fields": [
+        {
+          "id": "applicantName",
+          "type": "string"
+        },
+        {
+          "id": "issuerName",
+          "type": "string"
+        },
+        {
+          "id": "contact",
+          "type": "string"
+        },
+        {
+          "id": "body",
+          "type": "string"
+        },
+        {
+          "id": "documentDate",
+          "type": "string"
+        },
+        {
+          "id": "leaveDates",
+          "type": "string"
+        }
+      ],
+      "checks": [
+        {
+          "id": "identity",
+          "evidence": "document"
+        },
+        {
+          "id": "contents",
+          "evidence": "document"
+        },
+        {
+          "id": "language",
+          "evidence": "document"
+        },
+        {
+          "id": "issued",
+          "evidence": "user"
+        }
+      ],
+      "coverage": [
+        "letter"
+      ],
+      "rules": [],
+      "document": "school"
+    },
+    {
+      "id": "sponsor_bank_statements",
+      "workflow": "collect-v1",
+      "policy": "material",
+      "graph": {
+        "initial": "prepare",
+        "nodes": [
+          "acquiring",
+          "assisted_check",
+          "await_upload",
+          "done",
+          "prepare",
+          "self_check"
+        ],
+        "edges": [
+          {
+            "source": "prepare",
+            "event": "ACQUIRE",
+            "target": "acquiring"
+          },
+          {
+            "source": "prepare",
+            "event": "ASSISTED_CHECK",
+            "target": "await_upload"
+          },
+          {
+            "source": "self_check",
+            "event": "ASSISTED_CHECK",
+            "target": "await_upload"
+          },
+          {
+            "source": "acquiring",
+            "event": "EDIT",
+            "target": "prepare"
+          },
+          {
+            "source": "assisted_check",
+            "event": "EDIT",
+            "target": "prepare"
+          },
+          {
+            "source": "await_upload",
+            "event": "EDIT",
+            "target": "prepare"
+          },
+          {
+            "source": "done",
+            "event": "EDIT",
+            "target": "prepare"
+          },
+          {
+            "source": "self_check",
+            "event": "EDIT",
+            "target": "prepare"
+          },
+          {
+            "source": "assisted_check",
+            "event": "FINISH",
+            "target": "done",
+            "guard": "assistedConfirmed"
+          },
+          {
+            "source": "self_check",
+            "event": "FINISH",
+            "target": "done",
+            "guard": "selfConfirmed"
+          },
+          {
+            "source": "acquiring",
+            "event": "READY",
+            "target": "prepare"
+          },
+          {
+            "source": "assisted_check",
+            "event": "RETRY",
+            "target": "await_upload"
+          },
+          {
+            "source": "await_upload",
+            "event": "REVIEW",
+            "target": "assisted_check",
+            "guard": "reviewProvided"
+          },
+          {
+            "source": "assisted_check",
+            "event": "SELF_CHECK",
+            "target": "self_check"
+          },
+          {
+            "source": "await_upload",
+            "event": "SELF_CHECK",
+            "target": "self_check"
+          },
+          {
+            "source": "prepare",
+            "event": "SELF_CHECK",
+            "target": "self_check"
+          }
+        ]
+      },
+      "fields": [],
+      "checks": [
+        {
+          "id": "provider",
+          "evidence": "document"
+        },
+        {
+          "id": "period",
+          "evidence": "user"
+        },
+        {
+          "id": "readable",
+          "evidence": "document"
+        }
+      ],
+      "coverage": [
+        "statements"
+      ],
+      "rules": [],
+      "document": null
+    },
+    {
+      "id": "sponsor_employment_income",
+      "workflow": "collect-v1",
+      "policy": "material",
+      "graph": {
+        "initial": "prepare",
+        "nodes": [
+          "acquiring",
+          "assisted_check",
+          "await_upload",
+          "done",
+          "prepare",
+          "self_check"
+        ],
+        "edges": [
+          {
+            "source": "prepare",
+            "event": "ACQUIRE",
+            "target": "acquiring"
+          },
+          {
+            "source": "prepare",
+            "event": "ASSISTED_CHECK",
+            "target": "await_upload"
+          },
+          {
+            "source": "self_check",
+            "event": "ASSISTED_CHECK",
+            "target": "await_upload"
+          },
+          {
+            "source": "acquiring",
+            "event": "EDIT",
+            "target": "prepare"
+          },
+          {
+            "source": "assisted_check",
+            "event": "EDIT",
+            "target": "prepare"
+          },
+          {
+            "source": "await_upload",
+            "event": "EDIT",
+            "target": "prepare"
+          },
+          {
+            "source": "done",
+            "event": "EDIT",
+            "target": "prepare"
+          },
+          {
+            "source": "self_check",
+            "event": "EDIT",
+            "target": "prepare"
+          },
+          {
+            "source": "assisted_check",
+            "event": "FINISH",
+            "target": "done",
+            "guard": "assistedConfirmed"
+          },
+          {
+            "source": "self_check",
+            "event": "FINISH",
+            "target": "done",
+            "guard": "selfConfirmed"
+          },
+          {
+            "source": "acquiring",
+            "event": "READY",
+            "target": "prepare"
+          },
+          {
+            "source": "assisted_check",
+            "event": "RETRY",
+            "target": "await_upload"
+          },
+          {
+            "source": "await_upload",
+            "event": "REVIEW",
+            "target": "assisted_check",
+            "guard": "reviewProvided"
+          },
+          {
+            "source": "assisted_check",
+            "event": "SELF_CHECK",
+            "target": "self_check"
+          },
+          {
+            "source": "await_upload",
+            "event": "SELF_CHECK",
+            "target": "self_check"
+          },
+          {
+            "source": "prepare",
+            "event": "SELF_CHECK",
+            "target": "self_check"
+          }
+        ]
+      },
+      "fields": [],
+      "checks": [
+        {
+          "id": "provider",
+          "evidence": "document"
+        },
+        {
+          "id": "income",
+          "evidence": "document"
+        },
+        {
+          "id": "readable",
+          "evidence": "document"
+        }
+      ],
+      "coverage": [
+        "employment",
+        "income"
+      ],
+      "rules": [],
+      "document": null
+    },
+    {
+      "id": "sponsor_passport_copy",
+      "workflow": "collect-v1",
+      "policy": "material",
+      "graph": {
+        "initial": "prepare",
+        "nodes": [
+          "acquiring",
+          "assisted_check",
+          "await_upload",
+          "done",
+          "prepare",
+          "self_check"
+        ],
+        "edges": [
+          {
+            "source": "prepare",
+            "event": "ACQUIRE",
+            "target": "acquiring"
+          },
+          {
+            "source": "prepare",
+            "event": "ASSISTED_CHECK",
+            "target": "await_upload"
+          },
+          {
+            "source": "self_check",
+            "event": "ASSISTED_CHECK",
+            "target": "await_upload"
+          },
+          {
+            "source": "acquiring",
+            "event": "EDIT",
+            "target": "prepare"
+          },
+          {
+            "source": "assisted_check",
+            "event": "EDIT",
+            "target": "prepare"
+          },
+          {
+            "source": "await_upload",
+            "event": "EDIT",
+            "target": "prepare"
+          },
+          {
+            "source": "done",
+            "event": "EDIT",
+            "target": "prepare"
+          },
+          {
+            "source": "self_check",
+            "event": "EDIT",
+            "target": "prepare"
+          },
+          {
+            "source": "assisted_check",
+            "event": "FINISH",
+            "target": "done",
+            "guard": "assistedConfirmed"
+          },
+          {
+            "source": "self_check",
+            "event": "FINISH",
+            "target": "done",
+            "guard": "selfConfirmed"
+          },
+          {
+            "source": "acquiring",
+            "event": "READY",
+            "target": "prepare"
+          },
+          {
+            "source": "assisted_check",
+            "event": "RETRY",
+            "target": "await_upload"
+          },
+          {
+            "source": "await_upload",
+            "event": "REVIEW",
+            "target": "assisted_check",
+            "guard": "reviewProvided"
+          },
+          {
+            "source": "assisted_check",
+            "event": "SELF_CHECK",
+            "target": "self_check"
+          },
+          {
+            "source": "await_upload",
+            "event": "SELF_CHECK",
+            "target": "self_check"
+          },
+          {
+            "source": "prepare",
+            "event": "SELF_CHECK",
+            "target": "self_check"
+          }
+        ]
+      },
+      "fields": [],
+      "checks": [
+        {
+          "id": "provider",
+          "evidence": "document"
+        },
+        {
+          "id": "readable",
+          "evidence": "document"
+        }
+      ],
+      "coverage": [
+        "bio"
+      ],
+      "rules": [],
+      "document": null
+    },
+    {
+      "id": "sponsorship_letter",
+      "workflow": "draft-v1",
+      "policy": "material",
+      "graph": {
+        "initial": "prepare",
+        "nodes": [
+          "assisted_check",
+          "await_upload",
+          "done",
+          "filling",
+          "prepare",
+          "review_choice",
+          "self_check"
+        ],
+        "edges": [
+          {
+            "source": "review_choice",
+            "event": "ASSISTED_CHECK",
+            "target": "await_upload"
+          },
+          {
+            "source": "self_check",
+            "event": "ASSISTED_CHECK",
+            "target": "await_upload"
+          },
+          {
+            "source": "assisted_check",
+            "event": "EDIT",
+            "target": "prepare"
+          },
+          {
+            "source": "await_upload",
+            "event": "EDIT",
+            "target": "prepare"
+          },
+          {
+            "source": "done",
+            "event": "EDIT",
+            "target": "prepare"
+          },
+          {
+            "source": "filling",
+            "event": "EDIT",
+            "target": "prepare"
+          },
+          {
+            "source": "review_choice",
+            "event": "EDIT",
+            "target": "prepare"
+          },
+          {
+            "source": "self_check",
+            "event": "EDIT",
+            "target": "prepare"
+          },
+          {
+            "source": "filling",
+            "event": "FILLED",
+            "target": "review_choice"
+          },
+          {
+            "source": "prepare",
+            "event": "FILLED",
+            "target": "review_choice"
+          },
+          {
+            "source": "assisted_check",
+            "event": "FINISH",
+            "target": "done",
+            "guard": "assistedConfirmed"
+          },
+          {
+            "source": "self_check",
+            "event": "FINISH",
+            "target": "done",
+            "guard": "selfConfirmed"
+          },
+          {
+            "source": "prepare",
+            "event": "GUIDE_READY",
+            "target": "filling"
+          },
+          {
+            "source": "assisted_check",
+            "event": "RETRY",
+            "target": "await_upload"
+          },
+          {
+            "source": "await_upload",
+            "event": "REVIEW",
+            "target": "assisted_check",
+            "guard": "reviewProvided"
+          },
+          {
+            "source": "assisted_check",
+            "event": "SELF_CHECK",
+            "target": "self_check"
+          },
+          {
+            "source": "await_upload",
+            "event": "SELF_CHECK",
+            "target": "self_check"
+          },
+          {
+            "source": "review_choice",
+            "event": "SELF_CHECK",
+            "target": "self_check"
+          }
+        ]
+      },
+      "fields": [
+        {
+          "id": "applicantName",
+          "type": "string"
+        },
+        {
+          "id": "issuerName",
+          "type": "string"
+        },
+        {
+          "id": "contact",
+          "type": "string"
+        },
+        {
+          "id": "body",
+          "type": "string"
+        },
+        {
+          "id": "documentDate",
+          "type": "string"
+        },
+        {
+          "id": "supportScope",
+          "type": "string"
+        },
+        {
+          "id": "relationship",
+          "type": "string"
+        }
+      ],
+      "checks": [
+        {
+          "id": "provider",
+          "evidence": "document"
+        },
+        {
+          "id": "contents",
+          "evidence": "document"
+        },
+        {
+          "id": "signed",
+          "evidence": "user"
+        }
+      ],
+      "coverage": [
+        "letter"
+      ],
+      "rules": [],
+      "document": "sponsorship"
+    },
+    {
+      "id": "spouse_employment_income",
+      "workflow": "collect-v1",
+      "policy": "material",
+      "graph": {
+        "initial": "prepare",
+        "nodes": [
+          "acquiring",
+          "assisted_check",
+          "await_upload",
+          "done",
+          "prepare",
+          "self_check"
+        ],
+        "edges": [
+          {
+            "source": "prepare",
+            "event": "ACQUIRE",
+            "target": "acquiring"
+          },
+          {
+            "source": "prepare",
+            "event": "ASSISTED_CHECK",
+            "target": "await_upload"
+          },
+          {
+            "source": "self_check",
+            "event": "ASSISTED_CHECK",
+            "target": "await_upload"
+          },
+          {
+            "source": "acquiring",
+            "event": "EDIT",
+            "target": "prepare"
+          },
+          {
+            "source": "assisted_check",
+            "event": "EDIT",
+            "target": "prepare"
+          },
+          {
+            "source": "await_upload",
+            "event": "EDIT",
+            "target": "prepare"
+          },
+          {
+            "source": "done",
+            "event": "EDIT",
+            "target": "prepare"
+          },
+          {
+            "source": "self_check",
+            "event": "EDIT",
+            "target": "prepare"
+          },
+          {
+            "source": "assisted_check",
+            "event": "FINISH",
+            "target": "done",
+            "guard": "assistedConfirmed"
+          },
+          {
+            "source": "self_check",
+            "event": "FINISH",
+            "target": "done",
+            "guard": "selfConfirmed"
+          },
+          {
+            "source": "acquiring",
+            "event": "READY",
+            "target": "prepare"
+          },
+          {
+            "source": "assisted_check",
+            "event": "RETRY",
+            "target": "await_upload"
+          },
+          {
+            "source": "await_upload",
+            "event": "REVIEW",
+            "target": "assisted_check",
+            "guard": "reviewProvided"
+          },
+          {
+            "source": "assisted_check",
+            "event": "SELF_CHECK",
+            "target": "self_check"
+          },
+          {
+            "source": "await_upload",
+            "event": "SELF_CHECK",
+            "target": "self_check"
+          },
+          {
+            "source": "prepare",
+            "event": "SELF_CHECK",
+            "target": "self_check"
+          }
+        ]
+      },
+      "fields": [],
+      "checks": [
+        {
+          "id": "provider",
+          "evidence": "document"
+        },
+        {
+          "id": "income",
+          "evidence": "document"
+        },
+        {
+          "id": "readable",
+          "evidence": "document"
+        }
+      ],
+      "coverage": [
+        "employment",
+        "income"
+      ],
+      "rules": [],
+      "document": null
+    },
+    {
+      "id": "student_card",
+      "workflow": "collect-v1",
+      "policy": "material",
+      "graph": {
+        "initial": "prepare",
+        "nodes": [
+          "acquiring",
+          "assisted_check",
+          "await_upload",
+          "done",
+          "prepare",
+          "self_check"
+        ],
+        "edges": [
+          {
+            "source": "prepare",
+            "event": "ACQUIRE",
+            "target": "acquiring"
+          },
+          {
+            "source": "prepare",
+            "event": "ASSISTED_CHECK",
+            "target": "await_upload"
+          },
+          {
+            "source": "self_check",
+            "event": "ASSISTED_CHECK",
+            "target": "await_upload"
+          },
+          {
+            "source": "acquiring",
+            "event": "EDIT",
+            "target": "prepare"
+          },
+          {
+            "source": "assisted_check",
+            "event": "EDIT",
+            "target": "prepare"
+          },
+          {
+            "source": "await_upload",
+            "event": "EDIT",
+            "target": "prepare"
+          },
+          {
+            "source": "done",
+            "event": "EDIT",
+            "target": "prepare"
+          },
+          {
+            "source": "self_check",
+            "event": "EDIT",
+            "target": "prepare"
+          },
+          {
+            "source": "assisted_check",
+            "event": "FINISH",
+            "target": "done",
+            "guard": "assistedConfirmed"
+          },
+          {
+            "source": "self_check",
+            "event": "FINISH",
+            "target": "done",
+            "guard": "selfConfirmed"
+          },
+          {
+            "source": "acquiring",
+            "event": "READY",
+            "target": "prepare"
+          },
+          {
+            "source": "assisted_check",
+            "event": "RETRY",
+            "target": "await_upload"
+          },
+          {
+            "source": "await_upload",
+            "event": "REVIEW",
+            "target": "assisted_check",
+            "guard": "reviewProvided"
+          },
+          {
+            "source": "assisted_check",
+            "event": "SELF_CHECK",
+            "target": "self_check"
+          },
+          {
+            "source": "await_upload",
+            "event": "SELF_CHECK",
+            "target": "self_check"
+          },
+          {
+            "source": "prepare",
+            "event": "SELF_CHECK",
+            "target": "self_check"
+          }
+        ]
+      },
+      "fields": [],
+      "checks": [
+        {
+          "id": "identity",
+          "evidence": "document"
+        },
+        {
+          "id": "student",
+          "evidence": "document"
+        },
+        {
+          "id": "readable",
+          "evidence": "document"
+        }
+      ],
+      "coverage": [
+        "student_card"
+      ],
+      "rules": [],
+      "document": null
+    },
+    {
+      "id": "travel_consent_certificate",
+      "workflow": "collect-v1",
+      "policy": "material",
+      "graph": {
+        "initial": "prepare",
+        "nodes": [
+          "acquiring",
+          "assisted_check",
+          "await_upload",
+          "done",
+          "prepare",
+          "self_check"
+        ],
+        "edges": [
+          {
+            "source": "prepare",
+            "event": "ACQUIRE",
+            "target": "acquiring"
+          },
+          {
+            "source": "prepare",
+            "event": "ASSISTED_CHECK",
+            "target": "await_upload"
+          },
+          {
+            "source": "self_check",
+            "event": "ASSISTED_CHECK",
+            "target": "await_upload"
+          },
+          {
+            "source": "acquiring",
+            "event": "EDIT",
+            "target": "prepare"
+          },
+          {
+            "source": "assisted_check",
+            "event": "EDIT",
+            "target": "prepare"
+          },
+          {
+            "source": "await_upload",
+            "event": "EDIT",
+            "target": "prepare"
+          },
+          {
+            "source": "done",
+            "event": "EDIT",
+            "target": "prepare"
+          },
+          {
+            "source": "self_check",
+            "event": "EDIT",
+            "target": "prepare"
+          },
+          {
+            "source": "assisted_check",
+            "event": "FINISH",
+            "target": "done",
+            "guard": "assistedConfirmed"
+          },
+          {
+            "source": "self_check",
+            "event": "FINISH",
+            "target": "done",
+            "guard": "selfConfirmed"
+          },
+          {
+            "source": "acquiring",
+            "event": "READY",
+            "target": "prepare"
+          },
+          {
+            "source": "assisted_check",
+            "event": "RETRY",
+            "target": "await_upload"
+          },
+          {
+            "source": "await_upload",
+            "event": "REVIEW",
+            "target": "assisted_check",
+            "guard": "reviewProvided"
+          },
+          {
+            "source": "assisted_check",
+            "event": "SELF_CHECK",
+            "target": "self_check"
+          },
+          {
+            "source": "await_upload",
+            "event": "SELF_CHECK",
+            "target": "self_check"
+          },
+          {
+            "source": "prepare",
+            "event": "SELF_CHECK",
+            "target": "self_check"
+          }
+        ]
+      },
+      "fields": [],
+      "checks": [
+        {
+          "id": "scope",
+          "evidence": "user"
+        },
+        {
+          "id": "relationship",
+          "evidence": "document"
+        },
+        {
+          "id": "formalities",
+          "evidence": "user"
+        },
+        {
+          "id": "readable",
+          "evidence": "document"
+        }
+      ],
+      "coverage": [
+        "certificate"
+      ],
+      "rules": [],
+      "document": null
+    },
+    {
+      "id": "travel_insurance",
+      "workflow": "collect-v1",
+      "policy": "material",
+      "graph": {
+        "initial": "prepare",
+        "nodes": [
+          "acquiring",
+          "assisted_check",
+          "await_upload",
+          "done",
+          "prepare",
+          "self_check"
+        ],
+        "edges": [
+          {
+            "source": "prepare",
+            "event": "ACQUIRE",
+            "target": "acquiring"
+          },
+          {
+            "source": "prepare",
+            "event": "ASSISTED_CHECK",
+            "target": "await_upload"
+          },
+          {
+            "source": "self_check",
+            "event": "ASSISTED_CHECK",
+            "target": "await_upload"
+          },
+          {
+            "source": "acquiring",
+            "event": "EDIT",
+            "target": "prepare"
+          },
+          {
+            "source": "assisted_check",
+            "event": "EDIT",
+            "target": "prepare"
+          },
+          {
+            "source": "await_upload",
+            "event": "EDIT",
+            "target": "prepare"
+          },
+          {
+            "source": "done",
+            "event": "EDIT",
+            "target": "prepare"
+          },
+          {
+            "source": "self_check",
+            "event": "EDIT",
+            "target": "prepare"
+          },
+          {
+            "source": "assisted_check",
+            "event": "FINISH",
+            "target": "done",
+            "guard": "assistedConfirmed"
+          },
+          {
+            "source": "self_check",
+            "event": "FINISH",
+            "target": "done",
+            "guard": "selfConfirmed"
+          },
+          {
+            "source": "acquiring",
+            "event": "READY",
+            "target": "prepare"
+          },
+          {
+            "source": "assisted_check",
+            "event": "RETRY",
+            "target": "await_upload"
+          },
+          {
+            "source": "await_upload",
+            "event": "REVIEW",
+            "target": "assisted_check",
+            "guard": "reviewProvided"
+          },
+          {
+            "source": "assisted_check",
+            "event": "SELF_CHECK",
+            "target": "self_check"
+          },
+          {
+            "source": "await_upload",
+            "event": "SELF_CHECK",
+            "target": "self_check"
+          },
+          {
+            "source": "prepare",
+            "event": "SELF_CHECK",
+            "target": "self_check"
+          }
+        ]
+      },
+      "fields": [
+        {
+          "id": "startDate",
+          "type": "date"
+        },
+        {
+          "id": "endDate",
+          "type": "date"
+        },
+        {
+          "id": "amount",
+          "type": "number"
+        },
+        {
+          "id": "currency",
+          "type": "string"
+        }
+      ],
+      "checks": [
+        {
+          "id": "identity",
+          "evidence": "document"
+        },
+        {
+          "id": "territory",
+          "evidence": "document"
+        },
+        {
+          "id": "period",
+          "evidence": "document"
+        },
+        {
+          "id": "amount",
+          "evidence": "document"
+        },
+        {
+          "id": "timezone",
+          "evidence": "user"
+        }
+      ],
+      "coverage": [
+        "policy"
+      ],
+      "rules": [
+        {
+          "kind": "trip_coverage",
+          "checkId": "period",
+          "start": "startDate",
+          "end": "endDate"
+        },
+        {
+          "kind": "minimum_amount",
+          "checkId": "amount",
+          "amount": "amount",
+          "currency": "currency",
+          "minimum": {
+            "EUR": 30000,
+            "CNY": 300000
+          }
+        }
+      ],
+      "document": null
+    }
+  ]
+}
