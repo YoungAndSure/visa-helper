@@ -1,0 +1,52 @@
+{
+  "manifest_version": 3,
+  "name": "visa-helper",
+  "version": "0.1.0",
+  "description": "VFS 表单伴行 + 材料清单审核",
+  "minimum_chrome_version": "121",
+  "permissions": [
+    "sidePanel",
+    "activeTab",
+    "storage",
+    "scripting",
+    "tabs"
+  ],
+  "host_permissions": [
+    "https://*.vfsglobal.com/*",
+    "http://localhost:8000/*",
+    "http://127.0.0.1:8000/*"
+  ],
+  "background": {
+    "service_worker": "service-worker-loader.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "js": [
+        "assets/index.ts-CS8ZXP8V.js"
+      ],
+      "matches": [
+        "https://*.vfsglobal.com/*"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "side_panel": {
+    "default_path": "src/sidepanel/index.html"
+  },
+  "action": {
+    "default_title": "Open visa-helper panel"
+  },
+  "web_accessible_resources": [
+    {
+      "matches": [
+        "https://*.vfsglobal.com/*"
+      ],
+      "resources": [
+        "assets/index.ts-CS8ZXP8V.js",
+        "assets/index.ts-CS8ZXP8V.js.map"
+      ],
+      "use_dynamic_url": false
+    }
+  ]
+}

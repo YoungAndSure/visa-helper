@@ -1,0 +1,46 @@
+services:
+  visa-helper:
+    image: ${IMAGE_REF:-visa-helper-runtime:local}
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+      platforms:
+        - linux/amd64
+    restart: unless-stopped
+    init: true
+    ports:
+      - "0.0.0.0:18080:8000"
+    env_file:
+      - .env
+    environment:
+      LOG_FILE: /app/runtime/logs/backend.log
+      AUDIT_RULES_DIR: /app/runtime/rules
+      TMPDIR: /app/runtime/tmp
+      CLAUDE_SETTINGS_FILE: /app/deploy/claude.settings.container.json
+      CLAUDE_REQUIRE_AUTH_TOKEN: "1"
+    volumes:
+      - ../backend:/app/backend:ro
+      - ../tools:/app/tools:ro
+      - ../data/checklists:/app/data/checklists:ro
+      - ../data/rules/bootstrap:/app/data/rules/bootstrap:ro
+      - ./claude.settings.container.json:/app/deploy/claude.settings.container.json:ro
+      - visa-helper-rules:/app/runtime/rules
+      - visa-helper-logs:/app/runtime/logs
+    tmpfs:
+      - /app/runtime/tmp:rw,noexec,nosuid,size=512m,uid=10001,gid=10001,mode=0700
+      - /home/visahelper/.claude:rw,noexec,nosuid,size=32m,uid=10001,gid=10001,mode=0700
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/healthz', timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+volumes:
+  visa-helper-rules:
+  visa-helper-logs:

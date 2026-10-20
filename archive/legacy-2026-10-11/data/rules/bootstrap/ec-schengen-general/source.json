@@ -1,0 +1,17 @@
+{
+  "title": "Applying for a Schengen visa",
+  "publisher": "European Commission, DG Migration and Home Affairs",
+  "url": "https://home-affairs.ec.europa.eu/policies/schengen/visa-policy/applying-schengen-visa_en",
+  "retrieved_on": "2026-09-12",
+  "section": "What documents are needed to apply?",
+  "capture_type": "assistant-curated paraphrase of fetched official web page, not a full-page archive or human-approved checklist",
+  "notes": "官网为通用概览，具体要求以主要目的地使领馆为准；本文件仅整理少量非身份类材料要求供框架测试。哈希对应此本地整理记录，不代表远端网页原始字节。",
+  "requirements": [
+    {"id": "schengen.application-form.present", "summary": "申请材料包括签证申请表。"},
+    {"id": "schengen.insurance.medical-cover", "summary": "医疗保险应涵盖紧急医疗、住院和遣返，包括死亡情形。"},
+    {"id": "schengen.travel-purpose.evidence", "summary": "需要提供说明停留目的的支持材料。"},
+    {"id": "schengen.accommodation.evidence", "summary": "需要提供停留期间住宿的证明。"},
+    {"id": "schengen.financial-means.evidence", "summary": "需要提供财力证明。"},
+    {"id": "schengen.return-intention.evidence", "summary": "需要提供停留后返回本国意图的证明。"}
+  ]
+}

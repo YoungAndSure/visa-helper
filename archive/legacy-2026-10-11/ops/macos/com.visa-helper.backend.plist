@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.visa-helper.backend</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>/Users/yangshuo/Code/visa-helper/backend/.venv/bin/python</string>
+    <string>-m</string>
+    <string>uvicorn</string>
+    <string>backend.app:app</string>
+    <string>--host</string>
+    <string>127.0.0.1</string>
+    <string>--port</string>
+    <string>8000</string>
+  </array>
+
+  <key>WorkingDirectory</key>
+  <string>/Users/yangshuo/Code/visa-helper</string>
+
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>LOG_FILE</key>
+    <string></string>
+    <key>AGENT_PROVIDER</key>
+    <string>claude</string>
+    <key>CLAUDE_CLI_PATH</key>
+    <string>/opt/homebrew/bin/claude</string>
+    <key>CLAUDE_SETTINGS_FILE</key>
+    <string>/Users/yangshuo/Code/visa-helper/backend/config/claude.settings.local.json</string>
+    <key>CLAUDE_REQUIRE_AUTH_TOKEN</key>
+    <string>1</string>
+    <key>AGENT_MODEL</key>
+    <string>sonnet</string>
+    <key>AGENT_TIMEOUT_SECONDS</key>
+    <string>300</string>
+    <key>PYTHONUNBUFFERED</key>
+    <string>1</string>
+  </dict>
+
+  <key>RunAtLoad</key>
+  <true/>
+  <key>KeepAlive</key>
+  <dict>
+    <key>SuccessfulExit</key>
+    <false/>
+  </dict>
+  <key>ThrottleInterval</key>
+  <integer>5</integer>
+
+  <key>StandardOutPath</key>
+  <string>/Users/yangshuo/Code/visa-helper/backend/logs/backend.log</string>
+  <key>StandardErrorPath</key>
+  <string>/Users/yangshuo/Code/visa-helper/backend/logs/backend.log</string>
+</dict>
+</plist>

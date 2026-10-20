@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>visa-helper · 材料审核</title>
+  <script>
+    // File URLs cannot run the same-origin API and module workflow.
+    if (window.location.protocol === "file:") {
+      window.location.replace("http://127.0.0.1:8000/ui/" + window.location.search + window.location.hash);
+    }
+  </script>
+  <link rel="stylesheet" href="./styles.css?v=remote-rule-audit-v1" />
+</head>
+<body>
+  <!-- ===== 顶部（始终显示） ===== -->
+  <header class="topbar">
+    <div class="topbar__inner">
+      <div class="brand">
+        <div class="mark">🛂</div>
+        <div>
+          <h1>visa-helper <span class="tag">材料审核</span></h1>
+          <p class="tagline">为申根 / 北欧签证材料做本地核对与隐私安全的远端审核</p>
+        </div>
+      </div>
+      <div id="health" class="health health--unknown" title="后端状态">
+        <span class="dot"></span><span class="health__text">检测中…</span>
+      </div>
+    </div>
+  </header>
+
+  <main class="stage-root">
+    <!-- ===== 第一屏：产品介绍 hero ===== -->
+    <section class="stage stage--intro is-active" data-stage="intro">
+      <div class="hero">
+        <div class="hero__copy">
+          <span class="hero__eyebrow">申根 / 北欧签证 · 材料自查</span>
+          <h2 class="hero__title">把你的签证材料交给我们<br/>逐项告诉你还差什么</h2>
+          <p class="hero__lead">
+            visa-helper 会按签证官要求清单 <b>逐条</b> 核对你的材料文件夹，
+            告诉你哪一项还没凑齐、有没有过期、是不是同一份文件重复提交。
+          </p>
+          <ul class="hero__bullets">
+            <li>📋 <b>官方清单驱动</b> —— 永远是最新版的申根要求，不靠过时模板</li>
+            <li>🔒 <b>原始文件不出本机</b> —— 本地审核并烧录隐私遮挡，只发送脱敏副本</li>
+            <li>⚡ <b>秒级反馈</b> —— 选完文件夹几秒内拿到完整审核报告</li>
+          </ul>
+          <button class="btn btn--primary btn--lg" data-action="go-country">
+            开始 → 选择国家
+          </button>
+          <p class="hero__note">本地运行 · 无需注册 · 你的材料只属于你</p>
+        </div>
+        <div class="hero__visual" aria-hidden="true">
+          <div class="hero__card hero__card--pass">
+            <span class="hero__card__tag">第 1 项</span>
+            <span class="hero__card__title">签证申请表</span>
+            <span class="badge badge--PASS">通过</span>
+          </div>
+          <div class="hero__card hero__card--warn">
+            <span class="hero__card__tag">第 4 项</span>
+            <span class="hero__card__title">旅行医疗保险</span>
+            <span class="badge badge--WARNING">警告</span>
+          </div>
+          <div class="hero__card hero__card--fail">
+            <span class="hero__card__tag">第 11 项</span>
+            <span class="hero__card__title">在职证明</span>
+            <span class="badge badge--FAIL">缺失</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== 第二屏：只一个国家选择框 ===== -->
+    <section class="stage stage--country" data-stage="country">
+      <div class="country">
+        <h2 class="country__title">你要申请哪个国家的签证？</h2>
+        <p class="country__lead">选好之后，我们给你展示该国的官方材料要求清单。</p>
+        <div class="country__pick">
+          <select id="country" class="control control--big">
+            <option value="IS">🇮🇸  冰岛 · Iceland</option>
+            <option value="NO">🇳🇴  挪威 · Norway</option>
+          </select>
+          <button class="btn btn--primary btn--lg" data-action="start">开始审核</button>
+        </div>
+        <button class="link-back" data-action="go-intro">← 返回介绍</button>
+      </div>
+    </section>
+
+    <!-- ===== 第三屏：工作区（左选文件 / 右动态） ===== -->
+    <section class="stage stage--work" data-stage="work">
+      <div class="workspace">
+        <!-- 头部：国家 + 返回 -->
+        <div class="ws__header">
+          <div class="ws__crumb">
+            <span class="ws__country" id="wsCountry">冰岛</span>
+            <span class="ws__sep">·</span>
+            <span class="ws__hint">选择并预处理材料</span>
+          </div>
+          <button class="link-back" data-action="back-country">← 更换国家 / 重新开始</button>
+        </div>
+
+        <div class="ws__grid">
+          <!-- 左：文件选择 + 列表 -->
+          <aside class="ws__left">
+            <label id="pickerStep" class="workflow-step is-current">
+              <input id="picker" type="file" webkitdirectory multiple hidden />
+              <span class="workflow-step__number">1</span>
+              <span class="workflow-step__label">选择并预处理材料文件夹</span>
+            </label>
+            <p id="preprocessingStatus" class="runstatus"></p>
+            <div class="material-path" title="浏览器不会向网页提供本地绝对路径">
+              <span>本地目录</span>
+              <code id="materialsDir">尚未选择</code>
+            </div>
+            <ul id="filelist" class="filelist" aria-live="polite"></ul>
+            <button id="levelOneBtn" class="workflow-step" disabled>
+              <span class="workflow-step__number">2</span>
+              <span class="workflow-step__label">运行本地审核规则</span>
+            </button>
+            <p id="levelOneStatus" class="runstatus"></p>
+            <button id="privacyBtn" class="workflow-step" disabled>
+              <span class="workflow-step__number">3</span>
+              <span class="workflow-step__label">擦除隐私并生成脱敏文件</span>
+            </button>
+            <p id="privacyStatus" class="runstatus"></p>
+            <button id="confirmAllBtn" class="confirm-all" disabled>✓ 一键确认全部材料</button>
+            <button id="runBtn" class="workflow-step" disabled>
+              <span class="workflow-step__number">4</span>
+              <span class="workflow-step__label">发送脱敏文件并进行远端审核</span>
+            </button>
+            <p id="runStatus" class="runstatus"></p>
+          </aside>
+
+          <!-- 右：动态区 -->
+          <section class="ws__right">
+            <div class="tabs">
+              <button class="tab tab--active" data-tab="checklist">📋 要求清单</button>
+              <button class="tab" data-tab="preview">👁 文件预览</button>
+              <button class="tab" data-tab="level-one">① 本地审核结果</button>
+              <button class="tab" data-tab="privacy">🔒 隐私材料</button>
+              <button class="tab" data-tab="results">✅ 远端审核报告</button>
+            </div>
+
+            <div id="tab-checklist" class="tabpane tabpane--active">
+              <div id="checklistMeta" class="meta"></div>
+              <button id="checklistRetry" class="btn btn--small" type="button" hidden>重新加载清单</button>
+              <ol id="checklist" class="checklist"></ol>
+            </div>
+
+            <div id="tab-preview" class="tabpane">
+              <div id="previewArea" class="preview"></div>
+              <p id="previewEmpty" class="empty">
+                <span class="icon">👁</span> 选一个文件预览
+              </p>
+            </div>
+
+            <div id="tab-level-one" class="tabpane">
+              <div id="levelOneSummary" class="summary"></div>
+              <div id="levelOneResults" class="level-one-results"></div>
+              <div id="levelOneEmpty" class="empty">
+                <span class="icon">①</span> 材料预处理完成后，运行本地审核规则。
+              </div>
+            </div>
+
+            <div id="tab-privacy" class="tabpane">
+              <div id="privacyEmpty" class="empty">
+                <span class="icon">🔐</span>
+                完成本地审核后，点击左侧「擦除隐私并生成脱敏文件」。
+              </div>
+              <div id="privacyMaterial" class="privacy-material" hidden>
+                <div class="privacy-material__header">
+                  <div>
+                    <span id="privacyMaterialRef" class="privacy-material__ref"></span>
+                    <h4 id="privacyMaterialTitle"></h4>
+                  </div>
+                  <span id="privacyReviewState" class="privacy-badge privacy-badge--review">待确认</span>
+                </div>
+                <section class="privacy-section privacy-section--compact">
+                  <h5>隐私遮挡</h5>
+                  <div id="privacyRedactions" class="redaction-list"></div>
+                </section>
+                <div id="privacyContent" class="privacy-content" aria-label="PDF 或 JPG 隐私擦除编辑器"></div>
+                <div id="privacyValidation" class="privacy-validation"></div>
+                <button id="confirmMaterialBtn" class="btn btn--primary">确认当前材料</button>
+              </div>
+            </div>
+
+            <div id="tab-results" class="tabpane">
+              <div id="agentTrace" class="agent-trace"></div>
+              <div id="summary" class="summary"></div>
+              <div id="warnings" class="warnings"></div>
+              <div id="results" class="results"></div>
+              <details id="reportWrap" class="report" hidden>
+                <summary>查看 Markdown 报告原文</summary>
+                <pre id="reportRaw"></pre>
+              </details>
+              <div id="resultsEmpty" class="empty">
+                <span class="icon">📭</span>
+                还没有远端审核报告，请先完成四个步骤。
+              </div>
+            </div>
+          </section>
+        </div>
+        <div id="privacyStatusBar" class="privacy-statusbar" hidden>
+          <span id="privacyBadge" class="privacy-badge privacy-badge--idle">尚未处理</span>
+          <div id="privacySummary" class="privacy-summary"></div>
+          <span class="privacy-statusbar__hint">原文件不修改，仅发送人工确认后的脱敏 PDF/JPG 副本</span>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script src="./app.js?v=remote-rule-audit-v1" type="module"></script>
+</body>
+</html>

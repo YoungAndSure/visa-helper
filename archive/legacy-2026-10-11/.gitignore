@@ -1,0 +1,31 @@
+iceland/
+.claude/
+
+# 材料审核运行产物（可能含真实文件名/扫描结果）
+data/reports/
+
+# backend
+backend/.venv/
+backend/__pycache__/
+backend/**/__pycache__/
+backend/.pytest_cache/
+backend/config/*.local.json
+deploy/.env
+*.pyc
+
+# extension/ — Vite output and node_modules
+# dist/ is committed on purpose: this is a portable-loadable build artifact.
+# Don't rsync node_modules across machines — reinstall per env instead.
+extension/dist-zip/
+extension/node_modules/
+extension/.vite-cache/
+*.log
+.DS_Store
+
+# Administrator rule sources / generated drafts may contain licensed reference text.
+data/rules/sources/**
+!data/rules/sources/**/
+!data/rules/sources/**/.gitkeep
+data/rules/drafts/
+data/rules/versions/
+data/rules/published/
