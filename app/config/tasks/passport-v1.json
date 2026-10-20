@@ -1,0 +1,119 @@
+{
+  "id": "passport",
+  "version": "passport-v1",
+  "title": "护照／旅行证件",
+  "source": {
+    "url": "https://www.vfsglobal.com/one-pager/iceland/china/chinese/pdf/Individual-Tourism-checklist-CN.pdf",
+    "checklistItem": "2",
+    "verifiedDate": "2026-10-20",
+    "note": "核对中国冰岛个人旅游清单第2项；不由本任务推断护照复印范围。"
+  },
+  "fields": [
+    {
+      "id": "issueDate",
+      "label": "签发日期",
+      "guidance": "按护照资料页确认，YYYY-MM-DD；无需记录姓名或护照号码。"
+    },
+    {
+      "id": "expiryDate",
+      "label": "到期日期",
+      "guidance": "按护照资料页确认，YYYY-MM-DD。"
+    }
+  ],
+  "checks": [
+    {
+      "id": "issued_within_ten_years",
+      "label": "证件在过去10年内签发",
+      "question": "请查看签发日期，核对到预计入境时是否仍在签发后10年内？",
+      "guidance": "按预计入境日期作行程核对；不确定可提供签发日期协助计算。",
+      "evidence": "document"
+    },
+    {
+      "id": "validity",
+      "label": "离开申根区后仍至少有3个月有效期",
+      "question": "请查看到期日期，是否覆盖预计离开申根区后至少3个月？",
+      "guidance": "按日历月计算，不以90天替代；可提供到期日期协助计算。",
+      "evidence": "document"
+    },
+    {
+      "id": "blank_pages",
+      "label": "至少保留2页空白页",
+      "question": "请翻看护照，是否至少还有2页空白页？",
+      "guidance": "资料页照片无法判断，请本人翻看后确认。",
+      "evidence": "user"
+    }
+  ],
+  "machine": {
+    "id": "passport",
+    "initial": "prepare",
+    "states": {
+      "prepare": {
+        "meta": {
+          "title": "选择护照检查方式",
+          "action": "choose_review",
+          "guidance": "可以拍摄或上传护照资料页，由助手读取；也可以不上传，按照检查问题自行查看并确认。无需提供姓名或护照号码。"
+        },
+        "on": {
+          "SELF_CHECK": "self_check",
+          "ASSISTED_CHECK": "await_upload"
+        }
+      },
+      "self_check": {
+        "meta": {
+          "title": "自行检查护照",
+          "action": "self_check",
+          "guidance": "根据 checkCatalog 的问题逐项引导用户查看证件。未知或没检查的项目不能当作通过。用户可以只确认检查结果，不提供个人字段；有日期时参考 automaticChecks，失败项不能用勾选覆盖。"
+        },
+        "on": {
+          "FINISH": {
+            "target": "done",
+            "guard": "selfConfirmed"
+          },
+          "ASSISTED_CHECK": "await_upload",
+          "EDIT": "prepare"
+        }
+      },
+      "await_upload": {
+        "meta": {
+          "title": "等待自愿上传护照",
+          "action": "optional_upload",
+          "guidance": "请用户在当前聊天自愿上传清晰的护照资料页。实际读取后仅整理签发日期、到期日期，请用户核对并确认，保存 confirmedDetails。不要记录姓名、号码或原图。仅凭资料页不能判断剩余空白页；需要用户自行查看确认。随时允许改选自查。"
+        },
+        "on": {
+          "REVIEW": {
+            "target": "assisted_check",
+            "guard": "reviewProvided"
+          },
+          "SELF_CHECK": "self_check",
+          "EDIT": "prepare"
+        }
+      },
+      "assisted_check": {
+        "meta": {
+          "title": "核对护照检查结果",
+          "action": "review_findings",
+          "guidance": "展示已读取和未覆盖的检查项，列出错误及模糊项目。请用户核对提取日期，确认 confirmedDetails；空白页由用户查看后记录 checks.blank_pages，原件准备好后记录 prepared。只有日期检查通过、无未解决问题且用户最终确认，才能 FINISH。"
+        },
+        "on": {
+          "FINISH": {
+            "target": "done",
+            "guard": "assistedConfirmed"
+          },
+          "RETRY": "await_upload",
+          "SELF_CHECK": "self_check",
+          "EDIT": "prepare"
+        }
+      },
+      "done": {
+        "meta": {
+          "title": "护照已准备",
+          "action": "complete",
+          "guidance": "说明用户自查或辅助检查后由用户确认完成，不是签证机构审核通过。可以 EDIT 更新证件并重新检查。"
+        },
+        "on": {
+          "EDIT": "prepare"
+        }
+      }
+    }
+  }
+}

@@ -195,3 +195,11 @@ VISA_HELPER_GUIDE_ALLOW_HTTP=1
 当前镜像 `0.8.3-16bfe0c58cbc`，摘要 `sha256:4584ca29d464a129cb7174191250bef23ccb92f715bac7dcc98d7d6d256f20e0`，发布目录 `/home/ubuntu/visa-helper-mcp/releases/0.8.3-16bfe0c58cbc-registry`，`current` 已指向该目录。服务器直接拉取并切换，备份位于 `backups/before-open-url-*`，切换前后原数据校验和一致。公网页仍使用独立 18080 端口，MCP 仍只监听本机 18081。
 
 真实 SDK 读取原任务后确认 `nextAction.type: open_url`，预填页公网返回 200；实际 Visa Helper 连接也能在模型可见的结构化返回里读到链接，任务状态未变化。工具指纹仍为 `735ec322dc9a`，无需为本次返回协议变化重建插件连接。
+
+## 2026年10月20日护照任务发布
+
+当前镜像标签 `0.9.0-d9b77716f41f`，固定摘要 `sha256:6a8a1071658ec8e8b010f746e8cb4a8b0ecf0fc79d0b5ca8d7fea34663137d00`，发布目录 `/home/ubuntu/visa-helper-mcp/releases/0.9.0-d9b77716f41f-registry`，`current` 已切换。基础镜像继续固定原 Node 22 Alpine 摘要。
+
+服务器从腾讯云仓库拉取镜像，先以只读挂载预检16份已有申请，再备份并切换。备份位于 `backups/before-passport-task-*`；原申请数据校验和不变，健康与发布检查通过，实际 Secure MCP Tunnel 连接确认版本。原申请表模型指纹未变，原任务恢复保留进度。没有新开端口、迁移数据或接收原始附件。
+
+新增配置 `config/tasks/passport-v1.json`，版本信息 `taskWorkflow.tasks` 同时列出两项任务及各自模型指纹。工具数仍为6；数据结构与说明有更新，工具契约 `466630cc7f7d`，UI `e6055ef5463a`，需刷新连接并重新打开清单。

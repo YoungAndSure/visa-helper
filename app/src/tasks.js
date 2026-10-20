@@ -2,10 +2,12 @@ import { readFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { createActor, setup } from "xstate";
 import { z } from "zod";
+import { passportDataSchema, passportRelease, newPassportProgress, passportState, advancePassport, invalidatePassport, replayPassport } from "./passport-task.js";
 
 const definition = JSON.parse(readFileSync(new URL("../config/tasks/schengen-form-v1.json", import.meta.url), "utf8"));
 const modelHash = createHash("sha256").update(JSON.stringify(definition)).digest("hex");
-export const taskRelease = { version: definition.version, modelHash };
+export const taskRelease = { version: definition.version, modelHash,
+  tasks: [{ taskId: definition.id, version: definition.version, modelHash }, passportRelease] };
 const fieldIds = new Set(definition.fields.map((field) => field.id));
 const checkIds = definition.checks.map((check) => check.id);
 const eventNames = ["GUIDE_READY", "FILLED", "SELF_CHECK", "ASSISTED_CHECK", "REVIEW", "FINISH", "RETRY", "EDIT"];
@@ -20,10 +22,14 @@ const dataSchema = z.object({
       severity: z.enum(["issue", "unreadable", "note"]) }).strict()).max(80),
   }).strict().nullable().default(null),
 }).strict();
+const taskDataInputs = [dataSchema, passportDataSchema].map((schema) => z.object(Object.fromEntries(
+  Object.entries(schema.shape).map(([key, field]) => [key, field.removeDefault().optional()]),
+)).strict());
 export const advanceTaskInputSchema = z.object({
   applicationId: z.string().uuid(), taskId: z.string().min(1),
   revision: z.number().int().nonnegative().optional(),
-  event: z.enum(eventNames).optional(), data: dataSchema.optional(),
+  // Defaults belong to the selected task, not to the first matching union branch.
+  event: z.enum(eventNames).optional(), data: z.union(taskDataInputs).optional(),
 }).strict();
 
 export class TaskError extends Error {
@@ -39,13 +45,15 @@ const machine = setup({ guards: {
     && !data.review.findings.some((finding) => finding.severity !== "note"),
 } }).createMachine({ ...definition.machine, context: { data: {} } });
 
-export function supportsTask(id) { return id === definition.id; }
-export function newTaskProgress() {
+export function supportsTask(id) { return id === definition.id || id === "passport"; }
+export function newTaskProgress(id = definition.id) {
+  if (id === "passport") return newPassportProgress();
   return { status: "in_progress", version: definition.version, modelHash, revision: 0,
     node: definition.machine.initial, data: dataSchema.parse({}), history: [], confirmation: null };
 }
 
 export function invalidateTask(progress) {
+  if (progress.version === passportRelease.version) return invalidatePassport(progress);
   const data = { ...progress.data, checks: {}, review: null, filled: false, signed: false };
   return { ...progress, status: "in_progress", node: "prepare", revision: progress.revision + 1,
     data, history: [...progress.history, { recordedAt: new Date().toISOString(), revision: progress.revision + 1,
@@ -54,6 +62,7 @@ export function invalidateTask(progress) {
 }
 
 export function replayTaskHistory(progress) {
+  if (progress.version === passportRelease.version) return replayPassport(progress, TaskError);
   let replayed = newTaskProgress();
   for (const entry of progress.history) {
     if (entry.version !== definition.version || entry.modelHash !== modelHash || entry.from !== replayed.node || entry.revision !== replayed.revision + 1) {
@@ -84,6 +93,7 @@ function knownFormValues(answers) {
 
 export function taskState(id, progress, applicationAnswers = {}) {
   if (!supportsTask(id)) return null;
+  if (id === "passport") return passportState(progress, applicationAnswers, TaskError);
   const current = progress?.version ? progress : newTaskProgress();
   if (current.version !== definition.version || current.modelHash !== modelHash) {
     throw new TaskError("TASK_VERSION_MISMATCH", "这项任务的配置版本已变化，请先迁移任务进度，不能静默继续。");
@@ -103,18 +113,19 @@ export function taskState(id, progress, applicationAnswers = {}) {
       events: Object.keys(node.on ?? {}), tool: "advance_task" } };
 }
 
-export function advanceTask(progress, { revision, event, data }) {
+export function advanceTask(progress, { revision, event, data }, applicationAnswers = {}) {
+  if (progress.version === passportRelease.version) return advancePassport(progress, { revision, event, data }, applicationAnswers, TaskError);
   const before = taskState(definition.id, progress);
   if (revision !== before.revision) throw new TaskError("TASK_REVISION_CONFLICT", "任务进度已变化，请读取最新数据，整合后再提交。");
   if (!event && data === undefined) return progress;
   if (event && !before.nextAction.events.includes(event)) throw new TaskError("TASK_EVENT_INVALID", "当前步骤不接受这个操作，请按最新 nextAction 继续。");
+  const nextData = dataSchema.parse(data ?? before.data);
   // Editing confirmed material must explicitly reopen the task and revoke old checks.
   if (data !== undefined && !["prepare", "filling"].includes(before.node) && event !== "EDIT" &&
-      JSON.stringify(data.fields) !== JSON.stringify(before.data.fields)) {
+      JSON.stringify(nextData.fields) !== JSON.stringify(before.data.fields)) {
     throw new TaskError("TASK_REOPEN_REQUIRED", "修改填写内容前请先用 EDIT 重新打开任务，旧检查和完成确认将失效。");
   }
   if (before.node === "done" && event !== "EDIT") throw new TaskError("TASK_REOPEN_REQUIRED", "这项任务已完成，修改前请先重新打开。");
-  const nextData = dataSchema.parse(data ?? before.data);
   if (Object.keys(nextData.fields).some((id) => !fieldIds.has(id)) ||
       [...Object.keys(nextData.checks), ...Object.keys(nextData.review?.checks ?? {})].some((id) => !checkIds.includes(id)) ||
       nextData.review?.findings.some((finding) => finding.fieldId && !fieldIds.has(finding.fieldId))) {

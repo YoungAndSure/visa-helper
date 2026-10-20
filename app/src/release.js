@@ -18,7 +18,8 @@ export const WIDGET_HTML = WIDGET_SOURCE.replaceAll("__VISA_APP_VERSION__", pack
 export const REQUIRED_CLIENT_TOOLS = [
   "advance_application", "get_task_queue", "start_task", "advance_task",
 ];
-const files = ["package.json", "package-lock.json", "public/application.html", "config/tasks/schengen-form-v1.json",
+const files = ["package.json", "package-lock.json", "public/application.html",
+  ...readdirSync(join(appDir, "config/tasks")).filter((file) => file.endsWith(".json")).sort().map((file) => `config/tasks/${file}`),
   ...readdirSync(join(appDir, "src")).filter((file) => file.endsWith(".js")).sort().map((file) => `src/${file}`)];
 const buildHash = digest(files.map((file) => `${file}\0${readFileSync(join(appDir, file), "utf8")}\0`).join(""));
 const instanceId = randomUUID();

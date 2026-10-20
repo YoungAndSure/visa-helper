@@ -1,14 +1,24 @@
 # ChatGPT MCP App 部署与测试
 
-当前版本为 `0.8.3`，问答协议 `1.0`。服务注册 6 个接口：`advance_application`、`get_task_queue`、`start_task`、`advance_task`、`get_server_info` 和仅供 App 使用的 `report_ui_ready`。七个旧问答或重复入口、原生表单实现及旧 UI 资源别名均已删除，不提供旧接口兼容。接口参数与职责见 [MCP 接口说明](mcp-api.md)，问答循环见[完整问答协议](interview-protocol.md)。
+当前版本为 `0.9.0`，问答协议 `1.0`。服务注册 6 个接口：`advance_application`、`get_task_queue`、`start_task`、`advance_task`、`get_server_info` 和仅供 App 使用的 `report_ui_ready`。七个旧问答或重复入口、原生表单实现及旧 UI 资源别名均已删除，不提供旧接口兼容。接口参数与职责见 [MCP 接口说明](mcp-api.md)，问答循环见[完整问答协议](interview-protocol.md)。
 
 ## 当前部署方式
 
-当前已改用 Docker 镜像，详见[镜像构建与部署](container-deployment.md)。正式容器为 `visa-helper-mcp-server-1`，使用原有数据目录和 `127.0.0.1:18081`。旧版 `18080` 容器已删除，直接运行 Node 的 systemd 服务已停用并移除。SSH 转发与 Secure MCP Tunnel 保持原路径；本次新增任务接口并更新运行指纹。
+当前已改用 Docker 镜像，详见[镜像构建与部署](container-deployment.md)。正式容器为 `visa-helper-mcp-server-1`，使用原有数据目录和 `127.0.0.1:18081`。旧版 `18080` 容器已删除，直接运行 Node 的 systemd 服务已停用并移除。SSH 转发与 Secure MCP Tunnel 保持原路径；本次扩展护照任务输入结构与说明，并更新运行指纹。
 
-当前容器已使用腾讯云仓库 `ccr.ccs.tencentyun.com/visa-helper/visa-helper` 的固定摘要镜像运行，服务器直接拉取、独立数据预检、正式切换和原申请恢复均通过。`current` 指向 `releases/0.8.3-16bfe0c58cbc-registry`。仓库凭据位于服务器 `ubuntu` 用户配置，命令需使用 `sudo docker --config /home/ubuntu/.docker ...`。详见[仓库拉取与切换记录](container-deployment.md)。
+当前容器已使用腾讯云仓库 `ccr.ccs.tencentyun.com/visa-helper/visa-helper` 的固定摘要镜像运行，服务器直接拉取、独立数据预检、正式切换和原申请恢复均通过。`current` 指向 `releases/0.9.0-d9b77716f41f-registry`。仓库凭据位于服务器 `ubuntu` 用户配置，命令需使用 `sudo docker --config /home/ubuntu/.docker ...`。详见[仓库拉取与切换记录](container-deployment.md)。
 
 下列记录中的 systemd 启动方式仅描述历史发布。当前排查服务请用 Docker Compose 状态和日志，不再启动已退役的系统服务。
+
+## 2026年10月20日护照任务发布
+
+已部署 `0.9.0`，构建 `d9b77716f41f`，UI `e6055ef5463a`，工具契约 `466630cc7f7d`。仍为6个工具；`advance_task` 扩展了护照数据结构，`start_task` 与服务说明明确两种材料流程，客户端需要刷新连接载入工具定义，再恢复原申请，无需重填问答。
+
+护照作为一个 XState 任务，支持上传辅助检查和对话自查两条路径。自查可不提供日期或文件；上传后由 GPT 实际读取并报告，用户核对日期、本人查看空白页，最后确认原件已准备好。日期失败、模糊项及缺少确认均阻止完成。支持保存恢复、修正重新检查、行程变化失效及历史回放；原申请表配置版本和模型指纹未改变。协议见[MCP接口](mcp-api.md)，流程见[护照任务图](passport-task-workflow-graph.md)。
+
+12个自动测试文件通过，新增护照测试覆盖两条完成路径、未读清与缺失日期、日历月边界、检查覆盖、用户确认、并发版本、未知字段拒绝、修改失效及回放。真实 Chromium 与 MCP 测试桥通过护照页卡按钮、聊天交接、保存恢复、提前完成拦截、辅助检查确认与进度显示；原申请表页卡和独立网页通过回归。测试桥提交的是测试检查报告，尚未代替真实宿主的照片读取与自然语言自查验收。
+
+镜像已发布到腾讯云仓库，由服务器按固定摘要拉取。16份已有申请通过新镜像只读预检；切换前备份数据，切换后原文件校验和一致。健康检查、发布指纹校验、实际 Visa Helper 连接版本探测通过。只读读取原申请确认申请表原进度保留，护照入口可用；未替用户选择或完成护照任务。
 
 ## 2026年10月20日用户续接与网页打开确认
 

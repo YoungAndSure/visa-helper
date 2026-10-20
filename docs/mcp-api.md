@@ -1,6 +1,6 @@
 # Visa Helper MCP 接口
 
-应用版本 `0.8.3`，问答协议 `1.0`。MCP 服务仅注册以下 **6 个工具**，其中 5 个供 GPT 调用，1 个仅供 App UI 调用。问答全过程只使用 `advance_application`；其他接口分别负责展示、材料处理和诊断。
+应用版本 `0.9.0`，问答协议 `1.0`。MCP 服务仅注册以下 **6 个工具**，其中 5 个供 GPT 调用，1 个仅供 App UI 调用。问答全过程只使用 `advance_application`；其他接口分别负责展示、材料处理和诊断。
 
 ## 接口总览
 
@@ -64,11 +64,11 @@
 
 **输入**：`{ "applicationId": "申请 UUID", "taskId": "任务ID" }`。
 
-检查任务仍属于当前清单，选择为当前任务；已有进度和完成状态不会重置。`schengen_form` 返回 `taskFlow`：独立任务版本、任务 revision、当前节点、完整字段目录、自查目录、填写指引和 `nextAction`。其他材料暂时仅返回原表要求。
+检查任务仍属于当前清单，选择为当前任务；已有进度和完成状态不会重置。`schengen_form` 和 `passport` 返回各自的 `taskFlow`：独立任务版本、任务 revision、当前节点、完整字段目录、自查目录、填写指引和 `nextAction`。其他材料暂时仅返回原表要求。护照不返回申请表 PDF 或填写对照页。
 
 ## advance_task
 
-独立材料任务的统一推进接口，目前实现 `schengen_form`。问答仍使用 `advance_application`，两者的 revision 分别维护。
+独立材料任务的统一推进接口，目前实现 `schengen_form` 和 `passport`。下方申请表数据约定仅用于 `schengen_form`，护照结构单列。问答仍使用 `advance_application`，两者的 revision 分别维护。
 
 - 只读恢复：`{ "applicationId": "申请 UUID", "taskId": "schengen_form" }`。
 - 保存或推进：增加最新任务 `revision`、可选 `event` 和可选 `data`。`data` 是完整快照，省略整个 data 保留旧数据；传入 data 时缺省字段按空值处理，不能作为局部补丁。
@@ -85,6 +85,29 @@
 原 PDF 始终可下载；指引可包含待确认项。自行检查允许不提供个人字段、不上传文件完成。FINISH 要求填妥、签字及全部自查项确认；辅助检查分支还要求报告覆盖四页、各检查项通过、无未解决错误或模糊项。记录区分 `user_self_check` 与 `assistant_reported_review`，均由用户最终确认。任何辅助检查步骤可切回自行检查。
 
 修改填写内容需先 EDIT，清除旧检查和确认；修改申请问答也会令任务回到整理资料并提示重新核对。过期 revision、非法字段、越序事件和完成条件不足均拒绝保存。完整执行历史包含配置版本、指纹、事件、数据快照、起点和终点，可离线回放。[任务流程图](task-workflow-graph.md)。
+
+### 护照任务数据
+
+相同接口使用 `taskId: "passport"`，只读及完整快照语义与申请表相同。`data` 格式如下：
+
+```json
+{
+  "fields": { "issueDate": "2020-06-01", "expiryDate": "2030-06-01" },
+  "checks": { "issued_within_ten_years": true, "validity": true, "blank_pages": true },
+  "prepared": false,
+  "confirmedDetails": false,
+  "review": null
+}
+```
+
+- `fields` 仅允许上述两个有效日历日期，格式 `YYYY-MM-DD`，都可省略。不得提交姓名、护照号码、图片或文件链接。
+- `checks` 保存用户自行核对的明确结果。`prepared` 是用户对原件及按清单要求的递交材料已准备好的确认。自查可在不提供日期或文件时完成，但全部检查项和 prepared 必须明确为 true。
+- `review` 为 null 或 `{documentRead:true, checks:{...}, findings:[...]}`。检查项 ID 与目录一致，findings 的 severity 为 issue、unreadable 或 note；可选 fieldId 只能为 issueDate 或 expiryDate。只在实际读取上传资料后记录，不含原文件和物理页码推断。
+- 辅助检查完成必须有两项日期、无失败的服务端日期核对、报告的两项日期检查通过，且用户确认 `confirmedDetails:true`、`checks.blank_pages:true` 及 `prepared:true`；资料页照片不能代替空白页确认。未解决错误或模糊项阻止完成。
+- 返回 `automaticChecks`，按已确认的预计入境日检查签发后10年，按预计离境后3个日历月检查有效期。未知不算自动通过；已知失败不能用勾选覆盖。`nextAction.questions` 与 `checkCatalog` 包含问题及指引，供 GPT 提问。
+- 事件为 SELF_CHECK、ASSISTED_CHECK、REVIEW、FINISH、RETRY、EDIT，以当前 nextAction.events 为准。重试上传会清除旧报告和确认；检查阶段修改日期需先 EDIT。问答变化也会清除旧检查，保留必要日期笔记，并要求重新核对。历史记录保存当时行程日期以支持确定性回放。
+
+护照是一个任务，两条检查路径共用任务实例和完成状态，不要求填写或签署表格。流程图见[护照任务流程](passport-task-workflow-graph.md)。
 
 ## get_server_info
 

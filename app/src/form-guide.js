@@ -34,7 +34,7 @@ export class GuideLinks {
     }
   }
   create(application, flow) {
-    if (!this.baseUrl) return null;
+    if (!this.baseUrl || flow.taskId !== "schengen_form") return null;
     for (const [token, entry] of this.entries) if (entry.expiresAt <= this.now()) this.entries.delete(token);
     while (this.entries.size >= 200) this.entries.delete(this.entries.keys().next().value);
     const token = randomBytes(32).toString("base64url"), expiresAt = this.now() + this.ttlMs;

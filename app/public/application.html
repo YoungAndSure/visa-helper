@@ -173,7 +173,7 @@
     }
     function continueInChat(task) {
       return perform(async () => {
-        const openGuide = application.taskFlow?.taskId === task.id && ["prepare", "filling"].includes(application.taskFlow.node);
+        const openGuide = task.id === "schengen_form" && application.taskFlow?.taskId === task.id && ["prepare", "filling"].includes(application.taskFlow.node);
         const result = await request("ui/message", {
           role: "user", content: [{ type: "text", text:
             openGuide
@@ -211,7 +211,58 @@
         statusEl.textContent = "已请求下载网页版对照表。";
       });
     }
+    async function passportPath(event, task) {
+      await taskEvent(event);
+      if (application.taskFlow?.nextAction.events.includes("FINISH") || application.taskFlow?.node === "await_upload") await continueInChat(task);
+    }
+    function renderPassportFlow(panel, flow, task) {
+      panel.append(element("h2", flow.nextAction.title), element("p", flow.nextAction.guidance));
+      panel.append(element("p", "可拍照上传让助手检查，也可由助手提问、自己查看护照后确认。无需提供姓名或护照号码。", "muted"));
+      if (flow.needsRecheck) panel.append(element("p", "行程资料已变化，旧检查和完成确认已清除，请重新核对。", "notice"));
+      for (const check of flow.automaticChecks) {
+        const label = flow.checkCatalog.find(({ id }) => id === check.id)?.label;
+        const status = { pass: "日期核对符合要求", fail: "日期不满足要求，请处理后重新检查", unknown: "尚未提供日期，可按提示自行核对" }[check.status];
+        panel.append(element("p", `${label}：${status}${check.limitDate ? `（核对界限：${check.limitDate}）` : ""}`, check.status === "fail" ? "notice" : "muted"));
+      }
+      const checkbox = (label, checked, change) => {
+        const wrapper = element("label", "", "check"), input = document.createElement("input");
+        input.type = "checkbox"; input.checked = checked; input.disabled = busy || versionMismatch;
+        input.addEventListener("change", () => change(input.checked));
+        wrapper.append(input, document.createTextNode(` ${label}`)); panel.append(wrapper);
+      };
+      if (flow.node === "self_check") {
+        for (const check of flow.checkCatalog) {
+          panel.append(element("p", check.question));
+          checkbox(check.label, flow.data.checks[check.id] === true, (value) => { flow.data.checks[check.id] = value; });
+        }
+      }
+      if (flow.node === "assisted_check") {
+        panel.append(element("p", "助手已报告读取上传资料。空白页仍需本人翻看确认。", "muted"));
+        for (const field of flow.fieldCatalog) panel.append(element("p", `${field.label}：${flow.data.fields[field.id] ?? "未读清，请在对话中补充"}`));
+        for (const finding of flow.data.review?.findings ?? []) panel.append(element("p", finding.message, finding.severity === "note" ? "muted" : "notice"));
+        checkbox("我已核对助手提取的签发和到期日期，信息正确", flow.data.confirmedDetails, (value) => { flow.data.confirmedDetails = value; });
+        checkbox("我已翻看护照，确认至少有2页空白页", flow.data.checks.blank_pages === true, (value) => { flow.data.checks.blank_pages = value; });
+      }
+      const actions = element("div", "", "actions");
+      if (flow.nextAction.events.includes("SELF_CHECK")) actions.append(button("不上传，自己检查", () => passportPath("SELF_CHECK", task), "secondary"));
+      if (flow.nextAction.events.includes("ASSISTED_CHECK")) actions.append(button("拍照上传，让助手检查", () => passportPath("ASSISTED_CHECK", task), "secondary"));
+      if (["self_check", "assisted_check"].includes(flow.node)) {
+        checkbox("我确认护照原件及按清单要求的递交材料已准备好", flow.data.prepared, (value) => { flow.data.prepared = value; });
+        actions.append(button("保存检查进度", () => taskEvent(undefined), "secondary"));
+        actions.append(button("确认完成护照任务", () => taskEvent("FINISH")));
+      }
+      if (flow.nextAction.events.includes("RETRY")) actions.append(button("重新上传检查", () => passportPath("RETRY", task), "secondary"));
+      if (flow.nextAction.events.includes("EDIT")) actions.append(button("更新证件并重新检查", () => taskEvent("EDIT"), "secondary"));
+      if (flow.node === "done") panel.append(element("p", flow.confirmation?.method === "user_self_check"
+        ? "已完成 · 用户自行检查并确认。" : "已完成 · 辅助检查后由用户确认。"));
+      actions.append(button("在对话中继续", () => continueInChat(task), "secondary"));
+      actions.append(button("刷新任务进度", () => perform(async () => applyResult(await request("tools/call", {
+        name: "advance_task", arguments: { applicationId: application.id, taskId: flow.taskId },
+      }))), "secondary"));
+      panel.append(actions);
+    }
     function renderTaskFlow(panel, flow, task) {
+      if (flow.taskId === "passport") return renderPassportFlow(panel, flow, task);
       const original = element("a", "下载原始申请表 PDF");
       original.href = flow.source.formUrl; original.target = "_blank"; original.rel = "noopener noreferrer";
       original.addEventListener("click", (event) => {
