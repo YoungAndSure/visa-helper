@@ -8,7 +8,7 @@ import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { ApplicationStore } from "../src/workflow.js";
 import { createVisaServer } from "../src/server.js";
 import { GuideLinks } from "../src/form-guide.js";
-import { passportDateChecks } from "../src/passport-task.js";
+import { passportDateChecks } from "../src/task-policies.js";
 import { replayTaskHistory, taskRelease } from "../src/tasks.js";
 
 const answers = { nationality: "CN", residence: "CN", applicationCity: "北京", destination: "IS", purpose: "tourism",
@@ -100,7 +100,7 @@ test("interview changes invalidate passport checks, preserve form version and re
   await f.step("SELF_CHECK"); await f.step("FINISH", { ...f.flow.data, checks: passed, prepared: true });
   const form = (await f.store.startTask(f.application.id, "schengen_form")).taskFlow;
   assert.equal(form.modelHash, "d7dea15494e9cdb3d10ce85c8e81e7adb8f70db4ebeec0e3a1cb79c419333dbd");
-  assert.equal(taskRelease.tasks.length, 2);
+  assert.equal(taskRelease.tasks.length, 25);
   await f.store.advance({ applicationId: f.application.id, revision: f.application.revision, answers: { ...answers, departureDate: "2027-07-01" } });
   const record = (await f.store.readAll())[f.application.id];
   const passport = record.taskProgress.passport;

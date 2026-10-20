@@ -1,0 +1,1460 @@
+{
+  "version": "iceland-materials-v1",
+  "tasks": [
+    {
+      "id": "photo",
+      "version": "photo-v1",
+      "title": "护照照片",
+      "workflow": "collect-v1",
+      "policy": "material",
+      "source": {
+        "url": "https://www.vfsglobal.com/one-pager/iceland/china/chinese/pdf/Individual-Tourism-checklist-CN.pdf",
+        "status": "user_checklist",
+        "note": "依据用户提供的2025年清单；本配置不代表整条路径已按现行官方规则复核。",
+        "checklistItem": "3"
+      },
+      "requirements": [
+        "按原清单准备1张近6个月白底、3.5×4.5cm的未经编辑照片。"
+      ],
+      "acquisition": [
+        "已有合适照片可直接检查；否则按规格到照相馆拍摄。不要通过生成或修饰人脸来制作证件照。"
+      ],
+      "reviewInstructions": "实际读取用户上传的全部相关内容，依检查项逐项记录。图片未覆盖、缺页、看不清或无法证实的部分不能判通过；真实性及官方受理结果不在辅助检查结论内。",
+      "requiredCoverage": [
+        {
+          "id": "photo",
+          "label": "照片正面"
+        }
+      ],
+      "fields": [],
+      "checks": [
+        {
+          "id": "appearance",
+          "label": "照片外观符合要求",
+          "question": "请核对背景、尺寸及清晰度是否符合要求？",
+          "guidance": "请核对背景、尺寸及清晰度是否符合要求？",
+          "evidence": "document"
+        },
+        {
+          "id": "recent",
+          "label": "照片在近6个月内拍摄",
+          "question": "这张照片是否在近6个月内拍摄？",
+          "guidance": "无法从图像可靠判断拍摄日期。",
+          "evidence": "user"
+        },
+        {
+          "id": "unedited",
+          "label": "未经编辑且实物已准备",
+          "question": "请确认未经编辑，并已准备符合尺寸的实物照片。",
+          "guidance": "截图不能证明实物尺寸和修图历史。",
+          "evidence": "user"
+        }
+      ],
+      "rules": []
+    },
+    {
+      "id": "travel_insurance",
+      "version": "travel_insurance-v1",
+      "title": "旅行医疗保险证明",
+      "workflow": "collect-v1",
+      "policy": "material",
+      "source": {
+        "url": "https://www.vfsglobal.com/one-pager/iceland/china/chinese/pdf/Individual-Tourism-checklist-CN.pdf",
+        "status": "user_checklist",
+        "note": "依据用户提供的2025年清单；本配置不代表整条路径已按现行官方规则复核。",
+        "checklistItem": "4"
+      },
+      "requirements": [
+        "核对被保险人、申根覆盖范围、全程日期以及原清单最低保额；关注保单时区和离境航班时间。"
+      ],
+      "acquisition": [
+        "先取得真实保险公司保单，再检查证明。没有保单时自行选择保险产品并购买；本任务不自动购买。"
+      ],
+      "reviewInstructions": "实际读取用户上传的全部相关内容，依检查项逐项记录。图片未覆盖、缺页、看不清或无法证实的部分不能判通过；真实性及官方受理结果不在辅助检查结论内。",
+      "requiredCoverage": [
+        {
+          "id": "policy",
+          "label": "保单中姓名、保障范围、日期、保额及相关条款"
+        }
+      ],
+      "fields": [
+        {
+          "id": "startDate",
+          "label": "保障开始日期",
+          "guidance": "按保单日期及其时区确认。",
+          "type": "date"
+        },
+        {
+          "id": "endDate",
+          "label": "保障结束日期",
+          "guidance": "按保单日期及其时区确认。",
+          "type": "date"
+        },
+        {
+          "id": "amount",
+          "label": "医疗保障金额",
+          "guidance": "仅填写可明确识别的数值。",
+          "type": "number"
+        },
+        {
+          "id": "currency",
+          "label": "保额币种",
+          "guidance": "EUR或CNY；其他币种不自动换算。"
+        }
+      ],
+      "checks": [
+        {
+          "id": "identity",
+          "label": "持有人信息与申请人一致",
+          "question": "请核对材料持有人信息，是否与本次申请人一致？",
+          "guidance": "请核对材料持有人信息，是否与本次申请人一致？",
+          "evidence": "document"
+        },
+        {
+          "id": "territory",
+          "label": "覆盖整个申根区域",
+          "question": "保单明确覆盖整个申根区，而非仅冰岛吗？",
+          "guidance": "保单明确覆盖整个申根区，而非仅冰岛吗？",
+          "evidence": "document"
+        },
+        {
+          "id": "period",
+          "label": "覆盖此次行程的全部相关日期",
+          "question": "请对照已确认行程，核对日期是否完整覆盖？",
+          "guidance": "请对照已确认行程，核对日期是否完整覆盖？",
+          "evidence": "document"
+        },
+        {
+          "id": "amount",
+          "label": "保额符合原清单要求",
+          "question": "请核对医疗费用或医疗补助保额，是否达到原清单3万欧元或30万元人民币要求？",
+          "guidance": "请核对医疗费用或医疗补助保额，是否达到原清单3万欧元或30万元人民币要求？",
+          "evidence": "document"
+        },
+        {
+          "id": "timezone",
+          "label": "已核对保单时区与实际离境时间",
+          "question": "请核对保单生效时区和离境航班，保险是否覆盖至实际离境？",
+          "guidance": "有北京时间和跨时区情况须单独核对。",
+          "evidence": "user"
+        }
+      ],
+      "rules": [
+        {
+          "kind": "trip_coverage",
+          "checkId": "period",
+          "start": "startDate",
+          "end": "endDate"
+        },
+        {
+          "kind": "minimum_amount",
+          "checkId": "amount",
+          "amount": "amount",
+          "currency": "currency",
+          "minimum": {
+            "EUR": 30000,
+            "CNY": 300000
+          }
+        }
+      ]
+    },
+    {
+      "id": "round_trip_reservation",
+      "version": "round_trip_reservation-v1",
+      "title": "往返交通预订",
+      "workflow": "collect-v1",
+      "policy": "material",
+      "source": {
+        "url": "https://www.vfsglobal.com/one-pager/iceland/china/chinese/pdf/Individual-Tourism-checklist-CN.pdf",
+        "status": "user_checklist",
+        "note": "依据用户提供的2025年清单；本配置不代表整条路径已按现行官方规则复核。",
+        "checklistItem": "5"
+      },
+      "requirements": [
+        "原清单要求往返预订，预订即可，不要求已付款。"
+      ],
+      "acquisition": [
+        "从航空公司或预订平台取得真实订单；不要为本检查伪造预订。"
+      ],
+      "reviewInstructions": "实际读取用户上传的全部相关内容，依检查项逐项记录。图片未覆盖、缺页、看不清或无法证实的部分不能判通过；真实性及官方受理结果不在辅助检查结论内。",
+      "requiredCoverage": [
+        {
+          "id": "outbound",
+          "label": "入境方向预订"
+        },
+        {
+          "id": "return",
+          "label": "离境方向预订"
+        }
+      ],
+      "fields": [],
+      "checks": [
+        {
+          "id": "identity",
+          "label": "持有人信息与申请人一致",
+          "question": "请核对材料持有人信息，是否与本次申请人一致？",
+          "guidance": "请核对材料持有人信息，是否与本次申请人一致？",
+          "evidence": "document"
+        },
+        {
+          "id": "round_trip",
+          "label": "入境及离境安排均已预订",
+          "question": "是否同时具备本次行程入境与离境交通预订？",
+          "guidance": "是否同时具备本次行程入境与离境交通预订？",
+          "evidence": "document"
+        },
+        {
+          "id": "dates",
+          "label": "预订日期地点与实际行程一致",
+          "question": "预订中的出入境日期、出发地和目的地是否与行程一致？",
+          "guidance": "预订中的出入境日期、出发地和目的地是否与行程一致？",
+          "evidence": "document"
+        },
+        {
+          "id": "readable",
+          "label": "所需内容清晰完整",
+          "question": "请检查所有要求的页或项目，是否清晰完整？",
+          "guidance": "请检查所有要求的页或项目，是否清晰完整？",
+          "evidence": "document"
+        }
+      ],
+      "rules": []
+    },
+    {
+      "id": "intra_schengen_transport",
+      "version": "intra_schengen_transport-v1",
+      "title": "申根国家间交通预订",
+      "workflow": "collect-v1",
+      "policy": "material",
+      "source": {
+        "url": "https://www.vfsglobal.com/one-pager/iceland/china/chinese/pdf/Individual-Tourism-checklist-CN.pdf",
+        "status": "user_checklist",
+        "note": "依据用户提供的2025年清单；本配置不代表整条路径已按现行官方规则复核。",
+        "checklistItem": "5"
+      },
+      "requirements": [
+        "多国行程按交通方式准备相应机票、火车行程或租车预订。"
+      ],
+      "acquisition": [
+        "按已确认的跨国路线取得相应预订，未定路段先在对话中澄清。"
+      ],
+      "reviewInstructions": "实际读取用户上传的全部相关内容，依检查项逐项记录。图片未覆盖、缺页、看不清或无法证实的部分不能判通过；真实性及官方受理结果不在辅助检查结论内。",
+      "requiredCoverage": [
+        {
+          "id": "transport",
+          "label": "全部适用的跨国交通路段"
+        }
+      ],
+      "fields": [],
+      "checks": [
+        {
+          "id": "identity",
+          "label": "持有人信息与申请人一致",
+          "question": "请核对材料持有人信息，是否与本次申请人一致？",
+          "guidance": "请核对材料持有人信息，是否与本次申请人一致？",
+          "evidence": "document"
+        },
+        {
+          "id": "legs",
+          "label": "所需国家间路段已覆盖",
+          "question": "请逐段核对跨国行程，需要的机票、火车行程或租车预订是否齐全？",
+          "guidance": "请逐段核对跨国行程，需要的机票、火车行程或租车预订是否齐全？",
+          "evidence": "document"
+        },
+        {
+          "id": "dates",
+          "label": "路段日期与完整行程一致",
+          "question": "每段交通的日期、地点和衔接是否与行程相符？",
+          "guidance": "每段交通的日期、地点和衔接是否与行程相符？",
+          "evidence": "document"
+        },
+        {
+          "id": "readable",
+          "label": "所需内容清晰完整",
+          "question": "请检查所有要求的页或项目，是否清晰完整？",
+          "guidance": "请检查所有要求的页或项目，是否清晰完整？",
+          "evidence": "document"
+        }
+      ],
+      "rules": []
+    },
+    {
+      "id": "daily_itinerary",
+      "version": "daily_itinerary-v1",
+      "title": "逐日旅行行程",
+      "workflow": "draft-v1",
+      "policy": "material",
+      "source": {
+        "url": "https://www.vfsglobal.com/one-pager/iceland/china/chinese/pdf/Individual-Tourism-checklist-CN.pdf",
+        "status": "user_checklist",
+        "note": "依据用户提供的2025年清单；本配置不代表整条路径已按现行官方规则复核。",
+        "checklistItem": "6"
+      },
+      "requirements": [
+        "按已确认计划逐日说明行程。未定安排须继续确认，不编造酒店、订单或已付款记录。"
+      ],
+      "acquisition": [
+        "可提供已有行程；也可在对话中整理真实计划，生成可打印HTML行程草稿，再由用户确认和保存。"
+      ],
+      "reviewInstructions": "实际读取用户上传的全部相关内容，依检查项逐项记录。图片未覆盖、缺页、看不清或无法证实的部分不能判通过；真实性及官方受理结果不在辅助检查结论内。",
+      "requiredCoverage": [
+        {
+          "id": "itinerary",
+          "label": "完整逐日行程"
+        }
+      ],
+      "fields": [
+        {
+          "id": "applicantName",
+          "label": "申请人英文姓名",
+          "guidance": "可按需要填写已确认的英文姓名。"
+        }
+      ],
+      "checks": [
+        {
+          "id": "days",
+          "label": "逐日覆盖全部行程",
+          "question": "是否每个旅行日期都有行程安排且没有日期遗漏？",
+          "guidance": "是否每个旅行日期都有行程安排且没有日期遗漏？",
+          "evidence": "document"
+        },
+        {
+          "id": "route",
+          "label": "地点和交通衔接合理",
+          "question": "请核对每日地点及跨城市交通是否衔接？",
+          "guidance": "请核对每日地点及跨城市交通是否衔接？",
+          "evidence": "document"
+        },
+        {
+          "id": "consistent",
+          "label": "与交通和住宿材料一致",
+          "question": "日期、路线及住宿是否与实际预订一致？",
+          "guidance": "日期、路线及住宿是否与实际预订一致？",
+          "evidence": "document"
+        },
+        {
+          "id": "language",
+          "label": "使用适合递交的语言并核对内容",
+          "question": "请确认输出语言和每日内容已按清单及递交要求核对。",
+          "guidance": "请确认输出语言和每日内容已按清单及递交要求核对。",
+          "evidence": "document"
+        }
+      ],
+      "rules": [
+        {
+          "kind": "itinerary_days",
+          "checkId": "days"
+        }
+      ],
+      "document": {
+        "template": "itinerary",
+        "title": "逐日旅行行程填写指引与草稿"
+      }
+    },
+    {
+      "id": "accommodation",
+      "version": "accommodation-v1",
+      "title": "全程住宿预订",
+      "workflow": "collect-v1",
+      "policy": "material",
+      "source": {
+        "url": "https://www.vfsglobal.com/one-pager/iceland/china/chinese/pdf/Individual-Tourism-checklist-CN.pdf",
+        "status": "user_checklist",
+        "note": "依据用户提供的2025年清单；本配置不代表整条路径已按现行官方规则复核。",
+        "checklistItem": "7"
+      },
+      "requirements": [
+        "住宿预订覆盖整个预定停留期。"
+      ],
+      "acquisition": [
+        "从住宿提供方或预订平台取得真实订单；缺少的晚数需补充或说明真实安排。"
+      ],
+      "reviewInstructions": "实际读取用户上传的全部相关内容，依检查项逐项记录。图片未覆盖、缺页、看不清或无法证实的部分不能判通过；真实性及官方受理结果不在辅助检查结论内。",
+      "requiredCoverage": [
+        {
+          "id": "bookings",
+          "label": "覆盖全程的住宿订单及适用说明"
+        }
+      ],
+      "fields": [],
+      "checks": [
+        {
+          "id": "identity",
+          "label": "持有人信息与申请人一致",
+          "question": "请核对材料持有人信息，是否与本次申请人一致？",
+          "guidance": "请核对材料持有人信息，是否与本次申请人一致？",
+          "evidence": "document"
+        },
+        {
+          "id": "nights",
+          "label": "所有需要住宿的日期已覆盖",
+          "question": "请逐晚核对住宿是否齐全；夜间交通等例外是否已有真实安排和说明？",
+          "guidance": "请逐晚核对住宿是否齐全；夜间交通等例外是否已有真实安排和说明？",
+          "evidence": "document"
+        },
+        {
+          "id": "dates",
+          "label": "住宿地点日期与行程一致",
+          "question": "酒店地址、入住退房日期是否与逐日行程一致？",
+          "guidance": "酒店地址、入住退房日期是否与逐日行程一致？",
+          "evidence": "document"
+        },
+        {
+          "id": "readable",
+          "label": "所需内容清晰完整",
+          "question": "请检查所有要求的页或项目，是否清晰完整？",
+          "guidance": "请检查所有要求的页或项目，是否清晰完整？",
+          "evidence": "document"
+        }
+      ],
+      "rules": []
+    },
+    {
+      "id": "chinese_id_copy",
+      "version": "chinese_id_copy-v1",
+      "title": "中国身份证正反面复印件",
+      "workflow": "collect-v1",
+      "policy": "material",
+      "source": {
+        "url": "https://www.vfsglobal.com/one-pager/iceland/china/chinese/pdf/Individual-Tourism-checklist-CN.pdf",
+        "status": "user_checklist",
+        "note": "依据用户提供的2025年清单；本配置不代表整条路径已按现行官方规则复核。",
+        "checklistItem": "8"
+      },
+      "requirements": [
+        "中国身份证及正反面复印件1份，原清单注明无需翻译。"
+      ],
+      "acquisition": [
+        "准备身份证原件及正反面复印件，复印清晰，不上传也可自查。"
+      ],
+      "reviewInstructions": "实际读取用户上传的全部相关内容，依检查项逐项记录。图片未覆盖、缺页、看不清或无法证实的部分不能判通过；真实性及官方受理结果不在辅助检查结论内。",
+      "requiredCoverage": [
+        {
+          "id": "front",
+          "label": "身份证正面"
+        },
+        {
+          "id": "back",
+          "label": "身份证反面"
+        }
+      ],
+      "fields": [],
+      "checks": [
+        {
+          "id": "identity",
+          "label": "持有人信息与申请人一致",
+          "question": "请核对材料持有人信息，是否与本次申请人一致？",
+          "guidance": "请核对材料持有人信息，是否与本次申请人一致？",
+          "evidence": "document"
+        },
+        {
+          "id": "both_sides",
+          "label": "正反面齐全",
+          "question": "身份证正反面是否都已复印？",
+          "guidance": "身份证正反面是否都已复印？",
+          "evidence": "document"
+        },
+        {
+          "id": "readable",
+          "label": "所需内容清晰完整",
+          "question": "请检查所有要求的页或项目，是否清晰完整？",
+          "guidance": "请检查所有要求的页或项目，是否清晰完整？",
+          "evidence": "document"
+        },
+        {
+          "id": "original",
+          "label": "原件及所需复印件已准备",
+          "question": "原件和所需复印件都已准备好吗？",
+          "guidance": "原件需由本人确认。",
+          "evidence": "user"
+        }
+      ],
+      "rules": []
+    },
+    {
+      "id": "hukou_copy",
+      "version": "hukou_copy-v1",
+      "title": "户口本所有内容页复印件",
+      "workflow": "collect-v1",
+      "policy": "material",
+      "source": {
+        "url": "https://www.vfsglobal.com/one-pager/iceland/china/chinese/pdf/Individual-Tourism-checklist-CN.pdf",
+        "status": "user_checklist",
+        "note": "依据用户提供的2025年清单；本配置不代表整条路径已按现行官方规则复核。",
+        "checklistItem": "9"
+      },
+      "requirements": [
+        "原清单要求户口本所有内容页复印件，无需翻译。"
+      ],
+      "acquisition": [
+        "对照原件逐页准备复印件，按原顺序整理。"
+      ],
+      "reviewInstructions": "实际读取用户上传的全部相关内容，依检查项逐项记录。图片未覆盖、缺页、看不清或无法证实的部分不能判通过；真实性及官方受理结果不在辅助检查结论内。",
+      "requiredCoverage": [
+        {
+          "id": "hukou",
+          "label": "提交的所有内容页"
+        }
+      ],
+      "fields": [],
+      "checks": [
+        {
+          "id": "identity",
+          "label": "持有人信息与申请人一致",
+          "question": "请核对材料持有人信息，是否与本次申请人一致？",
+          "guidance": "请核对材料持有人信息，是否与本次申请人一致？",
+          "evidence": "document"
+        },
+        {
+          "id": "pages",
+          "label": "所有内容页已覆盖",
+          "question": "请翻看原件，确认所有有内容的页均已复印，没有遗漏。",
+          "guidance": "上传图片不能证明原件还有没有其他内容页。",
+          "evidence": "user"
+        },
+        {
+          "id": "readable",
+          "label": "所需内容清晰完整",
+          "question": "请检查所有要求的页或项目，是否清晰完整？",
+          "guidance": "请检查所有要求的页或项目，是否清晰完整？",
+          "evidence": "document"
+        }
+      ],
+      "rules": []
+    },
+    {
+      "id": "bank_statements",
+      "version": "bank_statements-v1",
+      "title": "连续近3个月银行对账单",
+      "workflow": "collect-v1",
+      "policy": "material",
+      "source": {
+        "url": "https://www.vfsglobal.com/one-pager/iceland/china/chinese/pdf/Individual-Tourism-checklist-CN.pdf",
+        "status": "user_checklist",
+        "note": "依据用户提供的2025年清单；本配置不代表整条路径已按现行官方规则复核。",
+        "checklistItem": "10"
+      },
+      "requirements": [
+        "按原清单准备连续近3个月银行对账单，排除存款账户及信用卡对账单。",
+        "未成年人的资金证明由谁提供，原清单未明确，需另行核实。"
+      ],
+      "acquisition": [
+        "通过银行正式渠道下载或取得真实对账单；允许遮盖不影响检查的无关内容，但不能修改交易。"
+      ],
+      "reviewInstructions": "实际读取用户上传的全部相关内容，依检查项逐项记录。图片未覆盖、缺页、看不清或无法证实的部分不能判通过；真实性及官方受理结果不在辅助检查结论内。",
+      "requiredCoverage": [
+        {
+          "id": "statements",
+          "label": "完整连续期间的对账单"
+        }
+      ],
+      "fields": [],
+      "checks": [
+        {
+          "id": "holder",
+          "label": "账户持有人及与申请人的关系已核对",
+          "question": "请核对对账单持有人，以及本人或担保人与申请人的关系。",
+          "guidance": "请核对对账单持有人，以及本人或担保人与申请人的关系。",
+          "evidence": "document"
+        },
+        {
+          "id": "provider_rule",
+          "label": "资金证明提供人及适用要求已核实",
+          "question": "资金证明是否由本次申请适用的提供人准备？未成年人由谁提供尚需核实，不能自行假定。",
+          "guidance": "成年本人或相应资助分支按已确认情况核对；原表未明确的未成年人资金安排须先向受理方核实。",
+          "evidence": "user"
+        },
+        {
+          "id": "consecutive",
+          "label": "覆盖连续近3个月",
+          "question": "对账单是否覆盖按本次递交时间核对的连续近3个月？",
+          "guidance": "递交日期不明时先确认，不使用服务器当天替代。",
+          "evidence": "document"
+        },
+        {
+          "id": "account_type",
+          "label": "不是存款账户或信用卡对账单",
+          "question": "是否为符合原清单的银行账户对账单，而非存款证明或信用卡对账单？",
+          "guidance": "是否为符合原清单的银行账户对账单，而非存款证明或信用卡对账单？",
+          "evidence": "document"
+        },
+        {
+          "id": "readable",
+          "label": "所需内容清晰完整",
+          "question": "请检查所有要求的页或项目，是否清晰完整？",
+          "guidance": "请检查所有要求的页或项目，是否清晰完整？",
+          "evidence": "document"
+        }
+      ],
+      "rules": []
+    },
+    {
+      "id": "employer_license",
+      "version": "employer_license-v1",
+      "title": "雇主营业执照复印件",
+      "workflow": "collect-v1",
+      "policy": "material",
+      "source": {
+        "url": "https://www.vfsglobal.com/one-pager/iceland/china/chinese/pdf/Individual-Tourism-checklist-CN.pdf",
+        "status": "user_checklist",
+        "note": "依据用户提供的2025年清单；本配置不代表整条路径已按现行官方规则复核。",
+        "checklistItem": "11"
+      },
+      "requirements": [
+        "准备真实雇主营业执照复印件。"
+      ],
+      "acquisition": [
+        "向雇主人事或行政部门索取真实营业执照复印件。"
+      ],
+      "reviewInstructions": "实际读取用户上传的全部相关内容，依检查项逐项记录。图片未覆盖、缺页、看不清或无法证实的部分不能判通过；真实性及官方受理结果不在辅助检查结论内。",
+      "requiredCoverage": [
+        {
+          "id": "license",
+          "label": "执照复印件"
+        }
+      ],
+      "fields": [],
+      "checks": [
+        {
+          "id": "employer",
+          "label": "单位与在职证明中的雇主一致",
+          "question": "请核对执照单位与实际雇主及在职证明是否一致？",
+          "guidance": "请核对执照单位与实际雇主及在职证明是否一致？",
+          "evidence": "document"
+        },
+        {
+          "id": "readable",
+          "label": "所需内容清晰完整",
+          "question": "请检查所有要求的页或项目，是否清晰完整？",
+          "guidance": "请检查所有要求的页或项目，是否清晰完整？",
+          "evidence": "document"
+        }
+      ],
+      "rules": []
+    },
+    {
+      "id": "employment_letter",
+      "version": "employment_letter-v1",
+      "title": "在职证明",
+      "workflow": "draft-v1",
+      "policy": "material",
+      "source": {
+        "url": "https://www.vfsglobal.com/one-pager/iceland/china/chinese/pdf/Individual-Tourism-checklist-CN.pdf",
+        "status": "user_checklist",
+        "note": "依据用户提供的2025年清单；本配置不代表整条路径已按现行官方规则复核。",
+        "checklistItem": "11"
+      },
+      "requirements": [
+        "原清单要求英文原件或中文原件附英文翻译，公司抬头纸、签字、日期、公章，并包含单位及申请人信息、薪资、供职年限和准假周期。"
+      ],
+      "acquisition": [
+        "可生成资料整理和证明草稿，交由雇主审核并在真实抬头纸上出具、签署和盖章；系统草稿不代表单位已出具。"
+      ],
+      "reviewInstructions": "实际读取用户上传的全部相关内容，依检查项逐项记录。图片未覆盖、缺页、看不清或无法证实的部分不能判通过；真实性及官方受理结果不在辅助检查结论内。",
+      "requiredCoverage": [
+        {
+          "id": "letter",
+          "label": "在职证明完整内容及适用翻译"
+        }
+      ],
+      "fields": [
+        {
+          "id": "applicantName",
+          "label": "申请人英文姓名",
+          "guidance": "按证件确认英文姓名。"
+        },
+        {
+          "id": "issuerName",
+          "label": "出具单位或担保人",
+          "guidance": "填写真实出具方名称，不编造机构。"
+        },
+        {
+          "id": "contact",
+          "label": "出具方地址及联系方式",
+          "guidance": "按实际信息填写，供出具方核对。"
+        },
+        {
+          "id": "body",
+          "label": "证明或说明内容",
+          "guidance": "只整理已确认事实；待出具方审核，不替出具方作证明。"
+        },
+        {
+          "id": "documentDate",
+          "label": "出具日期",
+          "guidance": "由出具方按实际签发日期填写。"
+        },
+        {
+          "id": "position",
+          "label": "职位",
+          "guidance": "本人实际职位。"
+        },
+        {
+          "id": "salary",
+          "label": "薪资",
+          "guidance": "按真实工资及单位确认口径填写。"
+        },
+        {
+          "id": "employmentSince",
+          "label": "入职或任职时间",
+          "guidance": "按单位可确认的时间填写。"
+        },
+        {
+          "id": "leaveDates",
+          "label": "准假周期",
+          "guidance": "按已确认行程及单位批准的日期填写。"
+        }
+      ],
+      "checks": [
+        {
+          "id": "identity",
+          "label": "持有人信息与申请人一致",
+          "question": "请核对材料持有人信息，是否与本次申请人一致？",
+          "guidance": "请核对材料持有人信息，是否与本次申请人一致？",
+          "evidence": "document"
+        },
+        {
+          "id": "contents",
+          "label": "单位、任职、薪资、年限及准假信息齐全",
+          "question": "单位地址电话传真、签字人姓名职务、本人职位薪资年限及准假周期是否已按原清单核对？",
+          "guidance": "单位地址电话传真、签字人姓名职务、本人职位薪资年限及准假周期是否已按原清单核对？",
+          "evidence": "document"
+        },
+        {
+          "id": "language",
+          "label": "语言或翻译符合清单",
+          "question": "是否为英文原件，或中文原件附英文翻译？",
+          "guidance": "是否为英文原件，或中文原件附英文翻译？",
+          "evidence": "document"
+        },
+        {
+          "id": "execution",
+          "label": "已按清单要求签字、日期及盖章",
+          "question": "请对照本材料要求检查签字、日期及适用的公章是否齐全？",
+          "guidance": "不能由AI代替单位或本人签署。",
+          "evidence": "user"
+        }
+      ],
+      "rules": [],
+      "document": {
+        "template": "employment",
+        "title": "在职证明填写指引与草稿"
+      }
+    },
+    {
+      "id": "pension_income",
+      "version": "pension_income-v1",
+      "title": "退休金或其他固定收入证明",
+      "workflow": "collect-v1",
+      "policy": "material",
+      "source": {
+        "url": "https://www.vfsglobal.com/one-pager/iceland/china/chinese/pdf/Individual-Tourism-checklist-CN.pdf",
+        "status": "user_checklist",
+        "note": "依据用户提供的2025年清单；本配置不代表整条路径已按现行官方规则复核。",
+        "checklistItem": "11"
+      },
+      "requirements": [
+        "按原清单准备退休证或其他固定收入证明。"
+      ],
+      "acquisition": [
+        "通过退休金发放、银行或相应正式渠道取得真实证明。"
+      ],
+      "reviewInstructions": "实际读取用户上传的全部相关内容，依检查项逐项记录。图片未覆盖、缺页、看不清或无法证实的部分不能判通过；真实性及官方受理结果不在辅助检查结论内。",
+      "requiredCoverage": [
+        {
+          "id": "income",
+          "label": "退休或固定收入证明"
+        }
+      ],
+      "fields": [],
+      "checks": [
+        {
+          "id": "identity",
+          "label": "持有人信息与申请人一致",
+          "question": "请核对材料持有人信息，是否与本次申请人一致？",
+          "guidance": "请核对材料持有人信息，是否与本次申请人一致？",
+          "evidence": "document"
+        },
+        {
+          "id": "income",
+          "label": "证明种类与本人实际情况相符",
+          "question": "请确认所提供的退休或固定收入证明符合本人的实际情况和清单要求。",
+          "guidance": "请确认所提供的退休或固定收入证明符合本人的实际情况和清单要求。",
+          "evidence": "document"
+        },
+        {
+          "id": "readable",
+          "label": "所需内容清晰完整",
+          "question": "请检查所有要求的页或项目，是否清晰完整？",
+          "guidance": "请检查所有要求的页或项目，是否清晰完整？",
+          "evidence": "document"
+        }
+      ],
+      "rules": []
+    },
+    {
+      "id": "spouse_employment_income",
+      "version": "spouse_employment_income-v1",
+      "title": "配偶工作及收入证明",
+      "workflow": "collect-v1",
+      "policy": "material",
+      "source": {
+        "url": "https://www.vfsglobal.com/one-pager/iceland/china/chinese/pdf/Individual-Tourism-checklist-CN.pdf",
+        "status": "user_checklist",
+        "note": "依据用户提供的2025年清单；本配置不代表整条路径已按现行官方规则复核。",
+        "checklistItem": "11"
+      },
+      "requirements": [
+        "按适用分支准备配偶真实的工作及收入证明。"
+      ],
+      "acquisition": [
+        "由配偶向实际单位或收入来源索取正式证明。"
+      ],
+      "reviewInstructions": "实际读取用户上传的全部相关内容，依检查项逐项记录。图片未覆盖、缺页、看不清或无法证实的部分不能判通过；真实性及官方受理结果不在辅助检查结论内。",
+      "requiredCoverage": [
+        {
+          "id": "employment",
+          "label": "工作证明"
+        },
+        {
+          "id": "income",
+          "label": "收入证明"
+        }
+      ],
+      "fields": [],
+      "checks": [
+        {
+          "id": "provider",
+          "label": "配偶身份及关系已核对",
+          "question": "请核对证明出具对象确为本次配偶，关系及资助安排一致。",
+          "guidance": "请核对证明出具对象确为本次配偶，关系及资助安排一致。",
+          "evidence": "document"
+        },
+        {
+          "id": "income",
+          "label": "工作和收入证明齐全",
+          "question": "工作情况和收入证明是否齐全且与实际资助安排一致？",
+          "guidance": "工作情况和收入证明是否齐全且与实际资助安排一致？",
+          "evidence": "document"
+        },
+        {
+          "id": "readable",
+          "label": "所需内容清晰完整",
+          "question": "请检查所有要求的页或项目，是否清晰完整？",
+          "guidance": "请检查所有要求的页或项目，是否清晰完整？",
+          "evidence": "document"
+        }
+      ],
+      "rules": []
+    },
+    {
+      "id": "sponsor_employment_income",
+      "version": "sponsor_employment_income-v1",
+      "title": "非配偶担保人工作及收入证明",
+      "workflow": "collect-v1",
+      "policy": "material",
+      "source": {
+        "url": "https://www.vfsglobal.com/one-pager/iceland/china/chinese/pdf/Individual-Tourism-checklist-CN.pdf",
+        "status": "user_checklist",
+        "note": "依据用户提供的2025年清单；本配置不代表整条路径已按现行官方规则复核。",
+        "checklistItem": "11"
+      },
+      "requirements": [
+        "按适用分支准备担保人真实的工作及收入证明。"
+      ],
+      "acquisition": [
+        "由担保人向实际单位或收入来源索取正式证明。"
+      ],
+      "reviewInstructions": "实际读取用户上传的全部相关内容，依检查项逐项记录。图片未覆盖、缺页、看不清或无法证实的部分不能判通过；真实性及官方受理结果不在辅助检查结论内。",
+      "requiredCoverage": [
+        {
+          "id": "employment",
+          "label": "工作证明"
+        },
+        {
+          "id": "income",
+          "label": "收入证明"
+        }
+      ],
+      "fields": [],
+      "checks": [
+        {
+          "id": "provider",
+          "label": "担保人身份及关系已核对",
+          "question": "请核对证明出具对象确为本次担保人，关系及资助安排一致。",
+          "guidance": "请核对证明出具对象确为本次担保人，关系及资助安排一致。",
+          "evidence": "document"
+        },
+        {
+          "id": "income",
+          "label": "工作和收入证明齐全",
+          "question": "工作情况和收入证明是否齐全且与实际资助安排一致？",
+          "guidance": "工作情况和收入证明是否齐全且与实际资助安排一致？",
+          "evidence": "document"
+        },
+        {
+          "id": "readable",
+          "label": "所需内容清晰完整",
+          "question": "请检查所有要求的页或项目，是否清晰完整？",
+          "guidance": "请检查所有要求的页或项目，是否清晰完整？",
+          "evidence": "document"
+        }
+      ],
+      "rules": []
+    },
+    {
+      "id": "other_regular_income",
+      "version": "other_regular_income-v1",
+      "title": "其他固定收入证明",
+      "workflow": "collect-v1",
+      "policy": "material",
+      "source": {
+        "url": "https://www.vfsglobal.com/one-pager/iceland/china/chinese/pdf/Individual-Tourism-checklist-CN.pdf",
+        "status": "user_checklist",
+        "note": "依据用户提供的2025年清单；本配置不代表整条路径已按现行官方规则复核。",
+        "checklistItem": "11"
+      },
+      "requirements": [
+        "按适用分支准备真实的其他固定收入证明；不明确的收入情形先核实。"
+      ],
+      "acquisition": [
+        "从实际收入提供方或相应正式渠道取得证明，不能以编写声明替代第三方证明。"
+      ],
+      "reviewInstructions": "实际读取用户上传的全部相关内容，依检查项逐项记录。图片未覆盖、缺页、看不清或无法证实的部分不能判通过；真实性及官方受理结果不在辅助检查结论内。",
+      "requiredCoverage": [
+        {
+          "id": "income",
+          "label": "固定收入证明"
+        }
+      ],
+      "fields": [],
+      "checks": [
+        {
+          "id": "identity",
+          "label": "持有人信息与申请人一致",
+          "question": "请核对材料持有人信息，是否与本次申请人一致？",
+          "guidance": "请核对材料持有人信息，是否与本次申请人一致？",
+          "evidence": "document"
+        },
+        {
+          "id": "income",
+          "label": "固定收入来源和证明一致",
+          "question": "证明是否清楚反映实际固定收入来源？",
+          "guidance": "证明是否清楚反映实际固定收入来源？",
+          "evidence": "document"
+        },
+        {
+          "id": "readable",
+          "label": "所需内容清晰完整",
+          "question": "请检查所有要求的页或项目，是否清晰完整？",
+          "guidance": "请检查所有要求的页或项目，是否清晰完整？",
+          "evidence": "document"
+        }
+      ],
+      "rules": []
+    },
+    {
+      "id": "sponsor_bank_statements",
+      "version": "sponsor_bank_statements-v1",
+      "title": "非配偶担保人银行对账单",
+      "workflow": "collect-v1",
+      "policy": "material",
+      "source": {
+        "url": "https://www.vfsglobal.com/one-pager/iceland/china/chinese/pdf/Individual-Tourism-checklist-CN.pdf",
+        "status": "user_checklist",
+        "note": "依据用户提供的2025年清单；本配置不代表整条路径已按现行官方规则复核。",
+        "checklistItem": "11"
+      },
+      "requirements": [
+        "按原清单准备担保人银行对账单；不能直接套用本人对账单的期间要求，具体期间待核实。"
+      ],
+      "acquisition": [
+        "由担保人从银行取得真实对账单，先核实此分支适用期间。"
+      ],
+      "reviewInstructions": "实际读取用户上传的全部相关内容，依检查项逐项记录。图片未覆盖、缺页、看不清或无法证实的部分不能判通过；真实性及官方受理结果不在辅助检查结论内。",
+      "requiredCoverage": [
+        {
+          "id": "statements",
+          "label": "担保人对账单"
+        }
+      ],
+      "fields": [],
+      "checks": [
+        {
+          "id": "provider",
+          "label": "账户属于实际担保人",
+          "question": "请核对账户持有人与本次担保人一致。",
+          "guidance": "请核对账户持有人与本次担保人一致。",
+          "evidence": "document"
+        },
+        {
+          "id": "period",
+          "label": "所需期间已核实并提供齐全",
+          "question": "是否已向受理方核实适用期间，并提供完整对账单？",
+          "guidance": "原表此分支没有单独写明期间，不自行补造。",
+          "evidence": "user"
+        },
+        {
+          "id": "readable",
+          "label": "所需内容清晰完整",
+          "question": "请检查所有要求的页或项目，是否清晰完整？",
+          "guidance": "请检查所有要求的页或项目，是否清晰完整？",
+          "evidence": "document"
+        }
+      ],
+      "rules": []
+    },
+    {
+      "id": "sponsorship_letter",
+      "version": "sponsorship_letter-v1",
+      "title": "非配偶担保人签署的担保函",
+      "workflow": "draft-v1",
+      "policy": "material",
+      "source": {
+        "url": "https://www.vfsglobal.com/one-pager/iceland/china/chinese/pdf/Individual-Tourism-checklist-CN.pdf",
+        "status": "user_checklist",
+        "note": "依据用户提供的2025年清单；本配置不代表整条路径已按现行官方规则复核。",
+        "checklistItem": "11"
+      },
+      "requirements": [
+        "按原清单准备担保人签署的真实担保函。"
+      ],
+      "acquisition": [
+        "可生成草稿供担保人核对，最终由真实担保人签署。"
+      ],
+      "reviewInstructions": "实际读取用户上传的全部相关内容，依检查项逐项记录。图片未覆盖、缺页、看不清或无法证实的部分不能判通过；真实性及官方受理结果不在辅助检查结论内。",
+      "requiredCoverage": [
+        {
+          "id": "letter",
+          "label": "担保函完整内容"
+        }
+      ],
+      "fields": [
+        {
+          "id": "applicantName",
+          "label": "申请人英文姓名",
+          "guidance": "按证件确认英文姓名。"
+        },
+        {
+          "id": "issuerName",
+          "label": "出具单位或担保人",
+          "guidance": "填写真实出具方名称，不编造机构。"
+        },
+        {
+          "id": "contact",
+          "label": "出具方地址及联系方式",
+          "guidance": "按实际信息填写，供出具方核对。"
+        },
+        {
+          "id": "body",
+          "label": "证明或说明内容",
+          "guidance": "只整理已确认事实；待出具方审核，不替出具方作证明。"
+        },
+        {
+          "id": "documentDate",
+          "label": "出具日期",
+          "guidance": "由出具方按实际签发日期填写。"
+        },
+        {
+          "id": "supportScope",
+          "label": "资助范围",
+          "guidance": "按真实承诺写明承担费用范围。"
+        },
+        {
+          "id": "relationship",
+          "label": "与申请人的关系",
+          "guidance": "按真实关系填写。"
+        }
+      ],
+      "checks": [
+        {
+          "id": "provider",
+          "label": "担保人和资助安排一致",
+          "question": "担保人身份、与申请人的关系和承担费用范围是否真实一致？",
+          "guidance": "担保人身份、与申请人的关系和承担费用范围是否真实一致？",
+          "evidence": "document"
+        },
+        {
+          "id": "contents",
+          "label": "申请、行程及担保内容已核对",
+          "question": "担保内容是否明确且与其他资助材料一致？",
+          "guidance": "担保内容是否明确且与其他资助材料一致？",
+          "evidence": "document"
+        },
+        {
+          "id": "signed",
+          "label": "担保人本人已签署",
+          "question": "是否已由担保人本人核对并签署？",
+          "guidance": "不能由AI代替本人签字。",
+          "evidence": "user"
+        }
+      ],
+      "rules": [],
+      "document": {
+        "template": "sponsorship",
+        "title": "非配偶担保人签署的担保函填写指引与草稿"
+      }
+    },
+    {
+      "id": "sponsor_passport_copy",
+      "version": "sponsor_passport_copy-v1",
+      "title": "非配偶担保人护照复印件",
+      "workflow": "collect-v1",
+      "policy": "material",
+      "source": {
+        "url": "https://www.vfsglobal.com/one-pager/iceland/china/chinese/pdf/Individual-Tourism-checklist-CN.pdf",
+        "status": "user_checklist",
+        "note": "依据用户提供的2025年清单；本配置不代表整条路径已按现行官方规则复核。",
+        "checklistItem": "11"
+      },
+      "requirements": [
+        "按原清单准备担保人护照复印件。"
+      ],
+      "acquisition": [
+        "由担保人提供真实复印件并核对；不要要求提供与本检查无关的信息。"
+      ],
+      "reviewInstructions": "实际读取用户上传的全部相关内容，依检查项逐项记录。图片未覆盖、缺页、看不清或无法证实的部分不能判通过；真实性及官方受理结果不在辅助检查结论内。",
+      "requiredCoverage": [
+        {
+          "id": "bio",
+          "label": "担保人护照资料页"
+        }
+      ],
+      "fields": [],
+      "checks": [
+        {
+          "id": "provider",
+          "label": "属于本次担保人的证件",
+          "question": "请确认复印件确属本次担保人，与担保函等资料一致。",
+          "guidance": "请确认复印件确属本次担保人，与担保函等资料一致。",
+          "evidence": "document"
+        },
+        {
+          "id": "readable",
+          "label": "所需内容清晰完整",
+          "question": "请检查所有要求的页或项目，是否清晰完整？",
+          "guidance": "请检查所有要求的页或项目，是否清晰完整？",
+          "evidence": "document"
+        }
+      ],
+      "rules": []
+    },
+    {
+      "id": "student_card",
+      "version": "student_card-v1",
+      "title": "未成年人学生证",
+      "workflow": "collect-v1",
+      "policy": "material",
+      "source": {
+        "url": "https://www.vfsglobal.com/one-pager/iceland/china/chinese/pdf/Individual-Tourism-checklist-CN.pdf",
+        "status": "user_checklist",
+        "note": "依据用户提供的2025年清单；本配置不代表整条路径已按现行官方规则复核。",
+        "checklistItem": "13"
+      },
+      "requirements": [
+        "按适用分支准备学生证。"
+      ],
+      "acquisition": [
+        "准备真实学生证，所需原件或复印形式按受理要求核实。"
+      ],
+      "reviewInstructions": "实际读取用户上传的全部相关内容，依检查项逐项记录。图片未覆盖、缺页、看不清或无法证实的部分不能判通过；真实性及官方受理结果不在辅助检查结论内。",
+      "requiredCoverage": [
+        {
+          "id": "student_card",
+          "label": "学生证相关内容"
+        }
+      ],
+      "fields": [],
+      "checks": [
+        {
+          "id": "identity",
+          "label": "持有人信息与申请人一致",
+          "question": "请核对材料持有人信息，是否与本次申请人一致？",
+          "guidance": "请核对材料持有人信息，是否与本次申请人一致？",
+          "evidence": "document"
+        },
+        {
+          "id": "student",
+          "label": "与实际在读情况一致",
+          "question": "请确认学生证与目前实际在读情况一致。",
+          "guidance": "请确认学生证与目前实际在读情况一致。",
+          "evidence": "document"
+        },
+        {
+          "id": "readable",
+          "label": "所需内容清晰完整",
+          "question": "请检查所有要求的页或项目，是否清晰完整？",
+          "guidance": "请检查所有要求的页或项目，是否清晰完整？",
+          "evidence": "document"
+        }
+      ],
+      "rules": []
+    },
+    {
+      "id": "school_letter",
+      "version": "school_letter-v1",
+      "title": "学校在读及准假证明",
+      "workflow": "draft-v1",
+      "policy": "material",
+      "source": {
+        "url": "https://www.vfsglobal.com/one-pager/iceland/china/chinese/pdf/Individual-Tourism-checklist-CN.pdf",
+        "status": "user_checklist",
+        "note": "依据用户提供的2025年清单；本配置不代表整条路径已按现行官方规则复核。",
+        "checklistItem": "13"
+      },
+      "requirements": [
+        "原清单要求英文原件或中文原件附英文翻译，注明学校地址电话、准假信息及批准人姓名职务。"
+      ],
+      "acquisition": [
+        "可先整理预填草稿，交由学校核对和正式出具。"
+      ],
+      "reviewInstructions": "实际读取用户上传的全部相关内容，依检查项逐项记录。图片未覆盖、缺页、看不清或无法证实的部分不能判通过；真实性及官方受理结果不在辅助检查结论内。",
+      "requiredCoverage": [
+        {
+          "id": "letter",
+          "label": "学校证明及适用翻译"
+        }
+      ],
+      "fields": [
+        {
+          "id": "applicantName",
+          "label": "申请人英文姓名",
+          "guidance": "按证件确认英文姓名。"
+        },
+        {
+          "id": "issuerName",
+          "label": "出具单位或担保人",
+          "guidance": "填写真实出具方名称，不编造机构。"
+        },
+        {
+          "id": "contact",
+          "label": "出具方地址及联系方式",
+          "guidance": "按实际信息填写，供出具方核对。"
+        },
+        {
+          "id": "body",
+          "label": "证明或说明内容",
+          "guidance": "只整理已确认事实；待出具方审核，不替出具方作证明。"
+        },
+        {
+          "id": "documentDate",
+          "label": "出具日期",
+          "guidance": "由出具方按实际签发日期填写。"
+        },
+        {
+          "id": "leaveDates",
+          "label": "准假周期",
+          "guidance": "学校实际批准的日期。"
+        }
+      ],
+      "checks": [
+        {
+          "id": "identity",
+          "label": "持有人信息与申请人一致",
+          "question": "请核对材料持有人信息，是否与本次申请人一致？",
+          "guidance": "请核对材料持有人信息，是否与本次申请人一致？",
+          "evidence": "document"
+        },
+        {
+          "id": "contents",
+          "label": "学校及批准信息完整",
+          "question": "学校地址电话、准假周期、批准人姓名及职务是否齐全？",
+          "guidance": "学校地址电话、准假周期、批准人姓名及职务是否齐全？",
+          "evidence": "document"
+        },
+        {
+          "id": "language",
+          "label": "语言或翻译已核对",
+          "question": "是否为英文原件或中文原件附英文翻译？",
+          "guidance": "是否为英文原件或中文原件附英文翻译？",
+          "evidence": "document"
+        },
+        {
+          "id": "issued",
+          "label": "已由学校正式出具",
+          "question": "是否已交由学校核对并正式出具，而非仅有草稿？",
+          "guidance": "学校需确认自己的证明。",
+          "evidence": "user"
+        }
+      ],
+      "rules": [],
+      "document": {
+        "template": "school",
+        "title": "学校在读及准假证明填写指引与草稿"
+      }
+    },
+    {
+      "id": "marriage_certificate",
+      "version": "marriage_certificate-v1",
+      "title": "经认证的婚姻关系公证书",
+      "workflow": "collect-v1",
+      "policy": "material",
+      "source": {
+        "url": "https://www.vfsglobal.com/one-pager/iceland/china/chinese/pdf/Individual-Tourism-checklist-CN.pdf",
+        "status": "user_checklist",
+        "note": "依据用户提供的2025年清单；本配置不代表整条路径已按现行官方规则复核。",
+        "checklistItem": "11"
+      },
+      "requirements": [
+        "原清单要求经认证的婚姻关系公证书，具体适用条件和现行认证方式需核实。"
+      ],
+      "acquisition": [
+        "先核实本分支的现行要求，再向有权机构办理；系统仅解释和协助检查，不生成或代替机构出具的公证认证文件。"
+      ],
+      "reviewInstructions": "实际读取用户上传的全部相关内容，依检查项逐项记录。图片未覆盖、缺页、看不清或无法证实的部分不能判通过；真实性及官方受理结果不在辅助检查结论内。",
+      "requiredCoverage": [
+        {
+          "id": "certificate",
+          "label": "相关公证及认证文件"
+        }
+      ],
+      "fields": [],
+      "checks": [
+        {
+          "id": "scope",
+          "label": "适用对象、出具人及办理形式已核实",
+          "question": "是否已按本人分支向官方或受理方核实所需出具人和现行办理形式？",
+          "guidance": "原表不能覆盖的情况须核实，不能用AI推断。",
+          "evidence": "user"
+        },
+        {
+          "id": "relationship",
+          "label": "人员及关系信息一致",
+          "question": "文件中的人员、关系和实际申请情况是否一致？",
+          "guidance": "文件中的人员、关系和实际申请情况是否一致？",
+          "evidence": "document"
+        },
+        {
+          "id": "formalities",
+          "label": "要求的公证认证及副本已准备",
+          "question": "所需公证、认证及原件或副本是否已实际办妥？",
+          "guidance": "照片不能独立证明认证真实性。",
+          "evidence": "user"
+        },
+        {
+          "id": "readable",
+          "label": "所需内容清晰完整",
+          "question": "请检查所有要求的页或项目，是否清晰完整？",
+          "guidance": "请检查所有要求的页或项目，是否清晰完整？",
+          "evidence": "document"
+        }
+      ],
+      "rules": []
+    },
+    {
+      "id": "family_guardianship_certificate",
+      "version": "family_guardianship_certificate-v1",
+      "title": "亲属关系或监护关系公证及认证文件",
+      "workflow": "collect-v1",
+      "policy": "material",
+      "source": {
+        "url": "https://www.vfsglobal.com/one-pager/iceland/china/chinese/pdf/Individual-Tourism-checklist-CN.pdf",
+        "status": "user_checklist",
+        "note": "依据用户提供的2025年清单；本配置不代表整条路径已按现行官方规则复核。",
+        "checklistItem": "13"
+      },
+      "requirements": [
+        "按未成年人分支准备亲属关系或监护关系公证及认证文件，原清单另要求复印件。"
+      ],
+      "acquisition": [
+        "先核实本分支的现行要求，再向有权机构办理；系统仅解释和协助检查，不生成或代替机构出具的公证认证文件。"
+      ],
+      "reviewInstructions": "实际读取用户上传的全部相关内容，依检查项逐项记录。图片未覆盖、缺页、看不清或无法证实的部分不能判通过；真实性及官方受理结果不在辅助检查结论内。",
+      "requiredCoverage": [
+        {
+          "id": "certificate",
+          "label": "相关公证及认证文件"
+        }
+      ],
+      "fields": [],
+      "checks": [
+        {
+          "id": "scope",
+          "label": "适用对象、出具人及办理形式已核实",
+          "question": "是否已按本人分支向官方或受理方核实所需出具人和现行办理形式？",
+          "guidance": "原表不能覆盖的情况须核实，不能用AI推断。",
+          "evidence": "user"
+        },
+        {
+          "id": "relationship",
+          "label": "人员及关系信息一致",
+          "question": "文件中的人员、关系和实际申请情况是否一致？",
+          "guidance": "文件中的人员、关系和实际申请情况是否一致？",
+          "evidence": "document"
+        },
+        {
+          "id": "formalities",
+          "label": "要求的公证认证及副本已准备",
+          "question": "所需公证、认证及原件或副本是否已实际办妥？",
+          "guidance": "照片不能独立证明认证真实性。",
+          "evidence": "user"
+        },
+        {
+          "id": "readable",
+          "label": "所需内容清晰完整",
+          "question": "请检查所有要求的页或项目，是否清晰完整？",
+          "guidance": "请检查所有要求的页或项目，是否清晰完整？",
+          "evidence": "document"
+        }
+      ],
+      "rules": []
+    },
+    {
+      "id": "travel_consent_certificate",
+      "version": "travel_consent_certificate-v1",
+      "title": "未成年人出行同意公证及认证文件",
+      "workflow": "collect-v1",
+      "policy": "material",
+      "source": {
+        "url": "https://www.vfsglobal.com/one-pager/iceland/china/chinese/pdf/Individual-Tourism-checklist-CN.pdf",
+        "status": "user_checklist",
+        "note": "依据用户提供的2025年清单；本配置不代表整条路径已按现行官方规则复核。",
+        "checklistItem": "13"
+      },
+      "requirements": [
+        "按同行及监护人所在地确定出行同意的出具人及形式；原清单另要求公证、认证和复印件，境外证明形式需具体核实。"
+      ],
+      "acquisition": [
+        "先核实本分支的现行要求，再向有权机构办理；系统仅解释和协助检查，不生成或代替机构出具的公证认证文件。"
+      ],
+      "reviewInstructions": "实际读取用户上传的全部相关内容，依检查项逐项记录。图片未覆盖、缺页、看不清或无法证实的部分不能判通过；真实性及官方受理结果不在辅助检查结论内。",
+      "requiredCoverage": [
+        {
+          "id": "certificate",
+          "label": "相关公证及认证文件"
+        }
+      ],
+      "fields": [],
+      "checks": [
+        {
+          "id": "scope",
+          "label": "适用对象、出具人及办理形式已核实",
+          "question": "是否已按本人分支向官方或受理方核实所需出具人和现行办理形式？",
+          "guidance": "原表不能覆盖的情况须核实，不能用AI推断。",
+          "evidence": "user"
+        },
+        {
+          "id": "relationship",
+          "label": "人员及关系信息一致",
+          "question": "文件中的人员、关系和实际申请情况是否一致？",
+          "guidance": "文件中的人员、关系和实际申请情况是否一致？",
+          "evidence": "document"
+        },
+        {
+          "id": "formalities",
+          "label": "要求的公证认证及副本已准备",
+          "question": "所需公证、认证及原件或副本是否已实际办妥？",
+          "guidance": "照片不能独立证明认证真实性。",
+          "evidence": "user"
+        },
+        {
+          "id": "readable",
+          "label": "所需内容清晰完整",
+          "question": "请检查所有要求的页或项目，是否清晰完整？",
+          "guidance": "请检查所有要求的页或项目，是否清晰完整？",
+          "evidence": "document"
+        }
+      ],
+      "rules": []
+    }
+  ]
+}

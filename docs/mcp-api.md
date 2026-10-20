@@ -1,6 +1,6 @@
 # Visa Helper MCP 接口
 
-应用版本 `0.9.0`，问答协议 `1.0`。MCP 服务仅注册以下 **6 个工具**，其中 5 个供 GPT 调用，1 个仅供 App UI 调用。问答全过程只使用 `advance_application`；其他接口分别负责展示、材料处理和诊断。
+应用版本 `0.10.0`，问答协议 `1.0`。MCP 服务仅注册以下 **6 个工具**，其中 5 个供 GPT 调用，1 个仅供 App UI 调用。问答全过程只使用 `advance_application`；其他接口分别负责展示、材料处理和诊断。
 
 ## 接口总览
 
@@ -64,11 +64,11 @@
 
 **输入**：`{ "applicationId": "申请 UUID", "taskId": "任务ID" }`。
 
-检查任务仍属于当前清单，选择为当前任务；已有进度和完成状态不会重置。`schengen_form` 和 `passport` 返回各自的 `taskFlow`：独立任务版本、任务 revision、当前节点、完整字段目录、自查目录、填写指引和 `nextAction`。其他材料暂时仅返回原表要求。护照不返回申请表 PDF 或填写对照页。
+检查任务仍属于当前清单，选择为当前任务；已有进度和完成状态不会重置。清单中的全部材料任务返回各自的 `taskFlow`：独立任务版本、任务 revision、当前节点、完整字段目录、自查目录、填写指引和 `nextAction`。任务还返回 workflow、policy、requirements、acquisition、requiredCoverage、reviewInstructions 和适用的HTML文档信息。护照及直接准备类任务不返回表格网页。
 
 ## advance_task
 
-独立材料任务的统一推进接口，目前实现 `schengen_form` 和 `passport`。下方申请表数据约定仅用于 `schengen_form`，护照结构单列。问答仍使用 `advance_application`，两者的 revision 分别维护。
+独立材料任务的统一推进接口，目前覆盖冰岛清单中的全部25种任务ID。下方申请表数据约定仅用于 `schengen_form`，护照结构单列。问答仍使用 `advance_application`，两者的 revision 分别维护。
 
 - 只读恢复：`{ "applicationId": "申请 UUID", "taskId": "schengen_form" }`。
 - 保存或推进：增加最新任务 `revision`、可选 `event` 和可选 `data`。`data` 是完整快照，省略整个 data 保留旧数据；传入 data 时缺省字段按空值处理，不能作为局部补丁。
@@ -108,6 +108,31 @@
 - 事件为 SELF_CHECK、ASSISTED_CHECK、REVIEW、FINISH、RETRY、EDIT，以当前 nextAction.events 为准。重试上传会清除旧报告和确认；检查阶段修改日期需先 EDIT。问答变化也会清除旧检查，保留必要日期笔记，并要求重新核对。历史记录保存当时行程日期以支持确定性回放。
 
 护照是一个任务，两条检查路径共用任务实例和完成状态，不要求填写或签署表格。流程图见[护照任务流程](passport-task-workflow-graph.md)。
+
+### 共用材料任务数据
+
+除申请表与护照外，其他23种任务使用下列完整快照。任务字段名、检查项及覆盖ID必须以返回目录为准，不能跨任务复用数据。
+
+```json
+{
+  "fields": {},
+  "checks": {},
+  "prepared": false,
+  "confirmedDetails": false,
+  "rows": [],
+  "review": null
+}
+```
+
+- fields 为任务目录ID到字符串；日期为YYYY-MM-DD，金额为非负数值字符串。
+- rows 只用于 daily_itinerary，每项为 date、可选 location、plan、transport、accommodation；其余任务拒绝非空rows。
+- review 为 null，或 `{documentRead:true, coverage:[读取范围ID], checks:{检查ID:true}, findings:[...]}`。检查项、范围和finding.fieldId均校验是否属于当前任务。
+- 自查完成要求checks中所有检查项为true且prepared为true；辅助检查要求文件证据项在review.checks通过，用户本人确认项在data.checks通过，coverage包含全部requiredCoverage，confirmedDetails及prepared为true，无未解决的issue或unreadable。
+- automaticChecks 的已知失败阻止完成；缺少自动核对数据显示unknown，不能把它当作服务端已核实。
+- 取得材料流程增加ACQUIRE与READY；仅保存取得指引步骤，不代表执行外部购买或办理。草稿流程提供GUIDE_READY与FILLED，可直接用已有材料进入检查。实际可用事件以nextAction.events为准。
+- 各任务分别保存progress及revision。新增接口为零，仍复用start_task/advance_task。申根表与护照原版本及指纹不变，原实例无需重建。
+
+HTML指引的统一返回保持 `nextAction.type: open_url`，标题按任务生成，原步骤保存在taskAction；网页内容和下载不再限定申根表。取得网页不代表任务完成。详见[共用任务架构](shared-task-workflows.md)。
 
 ## get_server_info
 

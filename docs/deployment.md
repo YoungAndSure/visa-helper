@@ -1,14 +1,24 @@
 # ChatGPT MCP App 部署与测试
 
-当前版本为 `0.9.0`，问答协议 `1.0`。服务注册 6 个接口：`advance_application`、`get_task_queue`、`start_task`、`advance_task`、`get_server_info` 和仅供 App 使用的 `report_ui_ready`。七个旧问答或重复入口、原生表单实现及旧 UI 资源别名均已删除，不提供旧接口兼容。接口参数与职责见 [MCP 接口说明](mcp-api.md)，问答循环见[完整问答协议](interview-protocol.md)。
+当前版本为 `0.10.0`，问答协议 `1.0`。服务注册 6 个接口：`advance_application`、`get_task_queue`、`start_task`、`advance_task`、`get_server_info` 和仅供 App 使用的 `report_ui_ready`。七个旧问答或重复入口、原生表单实现及旧 UI 资源别名均已删除，不提供旧接口兼容。接口参数与职责见 [MCP 接口说明](mcp-api.md)，问答循环见[完整问答协议](interview-protocol.md)。
 
 ## 当前部署方式
 
-当前已改用 Docker 镜像，详见[镜像构建与部署](container-deployment.md)。正式容器为 `visa-helper-mcp-server-1`，使用原有数据目录和 `127.0.0.1:18081`。旧版 `18080` 容器已删除，直接运行 Node 的 systemd 服务已停用并移除。SSH 转发与 Secure MCP Tunnel 保持原路径；本次扩展护照任务输入结构与说明，并更新运行指纹。
+当前已改用 Docker 镜像，详见[镜像构建与部署](container-deployment.md)。正式容器为 `visa-helper-mcp-server-1`，使用原有数据目录和 `127.0.0.1:18081`。旧版 `18080` 容器已删除，直接运行 Node 的 systemd 服务已停用并移除。SSH 转发与 Secure MCP Tunnel 保持原路径；本次扩展全部材料的共用任务数据与说明，并更新运行指纹。
 
-当前容器已使用腾讯云仓库 `ccr.ccs.tencentyun.com/visa-helper/visa-helper` 的固定摘要镜像运行，服务器直接拉取、独立数据预检、正式切换和原申请恢复均通过。`current` 指向 `releases/0.9.0-d9b77716f41f-registry`。仓库凭据位于服务器 `ubuntu` 用户配置，命令需使用 `sudo docker --config /home/ubuntu/.docker ...`。详见[仓库拉取与切换记录](container-deployment.md)。
+当前容器已使用腾讯云仓库 `ccr.ccs.tencentyun.com/visa-helper/visa-helper` 的固定摘要镜像运行，服务器直接拉取、独立数据预检、正式切换和原申请恢复均通过。`current` 指向 `releases/0.10.0-710a63c98f97-registry`。仓库凭据位于服务器 `ubuntu` 用户配置，命令需使用 `sudo docker --config /home/ubuntu/.docker ...`。详见[仓库拉取与切换记录](container-deployment.md)。
 
 下列记录中的 systemd 启动方式仅描述历史发布。当前排查服务请用 Docker Compose 状态和日志，不再启动已退役的系统服务。
+
+## 2026年10月20日共用材料流程发布
+
+已部署 `0.10.0`，构建 `710a63c98f97`，UI `0d21525523df`，工具契约 `57e555554603`。清单中25种任务ID均有任务定义，当前成人在职样例仍展示适用的12项。工具仍为6个；advance_task 增加通用材料快照、读取范围、行程条目和ACQUIRE/READY事件，需刷新连接加载定义，再重新打开原申请清单，不要求重填。
+
+任务以ID关联独立进度，共用一个XState执行器与collect-v1/draft-v1流程骨架；申根表保留独立原表流程，护照保留日期策略，既有版本及配置指纹未改变。新增23种材料分别配置要求、取得方式、字段、检查、自查问题、覆盖范围和适用规则。行程、在职/学校证明和担保函支持预填HTML草稿，未知信息保留说明；不会从旅行日期推定单位已批准准假。外部取得只是引导，不代替真实购买、预订、公证认证或单位出具。
+
+13个自动测试文件通过；对每种新增材料验证自查和辅助检查完成路径、回放、覆盖及用户确认；额外覆盖任务隔离、并发、已知规则失败拦截、修改失效、日历边界和安全HTML。真实Chromium与MCP测试桥通过照片、保险、逐日行程、在职证明及原护照、申请表回归。新材料在真实宿主的自然语言引导与附件读取仍待验收。配置和[共用架构](shared-task-workflows.md)、[25项任务图](material-task-workflows.md)均已保存。
+
+镜像已发布仓库并按固定摘要拉取切换。新镜像只读预检16份已有申请，回放1份已有任务历史；备份后切换，原数据校验和不变。容器健康、发布检查及实际Visa Helper连接版本探测通过。经原SSH连接只读核对既有申请的12项材料入口，行程网页返回200，原申请表仍处于选择检查方式步骤。以上未替用户推进或完成任务。
 
 ## 2026年10月20日护照任务发布
 

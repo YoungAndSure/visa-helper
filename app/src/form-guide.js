@@ -1,9 +1,11 @@
 import { randomBytes } from "node:crypto";
+import { renderMaterialGuideHtml } from "./material-guide.js";
 
 const escapeHtml = (value) => String(value).replaceAll("&", "&amp;").replaceAll("<", "&lt;")
   .replaceAll(">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&#39;");
 
 export function renderGuideHtml(flow) {
+  if (flow.document?.template && flow.document.template !== "schengen") return renderMaterialGuideHtml(flow);
   const fields = flow.guide.map((field) => `<section class="item"><small>${escapeHtml(field.reference)}</small>
     <h2>${escapeHtml(field.label)}</h2>${field.value !== null
       ? `<div class="value">${escapeHtml(field.value)}</div><p class="hint">填写提示：${escapeHtml(field.guidance)}</p>`
@@ -34,7 +36,7 @@ export class GuideLinks {
     }
   }
   create(application, flow) {
-    if (!this.baseUrl || flow.taskId !== "schengen_form") return null;
+    if (!this.baseUrl || !flow.guide || !flow.document) return null;
     for (const [token, entry] of this.entries) if (entry.expiresAt <= this.now()) this.entries.delete(token);
     while (this.entries.size >= 200) this.entries.delete(this.entries.keys().next().value);
     const token = randomBytes(32).toString("base64url"), expiresAt = this.now() + this.ttlMs;

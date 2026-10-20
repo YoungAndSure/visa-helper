@@ -1,154 +1,186 @@
-import { readFileSync } from "node:fs";
-import { createHash } from "node:crypto";
 import { createActor, setup } from "xstate";
 import { z } from "zod";
-import { passportDataSchema, passportRelease, newPassportProgress, passportState, advancePassport, invalidatePassport, replayPassport } from "./passport-task.js";
-
-const definition = JSON.parse(readFileSync(new URL("../config/tasks/schengen-form-v1.json", import.meta.url), "utf8"));
-const modelHash = createHash("sha256").update(JSON.stringify(definition)).digest("hex");
-export const taskRelease = { version: definition.version, modelHash,
-  tasks: [{ taskId: definition.id, version: definition.version, modelHash }, passportRelease] };
-const fieldIds = new Set(definition.fields.map((field) => field.id));
-const checkIds = definition.checks.map((check) => check.id);
-const eventNames = ["GUIDE_READY", "FILLED", "SELF_CHECK", "ASSISTED_CHECK", "REVIEW", "FINISH", "RETRY", "EDIT"];
-const dataSchema = z.object({
-  fields: z.record(z.string(), z.string().trim().min(1).max(1800)).default({}),
-  checks: z.record(z.string(), z.boolean()).default({}),
-  filled: z.boolean().default(false), signed: z.boolean().default(false),
-  review: z.object({
-    documentRead: z.literal(true), pages: z.array(z.number().int().min(1).max(4)).min(1).max(4),
-    checks: z.record(z.string(), z.boolean()),
-    findings: z.array(z.object({ fieldId: z.string().optional(), message: z.string().min(1).max(1200),
-      severity: z.enum(["issue", "unreadable", "note"]) }).strict()).max(80),
-  }).strict().nullable().default(null),
-}).strict();
-const taskDataInputs = [dataSchema, passportDataSchema].map((schema) => z.object(Object.fromEntries(
-  Object.entries(schema.shape).map(([key, field]) => [key, field.removeDefault().optional()]),
-)).strict());
-export const advanceTaskInputSchema = z.object({
-  applicationId: z.string().uuid(), taskId: z.string().min(1),
-  revision: z.number().int().nonnegative().optional(),
-  // Defaults belong to the selected task, not to the first matching union branch.
-  event: z.enum(eventNames).optional(), data: z.union(taskDataInputs).optional(),
-}).strict();
+import { getTaskDefinition, definitionForProgress } from "./task-definitions.js";
+import { dateSchema, passportDateChecks, materialChecks, travelDays } from "./task-policies.js";
+export { taskRelease } from "./task-definitions.js";
 
 export class TaskError extends Error {
   constructor(code, message) { super(message); this.code = code; }
 }
-const allChecks = (checks) => checkIds.every((id) => checks[id] === true);
-const reviewProvided = ({ context: { data } }) => Boolean(data.review?.documentRead);
-const machine = setup({ guards: {
-  reviewProvided,
-  selfConfirmed: ({ context: { data } }) => data.filled && data.signed && allChecks(data.checks),
-  assistedConfirmed: ({ context: { data } }) => data.filled && data.signed && reviewProvided({ context: { data } })
-    && new Set(data.review.pages).size === definition.source.pages && allChecks(data.review.checks)
-    && !data.review.findings.some((finding) => finding.severity !== "note"),
-} }).createMachine({ ...definition.machine, context: { data: {} } });
+const checksSchema = z.record(z.string(), z.boolean());
+const findingSchema = z.object({ fieldId: z.string().optional(), message: z.string().min(1).max(1200),
+  severity: z.enum(["issue", "unreadable", "note"]) }).strict();
+const fieldsSchema = z.record(z.string(), z.string().trim().min(1).max(8000));
+const formData = z.object({ fields: fieldsSchema.default({}), checks: checksSchema.default({}),
+  filled: z.boolean().default(false), signed: z.boolean().default(false),
+  review: z.object({ documentRead: z.literal(true), pages: z.array(z.number().int().min(1).max(4)).min(1).max(4),
+    checks: checksSchema, findings: z.array(findingSchema).max(80) }).strict().nullable().default(null),
+}).strict();
+const passportData = z.object({ fields: z.object({ issueDate: dateSchema.optional(), expiryDate: dateSchema.optional() }).strict().default({}),
+  checks: checksSchema.default({}), prepared: z.boolean().default(false), confirmedDetails: z.boolean().default(false),
+  review: z.object({ documentRead: z.literal(true), checks: checksSchema, findings: z.array(findingSchema).max(80) }).strict().nullable().default(null),
+}).strict();
+const materialData = z.object({ fields: fieldsSchema.default({}), checks: checksSchema.default({}),
+  prepared: z.boolean().default(false), confirmedDetails: z.boolean().default(false),
+  rows: z.array(z.object({ date: dateSchema, location: z.string().trim().max(1000).optional(), plan: z.string().trim().max(3000).optional(),
+    transport: z.string().trim().max(1000).optional(), accommodation: z.string().trim().max(1000).optional() }).strict()).max(366).default([]),
+  review: z.object({ documentRead: z.literal(true), coverage: z.array(z.string().min(1).max(100)).max(200),
+    checks: checksSchema, findings: z.array(findingSchema).max(80) }).strict().nullable().default(null),
+}).strict();
+const schemas = { form: formData, passport: passportData, material: materialData };
+// Apply defaults only after taskId selects the task policy.
+const inputData = Object.values(schemas).map((schema) => z.object(Object.fromEntries(
+  Object.entries(schema.shape).map(([key, field]) => [key, field.removeDefault().optional()]),
+)).strict());
+export const advanceTaskInputSchema = z.object({ applicationId: z.string().uuid(), taskId: z.string().min(1),
+  revision: z.number().int().nonnegative().optional(),
+  event: z.enum(["GUIDE_READY", "FILLED", "SELF_CHECK", "ASSISTED_CHECK", "REVIEW", "FINISH", "RETRY", "EDIT", "ACQUIRE", "READY"]).optional(),
+  data: z.union(inputData).optional(),
+}).strict();
 
-export function supportsTask(id) { return id === definition.id || id === "passport"; }
-export function newTaskProgress(id = definition.id) {
-  if (id === "passport") return newPassportProgress();
-  return { status: "in_progress", version: definition.version, modelHash, revision: 0,
-    node: definition.machine.initial, data: dataSchema.parse({}), history: [], confirmation: null };
+const fail = (code, message) => { throw new TaskError(code, message); };
+function definitionFor(progress) {
+  return definitionForProgress(progress) ?? fail("TASK_VERSION_MISMATCH", "任务配置版本或指纹不一致，不能静默继续。");
 }
-
+export function supportsTask(id) { return Boolean(getTaskDefinition(id)); }
+export function newTaskProgress(id = "schengen_form") {
+  const definition = getTaskDefinition(id) ?? fail("TASK_NOT_IMPLEMENTED", "尚未配置这项任务。");
+  return { taskId: id, status: "in_progress", version: definition.version, modelHash: definition.modelHash,
+    revision: 0, node: definition.machine.initial, data: schemas[definition.policy].parse({}), history: [], confirmation: null };
+}
+function resetChecks(data, policy) {
+  return policy === "form" ? { ...data, checks: {}, review: null, filled: false, signed: false }
+    : { ...data, checks: {}, review: null, prepared: false, confirmedDetails: false };
+}
 export function invalidateTask(progress) {
-  if (progress.version === passportRelease.version) return invalidatePassport(progress);
-  const data = { ...progress.data, checks: {}, review: null, filled: false, signed: false };
-  return { ...progress, status: "in_progress", node: "prepare", revision: progress.revision + 1,
-    data, history: [...progress.history, { recordedAt: new Date().toISOString(), revision: progress.revision + 1,
-      version: definition.version, modelHash, from: progress.node, to: "prepare", event: "APPLICATION_CHANGED", data: structuredClone(data) }],
-    confirmation: null, needsRecheck: true };
+  const definition = definitionFor(progress), data = resetChecks(progress.data, definition.policy);
+  return { ...progress, node: definition.machine.initial, status: "in_progress", revision: progress.revision + 1,
+    data, needsRecheck: true, confirmation: null,
+    history: [...progress.history, { recordedAt: new Date().toISOString(), revision: progress.revision + 1,
+      version: definition.version, modelHash: definition.modelHash, from: progress.node, to: definition.machine.initial,
+      event: "APPLICATION_CHANGED", data: structuredClone(data) }] };
 }
-
-export function replayTaskHistory(progress) {
-  if (progress.version === passportRelease.version) return replayPassport(progress, TaskError);
-  let replayed = newTaskProgress();
-  for (const entry of progress.history) {
-    if (entry.version !== definition.version || entry.modelHash !== modelHash || entry.from !== replayed.node || entry.revision !== replayed.revision + 1) {
-      throw new TaskError("TASK_REPLAY_MISMATCH", "执行记录的版本、起点或顺序不一致。");
-    }
-    replayed = entry.event === "APPLICATION_CHANGED" ? invalidateTask(replayed)
-      : advanceTask(replayed, { revision: replayed.revision, event: entry.event === "SAVE" ? undefined : entry.event, data: entry.data });
-    if (replayed.node !== entry.to || JSON.stringify(replayed.data) !== JSON.stringify(entry.data)) {
-      throw new TaskError("TASK_REPLAY_MISMATCH", "执行记录与当前引擎回放结果不一致。");
-    }
+function automaticChecks(definition, data, answers) {
+  if (definition.policy === "passport") return passportDateChecks(data.fields, answers);
+  return definition.policy === "material" ? materialChecks(definition, data, answers) : [];
+}
+const checksPass = (definitions, values) => definitions.every(({ id }) => values[id] === true);
+function canFinish(definition, data, answers, assisted) {
+  const report = data.review;
+  const dates = automaticChecks(definition, data, answers);
+  if (dates.some(({ status }) => status === "fail")) return false;
+  if (definition.policy === "form") return data.filled && data.signed && (assisted
+    ? report?.documentRead && new Set(report.pages).size === definition.source.pages && checksPass(definition.checks, report.checks)
+      && report.findings.every(({ severity }) => severity === "note")
+    : checksPass(definition.checks, data.checks));
+  if (!data.prepared) return false;
+  if (!assisted) return checksPass(definition.checks, data.checks);
+  if (!report?.documentRead || !data.confirmedDetails || report.findings.some(({ severity }) => severity !== "note")) return false;
+  if (definition.policy === "passport") return dates.every(({ status }) => status === "pass")
+    && report.checks.issued_within_ten_years === true && report.checks.validity === true && data.checks.blank_pages === true;
+  return checksPass(definition.checks.filter(({ evidence }) => evidence === "user"), data.checks)
+    && checksPass(definition.checks.filter(({ evidence }) => evidence !== "user"), report.checks)
+    && definition.requiredCoverage.every(({ id }) => report.coverage.includes(id));
+}
+const machines = new Map();
+function getMachine(definition) {
+  if (!machines.has(definition.id)) machines.set(definition.id, setup({ guards: {
+    reviewProvided: ({ context: { data } }) => data.review?.documentRead === true,
+    selfConfirmed: ({ context: { data, answers } }) => canFinish(definition, data, answers, false),
+    assistedConfirmed: ({ context: { data, answers } }) => canFinish(definition, data, answers, true),
+  } }).createMachine({ ...definition.machine, context: { data: {}, answers: {} } }));
+  return machines.get(definition.id);
+}
+function knownValues(definition, answers) {
+  if (definition.policy !== "form") {
+    const values = {};
+    for (const field of definition.fields) if (field.fromAnswer && answers[field.fromAnswer]) values[field.id] = answers[field.fromAnswer];
+    return values;
   }
-  if (replayed.node !== progress.node || replayed.revision !== progress.revision ||
-      JSON.stringify(replayed.data) !== JSON.stringify(progress.data)) throw new TaskError("TASK_REPLAY_MISMATCH", "最终任务状态与执行记录不一致。");
-  return { valid: true, node: replayed.node, revision: replayed.revision, transitions: progress.history.length, modelHash };
-}
-
-function knownFormValues(answers) {
   const values = {};
   if (answers.nationality === "CN" && answers.residence === "CN") values["20"] = "No";
   if (answers.purpose === "tourism") values["23"] = "Tourism";
   if (answers.destination === "IS" && answers.otherSchengenCountries === "no") values["25"] = "Iceland";
-  const formDate = (value) => typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value)
-    ? value.split("-").reverse().join("-") : null;
+  const formDate = (v) => dateSchema.safeParse(v).success ? v.split("-").reverse().join("-") : null;
   if (formDate(answers.arrivalDate)) values["27.arrival"] = formDate(answers.arrivalDate);
   if (formDate(answers.departureDate)) values["27.departure"] = formDate(answers.departureDate);
   return values;
 }
-
-export function taskState(id, progress, applicationAnswers = {}) {
-  if (!supportsTask(id)) return null;
-  if (id === "passport") return passportState(progress, applicationAnswers, TaskError);
-  const current = progress?.version ? progress : newTaskProgress();
-  if (current.version !== definition.version || current.modelHash !== modelHash) {
-    throw new TaskError("TASK_VERSION_MISMATCH", "这项任务的配置版本已变化，请先迁移任务进度，不能静默继续。");
-  }
+export function taskState(id, progress, answers = {}) {
+  const definition = getTaskDefinition(id);
+  if (!definition) return null;
+  const current = progress?.version ? progress : newTaskProgress(id);
+  if (definitionFor(current).id !== id) fail("TASK_VERSION_MISMATCH", "进度不属于这项任务。");
   const node = definition.machine.states[current.node];
-  if (!node) throw new TaskError("TASK_STATE_INVALID", "任务状态无效，不能继续。");
-  const knownValues = knownFormValues(applicationAnswers);
-  return { taskId: id, version: current.version, modelHash, revision: current.revision, node: current.node,
-    status: current.status, data: current.data, confirmation: current.confirmation,
-    needsRecheck: current.needsRecheck ?? false, source: definition.source,
-    fieldCatalog: definition.fields, checkCatalog: definition.checks,
-    guide: definition.fields.map((field) => ({ ...field,
-      reference: field.id === "signature" ? `第 ${field.page} 页 · 签字区` : `第 ${field.page} 页 · 第 ${field.id.split(".")[0]} 项`,
-      value: current.data.fields[field.id] ?? knownValues[field.id] ?? null,
-      valueStatus: current.data.fields[field.id] ? "provided" : knownValues[field.id] ? "from_application" : "needs_confirmation" })),
+  if (!node) fail("TASK_STATE_INVALID", "任务状态无效。");
+  const known = knownValues(definition, answers);
+  const guide = definition.fields.map((field) => ({ ...field,
+    reference: definition.policy === "form" ? field.id === "signature" ? `第 ${field.page} 页 · 签字区` : `第 ${field.page} 页 · 第 ${field.id.split(".")[0]} 项` : field.label,
+    value: current.data.fields[field.id] ?? known[field.id] ?? null,
+    valueStatus: current.data.fields[field.id] ? "provided" : known[field.id] ? "from_application" : "needs_confirmation" }));
+  return { taskId: id, version: current.version, modelHash: definition.modelHash, workflow: definition.workflow, policy: definition.policy,
+    revision: current.revision, node: current.node, status: current.status, data: current.data, confirmation: current.confirmation,
+    needsRecheck: current.needsRecheck ?? false, source: definition.source, fieldCatalog: definition.fields, checkCatalog: definition.checks,
+    requirements: definition.requirements ?? [], acquisition: definition.acquisition ?? [], reviewInstructions: definition.reviewInstructions,
+    requiredCoverage: definition.requiredCoverage ?? [], automaticChecks: automaticChecks(definition, current.data, answers),
+    ...(definition.policy === "form" || definition.document ? { guide, document: definition.document ?? { template: "schengen", title: "申根申请表填写对照页" },
+      travelDates: travelDays(answers) } : {}),
     nextAction: { type: node.meta.action, title: node.meta.title, guidance: node.meta.guidance,
+      questions: definition.checks.map(({ id, label, question, guidance }) => ({ id, question: question ?? label, guidance: guidance ?? label, answer: current.data.checks[id] ?? null })),
       events: Object.keys(node.on ?? {}), tool: "advance_task" } };
 }
-
-export function advanceTask(progress, { revision, event, data }, applicationAnswers = {}) {
-  if (progress.version === passportRelease.version) return advancePassport(progress, { revision, event, data }, applicationAnswers, TaskError);
-  const before = taskState(definition.id, progress);
-  if (revision !== before.revision) throw new TaskError("TASK_REVISION_CONFLICT", "任务进度已变化，请读取最新数据，整合后再提交。");
+function validateData(definition, value) {
+  const parsed = schemas[definition.policy].safeParse(value);
+  if (!parsed.success) fail("TASK_DATA_INVALID", "任务数据无效，请使用当前字段目录及完整数据结构，不提交原文件或无关信息。");
+  const data = parsed.data, fields = new Map(definition.fields.map((field) => [field.id, field])), checks = new Set(definition.checks.map(({ id }) => id));
+  if (Object.keys(data.fields).some((id) => !fields.has(id)) || [...Object.keys(data.checks), ...Object.keys(data.review?.checks ?? {})].some((id) => !checks.has(id))
+    || data.review?.findings.some(({ fieldId }) => fieldId && !fields.has(fieldId))) fail("TASK_DATA_INVALID", "字段或检查项不在当前任务目录中。");
+  for (const [id, value] of Object.entries(data.fields)) {
+    if (fields.get(id).type === "date" && !dateSchema.safeParse(value).success) fail("TASK_DATA_INVALID", "请输入有效的日历日期。");
+    if (fields.get(id).type === "number" && (!/^\d+(\.\d+)?$/.test(value) || !Number.isFinite(Number(value)))) fail("TASK_DATA_INVALID", "金额等数值字段请填写有效的非负数字。");
+  }
+  if (definition.policy === "material") {
+    const coverage = new Set(definition.requiredCoverage.map(({ id }) => id));
+    if (data.review?.coverage.some((id) => !coverage.has(id))) fail("TASK_DATA_INVALID", "读取范围不属于这项任务。");
+    if (definition.document?.template !== "itinerary" && data.rows.length) fail("TASK_DATA_INVALID", "这项任务不接受行程条目。");
+  }
+  return data;
+}
+export function advanceTask(progress, { revision, event, data }, answers = {}) {
+  const definition = definitionFor(progress), before = taskState(definition.id, progress, answers);
+  if (revision !== before.revision) fail("TASK_REVISION_CONFLICT", "任务进度已变化，请读取最新数据后再提交。");
   if (!event && data === undefined) return progress;
-  if (event && !before.nextAction.events.includes(event)) throw new TaskError("TASK_EVENT_INVALID", "当前步骤不接受这个操作，请按最新 nextAction 继续。");
-  const nextData = dataSchema.parse(data ?? before.data);
-  // Editing confirmed material must explicitly reopen the task and revoke old checks.
-  if (data !== undefined && !["prepare", "filling"].includes(before.node) && event !== "EDIT" &&
-      JSON.stringify(nextData.fields) !== JSON.stringify(before.data.fields)) {
-    throw new TaskError("TASK_REOPEN_REQUIRED", "修改填写内容前请先用 EDIT 重新打开任务，旧检查和完成确认将失效。");
-  }
-  if (before.node === "done" && event !== "EDIT") throw new TaskError("TASK_REOPEN_REQUIRED", "这项任务已完成，修改前请先重新打开。");
-  if (Object.keys(nextData.fields).some((id) => !fieldIds.has(id)) ||
-      [...Object.keys(nextData.checks), ...Object.keys(nextData.review?.checks ?? {})].some((id) => !checkIds.includes(id)) ||
-      nextData.review?.findings.some((finding) => finding.fieldId && !fieldIds.has(finding.fieldId))) {
-    throw new TaskError("TASK_DATA_INVALID", "字段或检查项不在当前任务目录中。");
-  }
-  if (event === "EDIT") Object.assign(nextData, { checks: {}, review: null, filled: false, signed: false });
-  if (event === "ASSISTED_CHECK" || event === "RETRY") nextData.review = null;
-  const actor = createActor(machine, { snapshot: machine.resolveState({ value: before.node, context: { data: nextData } }) });
+  if (event && !before.nextAction.events.includes(event)) fail("TASK_EVENT_INVALID", "当前步骤不接受这个操作，请按 nextAction 继续。");
+  if (before.node === "done" && event !== "EDIT") fail("TASK_REOPEN_REQUIRED", "修改前请先重新打开任务。");
+  let next = validateData(definition, data ?? before.data);
+  const editable = definition.policy === "form" ? ["prepare", "filling"] : definition.policy === "passport" ? ["prepare", "await_upload"] : ["prepare", "filling", "acquiring", "await_upload"];
+  if (event !== "EDIT" && !editable.includes(before.node) && (JSON.stringify(next.fields) !== JSON.stringify(before.data.fields)
+    || JSON.stringify(next.rows) !== JSON.stringify(before.data.rows))) fail("TASK_REOPEN_REQUIRED", "修改内容前请先 EDIT，旧检查和确认将失效。");
+  if (event === "EDIT") next = resetChecks(next, definition.policy);
+  if (["ASSISTED_CHECK", "RETRY"].includes(event)) next = definition.policy === "form" ? { ...next, review: null } : resetChecks(next, definition.policy);
+  if (event === "SELF_CHECK" && definition.policy !== "form") next.review = null;
+  const machine = getMachine(definition), actor = createActor(machine, { snapshot: machine.resolveState({ value: before.node, context: { data: next, answers } }) });
   let node;
-  try {
-    actor.start();
-    if (event) actor.send({ type: event });
-    const snapshot = actor.getSnapshot();
-    if (snapshot.status === "error") throw snapshot.error;
-    node = snapshot.value;
-  } finally { actor.stop(); }
-  if (event && node === before.node) throw new TaskError("TASK_CONDITIONS_UNMET", "完成条件未满足：请核对检查项、填写及签字确认；辅助检查还需覆盖全部页面且无未解决问题。");
+  try { actor.start(); if (event) actor.send({ type: event }); const snapshot = actor.getSnapshot(); if (snapshot.status === "error") throw snapshot.error; node = snapshot.value; }
+  finally { actor.stop(); }
+  if (event && node === before.node) fail("TASK_CONDITIONS_UNMET", "完成条件尚未满足：请核对所需检查、读取范围、未解决的问题及用户准备确认。");
   const recordedAt = new Date().toISOString();
-  return { ...progress, node, data: nextData, revision: before.revision + 1,
-    status: node === "done" ? "done" : "in_progress",
-    needsRecheck: event === "GUIDE_READY" || event === "FILLED" ? false : progress.needsRecheck ?? false,
-    confirmation: node === "done" ? { method: before.node === "self_check" ? "user_self_check" : "assistant_reported_review",
-      confirmedBy: "user", recordedAt, officialApproval: false } : null,
-    history: [...progress.history, { recordedAt, revision: before.revision + 1, version: definition.version, modelHash,
-      from: before.node, to: node, event: event ?? "SAVE", data: structuredClone(nextData) }] };
+  return { ...progress, node, data: next, revision: before.revision + 1, status: node === "done" ? "done" : "in_progress",
+    needsRecheck: ["GUIDE_READY", "FILLED", "SELF_CHECK", "ASSISTED_CHECK"].includes(event) ? false : progress.needsRecheck ?? false,
+    confirmation: node === "done" ? { method: before.node === "self_check" ? "user_self_check" : "assistant_reported_review", confirmedBy: "user", recordedAt, officialApproval: false } : null,
+    history: [...progress.history, { recordedAt, revision: before.revision + 1, version: definition.version, modelHash: definition.modelHash,
+      from: before.node, to: node, event: event ?? "SAVE", data: structuredClone(next),
+      ...(definition.policy !== "form" ? { answers: { arrivalDate: answers.arrivalDate, departureDate: answers.departureDate } } : {}) }] };
+}
+export function replayTaskHistory(progress) {
+  const definition = definitionFor(progress);
+  let replayed = newTaskProgress(definition.id);
+  for (const entry of progress.history) {
+    if (entry.version !== definition.version || entry.modelHash !== definition.modelHash || entry.from !== replayed.node || entry.revision !== replayed.revision + 1) fail("TASK_REPLAY_MISMATCH", "执行记录的版本、起点或顺序不一致。");
+    replayed = entry.event === "APPLICATION_CHANGED" ? invalidateTask(replayed)
+      : advanceTask(replayed, { revision: replayed.revision, event: entry.event === "SAVE" ? undefined : entry.event, data: entry.data }, entry.answers ?? {});
+    if (replayed.node !== entry.to || JSON.stringify(replayed.data) !== JSON.stringify(entry.data)) fail("TASK_REPLAY_MISMATCH", "执行记录与引擎回放结果不一致。");
+  }
+  if (replayed.node !== progress.node || replayed.revision !== progress.revision || JSON.stringify(replayed.data) !== JSON.stringify(progress.data)) fail("TASK_REPLAY_MISMATCH", "最终状态与执行记录不一致。");
+  return { valid: true, node: replayed.node, revision: replayed.revision, transitions: progress.history.length, modelHash: definition.modelHash };
 }

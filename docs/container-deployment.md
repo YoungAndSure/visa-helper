@@ -203,3 +203,11 @@ VISA_HELPER_GUIDE_ALLOW_HTTP=1
 服务器从腾讯云仓库拉取镜像，先以只读挂载预检16份已有申请，再备份并切换。备份位于 `backups/before-passport-task-*`；原申请数据校验和不变，健康与发布检查通过，实际 Secure MCP Tunnel 连接确认版本。原申请表模型指纹未变，原任务恢复保留进度。没有新开端口、迁移数据或接收原始附件。
 
 新增配置 `config/tasks/passport-v1.json`，版本信息 `taskWorkflow.tasks` 同时列出两项任务及各自模型指纹。工具数仍为6；数据结构与说明有更新，工具契约 `466630cc7f7d`，UI `e6055ef5463a`，需刷新连接并重新打开清单。
+
+## 2026年10月20日全部材料共用流程发布
+
+当前镜像 `0.10.0-710a63c98f97`，固定摘要 `sha256:ff3508b2bba198f3d11dee9b500929cbc5ce3ab4954f3ffc7bd2d6f008a438b7`。发布目录 `/home/ubuntu/visa-helper-mcp/releases/0.10.0-710a63c98f97-registry`，current已切换；回退保留上一版0.9.0。
+
+服务器直接拉取镜像，用只读挂载预检16份旧申请并回放1份任务历史。切换前备份到 `backups/before-shared-tasks-*`，切换后原文件校验和一致。容器健康、发布指纹、真实Tunnel版本探测及原申请12项入口读取通过；未批量迁移或推进旧任务。
+
+镜像新增共用流程配置、23种材料配置、任务注册与策略模块、可打印HTML模板；申根表及护照配置指纹保持。build指纹包含共用流程和HTML模板，taskWorkflow.tasks列出全部25项及其workflow。端口、挂载和认证范围未变。工具数仍为6，工具契约 `57e555554603`、UI `0d21525523df`；客户端需刷新连接并重新打开清单以加载更新后的数据结构和页面。

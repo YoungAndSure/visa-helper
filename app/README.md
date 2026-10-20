@@ -1,8 +1,8 @@
 # Visa Helper MCP App
 
-首版在 ChatGPT 中完成一位申请人的材料决策树，走到终点后展示 MCP App 材料工作台。`0.9.0` 的第一阶段统一使用 `advance_application`：逐题回答或整段描述均由 GPT 整理为完整问答快照，服务端校验、保存并从根节点执行 XState，返回明确类型的下一步。问答阶段不加载自建 App。完整约定见 [GPT 与 MCP 问答协议](../docs/interview-protocol.md)。
+首版在 ChatGPT 中完成一位申请人的材料决策树，走到终点后展示 MCP App 材料工作台。`0.10.0` 的第一阶段统一使用 `advance_application`：逐题回答或整段描述均由 GPT 整理为完整问答快照，服务端校验、保存并从根节点执行 XState，返回明确类型的下一步。问答阶段不加载自建 App。完整约定见 [GPT 与 MCP 问答协议](../docs/interview-protocol.md)。
 
-当前材料依据是用户提供的 **2025 年冰岛旅游审核表**，官方现行要求仍待复核；申请记录按用户实际准备申请处理。工作台已支持申请表和护照的独立任务、自查及可选辅助检查；原始附件仅由 GPT 在聊天中读取，MCP 保存结构化任务数据。其他材料流程尚未实现。
+当前材料依据是用户提供的 **2025 年冰岛旅游审核表**，官方现行要求仍待复核；申请记录按用户实际准备申请处理。工作台覆盖清单中25种材料任务，按决策树结果展示适用项。共用XState执行器和材料检查/草稿流程，各任务分别配置要求、问题、字段、读取范围及完成条件；原始附件仅由GPT在聊天中读取。
 
 ## 本地运行
 
@@ -29,7 +29,7 @@ npm start
 | --- | --- |
 | `advance_application` | 唯一的问答推进接口；创建、只读恢复、完整快照提交，返回问题目录及 `ask/repair/clarify/blocked/complete` |
 | `get_task_queue` | 只读展示完成后的 App 材料清单，由 `complete.presentation` 指定；不是第二个问答接口 |
-| `start_task` | 选择或恢复材料任务；申请表及护照返回独立 XState 流程 |
+| `start_task` | 选择或恢复材料任务；各项材料返回各自XState任务流程 |
 | `advance_task` | 读取或推进材料任务，生成填写指引，处理可选辅助检查和自行检查 |
 | `get_server_info` | 可选诊断：版本、构建/工具/UI 指纹，以及实际客户端工具列表兼容性 |
 | `report_ui_ready` | App 专用载入回执；校验页面和服务版本，区分数据返回与页面载入 |
@@ -60,7 +60,7 @@ UI 使用 MCP Apps 的 `ui/initialize`、`ui/notifications/tool-result`、`tools
 
 规则版本与每个文件任务的原表编号一起返回。原表中的多文件条目会拆成独立任务，例如雇主营业执照复印件和在职证明。若答案缺失、超出支持范围或表格本身未说明，服务端不输出看似确定的清单。详见[问题树与任务队列设计](../docs/iceland-checklist-flow.md)。
 
-之后需要核实中国居民赴冰岛旅游路径的官方材料和适用条件，发布有来源和复核日期的规则，再实现第二阶段的材料准备、字段采集、文件生成和递交前检查。
+之后仍需核实整条路径的现行官方材料和适用条件，持续验证各材料的实际引导与检查，再完善递交前总览。
 
 开发结构：`config/` 保存问题、任务和 XState 模型，`src/decision-machine.js` 通过 XState 执行并捕获路径，`src/checklist.js` 加载规则与校验输入，`src/workflow.js` 管理服务端状态和求值历史，`src/server.js` 提供 MCP 工具和 UI 资源，`public/application.html` 是嵌入式 UI。早期演示记录需要新建申请才能使用当前决策树。
 
@@ -70,7 +70,7 @@ UI 使用 MCP Apps 的 `ui/initialize`、`ui/notifications/tool-result`、`tools
 
 生成图：`npm run task:graph`。回放：`npm run task:replay -- APPLICATIONS_FILE APPLICATION_ID`，只读验证配置指纹、每步输入和最终状态，不输出个人字段。[任务流程图](../docs/task-workflow-graph.md)。
 
-聊天测试：刷新 Visa Helper 连接后新开对话，恢复已有申请并打开材料清单，点击第一项“统一申根签证申请表”。可以先下载原表和填写对照表，再点击已填好、选择自行检查、逐项确认并确认签字，最后完成任务。也可选择自愿上传，在聊天中提供文件，由 GPT 辅助检查；不愿继续上传时随时切回自查。除护照外，其他材料的独立准备流程尚未实现。
+聊天测试：刷新 Visa Helper 连接后新开对话，恢复已有申请并打开材料清单，点击第一项“统一申根签证申请表”。可以先下载原表和填写对照表，再点击已填好、选择自行检查、逐项确认并确认签字，最后完成任务。也可选择自愿上传，在聊天中提供文件，由 GPT 辅助检查；不愿继续上传时随时切回自查。其余材料使用共用任务流程，见下文。
 
 ### 任务专注界面
 
@@ -80,10 +80,18 @@ UI 使用 MCP Apps 的 `ui/initialize`、`ui/notifications/tool-result`、`tools
 
 ## 护照任务
 
-`config/tasks/passport-v1.json` 定义问题、检查项及 XState 流程，`src/passport-task.js` 执行护照日期核对和完成条件。通过已有 `start_task` / `advance_task`，使用 `taskId: "passport"`；任务保存在 `taskProgress.passport`，不影响原申请表实例。
+`config/tasks/passport-v1.json` 定义问题、检查项及 XState 流程，`src/tasks.js` 共用执行流程，`src/task-policies.js` 提供护照日期核对。通过已有 `start_task` / `advance_task`，使用 `taskId: "passport"`；任务保存在 `taskProgress.passport`，不影响原申请表实例。
 
 用户可选择不上传：GPT 根据问题目录引导，用户自行查看确认，允许不提供任何个人日期完成。另一条路径是在聊天自愿上传护照资料页，由 GPT 实际读取后报告检查结果；提取日期须由用户核对，剩余空白页须本人查看确认，最后明确确认原件已准备好。服务不保存原图、姓名或护照号码。日期核对失败、未读清或缺少确认时不能完成。
 
 签发年限按已确认的预计入境日作行程核对，有效期按预计离境后3个日历月计算；缺少日期时显示未知，自查仍可由用户自行核对。修改证件使用 EDIT，修改问答会清除旧检查，记录包含回放所需的行程日期。生成两份任务图仍使用 `npm run task:graph`；回放护照为 `npm run task:replay -- APPLICATIONS_FILE APPLICATION_ID passport`。[护照任务流程图](../docs/passport-task-workflow-graph.md)。
 
 聊天测试：本次扩展了 advance_task 的数据结构与说明，刷新 Visa Helper 连接、载入当前工具定义后恢复原申请，展开“全部任务”，选择“护照／旅行证件”。分别测试“不上传，自己检查”和“拍照上传，让助手检查”，由当前聊天继续引导。自动化与测试桥不等同于真实宿主验收。
+
+## 全部冰岛材料与共用执行器
+
+`0.10.0` 覆盖当前清单25种任务ID；不同申请人只获得适用项。`src/task-definitions.js` 根据任务ID解析配置，`src/tasks.js` 统一执行XState、保存检查状态和回放；`config/task-workflows.json` 的 collect-v1/draft-v1 分别复用材料取得检查和草稿检查流程。新增23种材料配置在 `config/tasks/iceland-materials-v1.json`。表单保留特殊步骤，护照保留日期策略；各任务的进度与数据互相独立。
+
+材料自查可以不上传；辅助检查报告必须覆盖 requiredCoverage 的全部部分，文件检查项及用户本人确认项分别记录，错误或未读清阻止完成。外部办理只提供指引，不实际购买或出具文件。行程、在职证明、学校证明及担保函提供HTML草稿，未知信息保留说明。配置来源仍为已有冰岛清单，尚未核实的事项以问题形式保留。
+
+运行 `npm run task:graph` 导出所有任务图；`npm run task:replay -- APPLICATIONS_FILE APPLICATION_ID TASK_ID` 回放指定任务。详见[共用架构](../docs/shared-task-workflows.md)和[材料任务索引](../docs/material-task-workflows.md)。

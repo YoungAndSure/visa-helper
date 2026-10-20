@@ -1,0 +1,181 @@
+{
+  "collect-v1": {
+    "initial": "prepare",
+    "states": {
+      "prepare": {
+        "meta": {
+          "title": "准备材料与选择检查方式",
+          "action": "choose_review",
+          "guidance": "说明本任务要求和取得方式。用户可选择上传辅助检查或由GPT提问自行核对，上传始终可选。"
+        },
+        "on": {
+          "SELF_CHECK": "self_check",
+          "ASSISTED_CHECK": "await_upload",
+          "ACQUIRE": "acquiring"
+        }
+      },
+      "acquiring": {
+        "meta": {
+          "title": "取得或整理材料",
+          "action": "acquire_material",
+          "guidance": "按任务的取得指引办理或整理真实材料，可暂停。取得后再进入检查；不得虚构机构出具文件、预约或付款。"
+        },
+        "on": {
+          "READY": "prepare",
+          "EDIT": "prepare"
+        }
+      },
+      "self_check": {
+        "meta": {
+          "title": "自行核对材料",
+          "action": "self_check",
+          "guidance": "按检查目录的问题引导用户查看原件或文件。只记录用户明确确认的结果，不要求上传。未知或未检查不算通过。"
+        },
+        "on": {
+          "FINISH": {
+            "target": "done",
+            "guard": "selfConfirmed"
+          },
+          "ASSISTED_CHECK": "await_upload",
+          "EDIT": "prepare"
+        }
+      },
+      "await_upload": {
+        "meta": {
+          "title": "等待自愿上传",
+          "action": "optional_upload",
+          "guidance": "请用户在当前聊天自愿上传文档或清晰照片，按任务要求读取覆盖范围。看不清或缺少部分明确标记，不索取无关个人信息；随时允许改为自查。"
+        },
+        "on": {
+          "REVIEW": {
+            "target": "assisted_check",
+            "guard": "reviewProvided"
+          },
+          "SELF_CHECK": "self_check",
+          "EDIT": "prepare"
+        }
+      },
+      "assisted_check": {
+        "meta": {
+          "title": "核对辅助检查结果",
+          "action": "review_findings",
+          "guidance": "按任务的检查提示读取原文件后记录覆盖范围和检查结果。列出问题，未读清不判通过；用户确认提取信息、本人才能检查的项目及材料已准备好后完成。"
+        },
+        "on": {
+          "FINISH": {
+            "target": "done",
+            "guard": "assistedConfirmed"
+          },
+          "RETRY": "await_upload",
+          "SELF_CHECK": "self_check",
+          "EDIT": "prepare"
+        }
+      },
+      "done": {
+        "meta": {
+          "title": "材料已准备",
+          "action": "complete",
+          "guidance": "记录自查或辅助检查后由用户确认完成；不是官方审核通过。修改时重新打开并清除旧检查。"
+        },
+        "on": {
+          "EDIT": "prepare"
+        }
+      }
+    }
+  },
+  "draft-v1": {
+    "initial": "prepare",
+    "states": {
+      "prepare": {
+        "meta": {
+          "title": "整理资料与生成填写指引",
+          "action": "prepare_guide",
+          "guidance": "按字段目录复用已确认信息，缺失项显示说明，不编造。提供预填HTML草稿或指引，用户可修改并自行打印、填写或交由出具方确认。也可直接使用已有真实材料进入检查。"
+        },
+        "on": {
+          "GUIDE_READY": "filling",
+          "FILLED": "review_choice"
+        }
+      },
+      "self_check": {
+        "meta": {
+          "title": "自行核对材料",
+          "action": "self_check",
+          "guidance": "按检查目录的问题引导用户查看原件或文件。只记录用户明确确认的结果，不要求上传。未知或未检查不算通过。"
+        },
+        "on": {
+          "FINISH": {
+            "target": "done",
+            "guard": "selfConfirmed"
+          },
+          "ASSISTED_CHECK": "await_upload",
+          "EDIT": "prepare"
+        }
+      },
+      "await_upload": {
+        "meta": {
+          "title": "等待自愿上传",
+          "action": "optional_upload",
+          "guidance": "请用户在当前聊天自愿上传文档或清晰照片，按任务要求读取覆盖范围。看不清或缺少部分明确标记，不索取无关个人信息；随时允许改为自查。"
+        },
+        "on": {
+          "REVIEW": {
+            "target": "assisted_check",
+            "guard": "reviewProvided"
+          },
+          "SELF_CHECK": "self_check",
+          "EDIT": "prepare"
+        }
+      },
+      "assisted_check": {
+        "meta": {
+          "title": "核对辅助检查结果",
+          "action": "review_findings",
+          "guidance": "按任务的检查提示读取原文件后记录覆盖范围和检查结果。列出问题，未读清不判通过；用户确认提取信息、本人才能检查的项目及材料已准备好后完成。"
+        },
+        "on": {
+          "FINISH": {
+            "target": "done",
+            "guard": "assistedConfirmed"
+          },
+          "RETRY": "await_upload",
+          "SELF_CHECK": "self_check",
+          "EDIT": "prepare"
+        }
+      },
+      "done": {
+        "meta": {
+          "title": "材料已准备",
+          "action": "complete",
+          "guidance": "记录自查或辅助检查后由用户确认完成；不是官方审核通过。修改时重新打开并清除旧检查。"
+        },
+        "on": {
+          "EDIT": "prepare"
+        }
+      },
+      "filling": {
+        "meta": {
+          "title": "完善草稿与取得正式材料",
+          "action": "fill_form",
+          "guidance": "在独立网页查看已知值与待补充说明。按本任务取得指引补齐真实内容，必要时由单位或本人打印、签署和盖章。草稿生成不代表材料已准备好。"
+        },
+        "on": {
+          "FILLED": "review_choice",
+          "EDIT": "prepare"
+        }
+      },
+      "review_choice": {
+        "meta": {
+          "title": "选择检查方式",
+          "action": "choose_review",
+          "guidance": "用户已准备好材料后，选择自查或自愿上传检查。"
+        },
+        "on": {
+          "SELF_CHECK": "self_check",
+          "ASSISTED_CHECK": "await_upload",
+          "EDIT": "prepare"
+        }
+      }
+    }
+  }
+}

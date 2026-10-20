@@ -173,7 +173,7 @@
     }
     function continueInChat(task) {
       return perform(async () => {
-        const openGuide = task.id === "schengen_form" && application.taskFlow?.taskId === task.id && ["prepare", "filling"].includes(application.taskFlow.node);
+        const openGuide = Boolean(application.taskFlow?.document) && application.taskFlow?.taskId === task.id && ["prepare", "filling"].includes(application.taskFlow.node);
         const result = await request("ui/message", {
           role: "user", content: [{ type: "text", text:
             openGuide
@@ -204,24 +204,55 @@
         const html = latest._meta?.guideDocument;
         if (!html && !link?.url) throw new Error("未取得填写指引，请刷新任务进度后重试。");
         const contents = html ? [{ type: "resource", resource: {
-          uri: "file:///schengen-form-guide.html", mimeType: "text/html", text: html,
-        } }] : [{ type: "resource_link", uri: link.url, name: "schengen-form-guide.html", mimeType: "text/html" }];
+          uri: `file:///${flow.taskId}-guide.html`, mimeType: "text/html", text: html,
+        } }] : [{ type: "resource_link", uri: link.url, name: `${flow.taskId}-guide.html`, mimeType: "text/html" }];
         const result = await request("ui/download-file", { contents });
         if (result?.isError) throw new Error("下载未获允许，可在浏览器打开填写对照页查看或复制。");
         statusEl.textContent = "已请求下载网页版对照表。";
       });
     }
-    async function passportPath(event, task) {
+    async function materialPath(event, task) {
       await taskEvent(event);
-      if (application.taskFlow?.nextAction.events.includes("FINISH") || application.taskFlow?.node === "await_upload") await continueInChat(task);
+      if (["self_check", "await_upload", "acquiring"].includes(application.taskFlow?.node)) await continueInChat(task);
     }
-    function renderPassportFlow(panel, flow, task) {
-      panel.append(element("h2", flow.nextAction.title), element("p", flow.nextAction.guidance));
-      panel.append(element("p", "可拍照上传让助手检查，也可由助手提问、自己查看护照后确认。无需提供姓名或护照号码。", "muted"));
-      if (flow.needsRecheck) panel.append(element("p", "行程资料已变化，旧检查和完成确认已清除，请重新核对。", "notice"));
+    function renderGuideControls(panel, flow, task) {
+      const known = flow.guide.filter((field) => field.value !== null).length;
+      panel.append(element("p", `已整理 ${known} 项填写内容，其余项目提供填写说明。`));
+      const link = element("a", "打开填写对照页");
+      link.href = guideLink?.url ?? "#"; link.target = "_blank"; link.rel = "noreferrer";
+      if (!guideLink?.url) link.addEventListener("click", (event) => {
+        event.preventDefault(); errorEl.textContent = "暂未取得网页链接，请在当前聊天中说“打开填写对照页”。";
+      });
+      panel.append(link, element("p", "网页中的未知项目会保留填写说明。临时链接15分钟有效，过期后刷新任务进度取得新链接。", "muted"));
+      panel.append(button("下载网页版对照表", () => downloadGuide(flow), "secondary"));
+    }
+    function renderMaterialFlow(panel, flow, task) {
+      const passport = flow.taskId === "passport";
+      panel.append(element("h2", flow.nextAction.title));
+      const guidance = {
+        prepare: flow.document ? "先整理已有信息，打开填写指引或草稿；你也可以直接使用已经准备好的材料。" : "可以上传材料请助手协助检查，也可以由助手提问、自己查看后确认。",
+        acquiring: "按下面的指引取得真实材料。取得后回来继续检查，可以暂停并保留进度。",
+        filling: "对照网页补齐真实信息，按要求自行填写或交由出具方确认。草稿生成不代表正式材料已准备好。",
+        review_choice: "材料准备好后，可以按清单自己检查，也可以自愿上传请助手协助检查。",
+        self_check: "请按下面的问题检查实际材料，确认后勾选。也可以在聊天中直接告诉助手检查结果，无需上传。",
+        await_upload: "如果愿意，请在当前聊天中上传清晰照片或文档。可以随时改为不上传、自行检查。",
+        assisted_check: "请核对助手的检查结果和提取内容，补充照片无法判断的部分。有问题先处理，再确认完成。",
+        done: "这项材料已准备好。需要更新时可以重新打开并检查。",
+      };
+      panel.append(element("p", guidance[flow.node] ?? flow.nextAction.title));
+      if (passport) panel.append(element("p", "无需提供姓名或护照号码。", "muted"));
+      for (const text of flow.requirements) panel.append(element("p", text));
+      if (flow.acquisition.length) {
+        const details = element("details", ""); details.open = flow.node === "acquiring";
+        details.append(element("summary", "如何取得或准备这项材料"));
+        for (const text of flow.acquisition) details.append(element("p", text));
+        panel.append(details);
+      }
+      if (flow.document) renderGuideControls(panel, flow, task);
+      if (flow.needsRecheck) panel.append(element("p", "申请资料已变化，旧检查和完成确认已清除，请重新核对。", "notice"));
       for (const check of flow.automaticChecks) {
         const label = flow.checkCatalog.find(({ id }) => id === check.id)?.label;
-        const status = { pass: "日期核对符合要求", fail: "日期不满足要求，请处理后重新检查", unknown: "尚未提供日期，可按提示自行核对" }[check.status];
+        const status = { pass: "已提供的信息符合此项规则", fail: "已提供的信息不符合要求，请处理后重新检查", unknown: "信息尚不完整，请按提示核对" }[check.status];
         panel.append(element("p", `${label}：${status}${check.limitDate ? `（核对界限：${check.limitDate}）` : ""}`, check.status === "fail" ? "notice" : "muted"));
       }
       const checkbox = (label, checked, change) => {
@@ -230,39 +261,43 @@
         input.addEventListener("change", () => change(input.checked));
         wrapper.append(input, document.createTextNode(` ${label}`)); panel.append(wrapper);
       };
-      if (flow.node === "self_check") {
-        for (const check of flow.checkCatalog) {
-          panel.append(element("p", check.question));
-          checkbox(check.label, flow.data.checks[check.id] === true, (value) => { flow.data.checks[check.id] = value; });
-        }
+      if (flow.node === "self_check") for (const check of flow.checkCatalog) {
+        panel.append(element("p", check.question ?? check.label));
+        checkbox(check.label, flow.data.checks[check.id] === true, (value) => { flow.data.checks[check.id] = value; });
       }
       if (flow.node === "assisted_check") {
-        panel.append(element("p", "助手已报告读取上传资料。空白页仍需本人翻看确认。", "muted"));
-        for (const field of flow.fieldCatalog) panel.append(element("p", `${field.label}：${flow.data.fields[field.id] ?? "未读清，请在对话中补充"}`));
+        for (const field of flow.fieldCatalog) panel.append(element("p", `${field.label}：${flow.data.fields[field.id] ?? "尚未提供或未读清，请按需要补充"}`));
+        for (const coverage of flow.requiredCoverage) panel.append(element("p", `${coverage.label}：${flow.data.review?.coverage?.includes(coverage.id) ? "助手已报告读取" : "尚未报告读取"}`, "muted"));
         for (const finding of flow.data.review?.findings ?? []) panel.append(element("p", finding.message, finding.severity === "note" ? "muted" : "notice"));
-        checkbox("我已核对助手提取的签发和到期日期，信息正确", flow.data.confirmedDetails, (value) => { flow.data.confirmedDetails = value; });
-        checkbox("我已翻看护照，确认至少有2页空白页", flow.data.checks.blank_pages === true, (value) => { flow.data.checks.blank_pages = value; });
+        checkbox(passport ? "我已核对助手提取的签发和到期日期，信息正确" : "我已核对助手的检查结果及提取信息", flow.data.confirmedDetails, (value) => { flow.data.confirmedDetails = value; });
+        for (const check of flow.checkCatalog.filter(({ evidence }) => evidence === "user")) {
+          checkbox(passport ? "我已翻看护照，确认至少有2页空白页" : check.label, flow.data.checks[check.id] === true, (value) => { flow.data.checks[check.id] = value; });
+        }
       }
       const actions = element("div", "", "actions");
-      if (flow.nextAction.events.includes("SELF_CHECK")) actions.append(button("不上传，自己检查", () => passportPath("SELF_CHECK", task), "secondary"));
-      if (flow.nextAction.events.includes("ASSISTED_CHECK")) actions.append(button("拍照上传，让助手检查", () => passportPath("ASSISTED_CHECK", task), "secondary"));
+      const events = flow.nextAction.events;
+      if (events.includes("GUIDE_READY")) actions.append(button("使用填写指引或草稿", () => taskEvent("GUIDE_READY")));
+      if (events.includes("FILLED")) actions.append(button("材料已准备，选择检查方式", () => taskEvent("FILLED")));
+      if (events.includes("ACQUIRE")) actions.append(button("还没有材料，查看准备指引", () => materialPath("ACQUIRE", task), "secondary"));
+      if (events.includes("READY")) actions.append(button("已取得材料，开始检查", () => taskEvent("READY")));
+      if (events.includes("SELF_CHECK")) actions.append(button("不上传，自己检查", () => materialPath("SELF_CHECK", task), "secondary"));
+      if (events.includes("ASSISTED_CHECK")) actions.append(button("拍照上传，让助手检查", () => materialPath("ASSISTED_CHECK", task), "secondary"));
       if (["self_check", "assisted_check"].includes(flow.node)) {
-        checkbox("我确认护照原件及按清单要求的递交材料已准备好", flow.data.prepared, (value) => { flow.data.prepared = value; });
+        checkbox(passport ? "我确认护照原件及按清单要求的递交材料已准备好" : "我确认这项材料及要求的原件、副本或签署已准备好", flow.data.prepared, (value) => { flow.data.prepared = value; });
         actions.append(button("保存检查进度", () => taskEvent(undefined), "secondary"));
-        actions.append(button("确认完成护照任务", () => taskEvent("FINISH")));
+        actions.append(button(passport ? "确认完成护照任务" : "确认完成这项材料", () => taskEvent("FINISH")));
       }
-      if (flow.nextAction.events.includes("RETRY")) actions.append(button("重新上传检查", () => passportPath("RETRY", task), "secondary"));
-      if (flow.nextAction.events.includes("EDIT")) actions.append(button("更新证件并重新检查", () => taskEvent("EDIT"), "secondary"));
-      if (flow.node === "done") panel.append(element("p", flow.confirmation?.method === "user_self_check"
-        ? "已完成 · 用户自行检查并确认。" : "已完成 · 辅助检查后由用户确认。"));
-      actions.append(button("在对话中继续", () => continueInChat(task), "secondary"));
+      if (events.includes("RETRY")) actions.append(button("重新上传检查", () => materialPath("RETRY", task), "secondary"));
+      if (events.includes("EDIT")) actions.append(button(passport ? "更新证件并重新检查" : "修改材料并重新检查", () => taskEvent("EDIT"), "secondary"));
+      if (flow.node === "done") panel.append(element("p", flow.confirmation?.method === "user_self_check" ? "已完成 · 用户自行检查并确认。" : "已完成 · 辅助检查后由用户确认。"));
+      actions.append(button(flow.document && ["prepare", "filling"].includes(flow.node) ? "让助手打开填写对照页" : "在对话中继续", () => continueInChat(task), "secondary"));
       actions.append(button("刷新任务进度", () => perform(async () => applyResult(await request("tools/call", {
         name: "advance_task", arguments: { applicationId: application.id, taskId: flow.taskId },
       }))), "secondary"));
       panel.append(actions);
     }
     function renderTaskFlow(panel, flow, task) {
-      if (flow.taskId === "passport") return renderPassportFlow(panel, flow, task);
+      if (flow.policy !== "form") return renderMaterialFlow(panel, flow, task);
       const original = element("a", "下载原始申请表 PDF");
       original.href = flow.source.formUrl; original.target = "_blank"; original.rel = "noopener noreferrer";
       original.addEventListener("click", (event) => {
@@ -284,15 +319,7 @@
       };
       panel.append(element("h2", flow.nextAction.title), element("p", stepGuidance[flow.node] ?? flow.nextAction.title));
       if (flow.needsRecheck) panel.append(element("p", "申请资料已变化，请重新核对填写内容；旧检查和完成确认已清除。", "notice"));
-      const known = flow.guide.filter((field) => field.value !== null).length;
-      panel.append(element("p", `已整理 ${known} 项填写内容，其余项目提供填写说明。`));
-      const link = element("a", "打开填写对照页");
-      link.href = guideLink?.url ?? "#"; link.target = "_blank"; link.rel = "noreferrer";
-      if (!guideLink?.url) link.addEventListener("click", (event) => {
-        event.preventDefault(); errorEl.textContent = "暂未取得网页链接，请在当前聊天中说“打开填写对照页”。";
-      });
-      panel.append(link, element("p", "也可以在聊天中说“打开填写对照页”，让助手打开。临时链接 15 分钟有效，过期后刷新任务进度取得新链接。", "muted"));
-      panel.append(button("下载网页版对照表", () => downloadGuide(flow), "secondary"));
+      renderGuideControls(panel, flow, task);
       const actions = element("div", "", "actions");
       if (flow.nextAction.events.includes("GUIDE_READY")) actions.append(button("使用填写指引", () => taskEvent("GUIDE_READY")));
       if (flow.nextAction.events.includes("FILLED")) actions.append(button("我已填好，选择检查方式", () => taskEvent("FILLED", { ...flow.data, filled: true })));
@@ -377,7 +404,7 @@
         const next = element("section", "", "panel");
         next.append(element("h2", activeTask ? `正在准备：${activeTask.title}` : `下一步：${recommended.title}`));
         if (activeTask) {
-          const method = { form: "填写并核对表格，按要求整理成文件。", collect: "取得或整理这份材料，核对后保留所需文件。", draft: "根据已确认的行程资料起草并核对文件。" }[activeTask.handling];
+          const method = { form: "填写并核对表格，按要求整理成文件。", collect: "取得或整理这项材料，核对后按要求准备原件或副本。", draft: "根据已确认的行程资料起草并核对文件。" }[activeTask.handling];
           if (method) next.append(element("p", method));
           if (activeTask.note) next.append(element("p", activeTask.note));
           if (application.taskFlow) renderTaskFlow(next, application.taskFlow, activeTask);
