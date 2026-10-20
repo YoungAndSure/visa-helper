@@ -47,9 +47,7 @@ export function publicState(record, configDir = DEFAULT_CONFIG_DIR, evaluation) 
     reviewNotes: result.reviewNotes ?? [],
     reason: result.reason?.replaceAll("本模拟", "当前流程").replaceAll("当前模拟", "当前版本") ?? null,
     updatedAt: record.updatedAt,
-    notice: pack.source?.status === "user_supplied_unverified"
-      ? `材料依据：你提供的 ${pack.source.createdDate.slice(0, 4)} 年签证材料审核表，尚待与现行官方要求核对。`
-      : result.notice,
+    notice: "按你确认的申请情况整理，可随资料变化更新。",
   };
 }
 
@@ -143,7 +141,7 @@ export class ApplicationStore {
     });
   }
 
-  async startTask(id, taskId) {
+  async startTask(id, taskId, action = "start") {
     return this.mutate((records) => {
       const record = records[id];
       if (!record) throw new WorkflowError("NOT_FOUND", "找不到该申请。");
@@ -151,8 +149,22 @@ export class ApplicationStore {
       if (state.status !== "tasks_ready") throw new WorkflowError("QUESTIONS_INCOMPLETE", "请先在对话中补齐申请信息。");
       if (!state.tasks.some((task) => task.id === taskId)) throw new WorkflowError("TASK_NOT_FOUND", "这项材料不在当前清单中，请刷新清单。");
       record.taskProgress ??= {};
+      if (action === "pause") {
+        const progress = record.taskProgress[taskId];
+        if (!progress) throw new WorkflowError("TASK_NOT_STARTED", "这项材料尚未开始，无需暂停。");
+        if (progress.status !== "done") { progress.status = "paused"; progress.pausedAt = new Date().toISOString(); }
+        if (record.activeTaskId === taskId) delete record.activeTaskId;
+        record.updatedAt = new Date().toISOString();
+        return publicState(record, this.configDir);
+      }
+      const previous = record.taskProgress[record.activeTaskId];
+      if (record.activeTaskId !== taskId && previous && previous.status !== "done") {
+        previous.status = "paused"; previous.pausedAt = new Date().toISOString();
+      }
       record.taskProgress[taskId] ??= supportsTask(taskId) ? newTaskProgress(taskId) : { status: "in_progress" };
       if (supportsTask(taskId) && !record.taskProgress[taskId].version) record.taskProgress[taskId] = newTaskProgress(taskId);
+      if (record.taskProgress[taskId].status === "paused") record.taskProgress[taskId].status = "in_progress";
+      delete record.taskProgress[taskId].pausedAt;
       record.activeTaskId = taskId;
       record.updatedAt = new Date().toISOString();
       return publicState(record, this.configDir);

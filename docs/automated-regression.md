@@ -1,17 +1,19 @@
 # 流程自动回归与迭代约定
 
-提交和PR由 `.github/workflows/mcp-regression.yml` 自动执行回归。测试使用虚构、确定性的结构化输入，不依赖GPT、腾讯云、Tunnel或真实个人材料。业务预期断言、流程覆盖、结构契约和生成图一致性共同检查，任何一步失败都会使工作流失败。
+提交和PR由 `.github/workflows/mcp-regression.yml` 自动执行回归。测试使用虚构、确定性的结构化输入，不依赖GPT、腾讯云、Tunnel或真实个人材料；页卡测试使用本机Chrome/Chromium及测试宿主桥。业务预期断言、流程覆盖、结构契约和生成图一致性共同检查，任何一步失败都会使工作流失败。
 
 ## 自动执行顺序
 
 1. 在Node.js 22中按lockfile安装依赖。
-2. 执行全部业务及真实MCP SDK接口测试，包括问答、材料选择、任务隔离、检查条件、恢复、修改失效及回放。
+2. 执行全部业务及真实MCP SDK接口测试，包括问题组、材料选择、任务隔离、检查条件、暂停恢复、修改失效及回放。真实Chromium分别验证标准MCP Apps与兼容宿主桥：顶部及逐项按钮、聊天交接、失败提示、未保存勾选落盘、切换与恢复。
 3. 从当前实际XState模型提取节点、连线和条件，运行对应场景，依据执行轨迹核对覆盖。
 4. 核对已经审查的结构契约，检测新增、删除或改接的流程，以及问题选项、字段、检查项、证据归属、读取范围和规则参数的变动。
 5. 检查已提交的25项任务图、第一阶段SVG/HTML图及可执行导出是否与实际运行配置一致。
 6. 将覆盖摘要写入GitHub Actions任务摘要，保留JSON及Markdown报告；失败时也尽可能生成报告。
 
 本地开发使用同一入口 `npm run test:regression --prefix app`。`npm test --prefix app` 本身也包含流程覆盖测试，单独跑常规测试不会绕过流程门槛。
+
+浏览器回归包含在普通测试中，需要已安装Chrome/Chromium。自动发现系统路径或本机Playwright缓存，也可通过 `CHROME_BIN` 指定；找不到浏览器会失败，不会静默跳过。GitHub的Ubuntu测试机器使用系统Chrome。宿主桥提供真实MCP调用和消息接收，用于验证界面到聊天的交接，不能证明真实GPT已执行后续浏览器操作。
 
 ## 覆盖的定义
 
@@ -32,6 +34,7 @@
 | `app/test/support/flow-suite.mjs` | 执行场景、独立业务断言、规则覆盖和结构契约比对 |
 | `app/test/support/flow-coverage.mjs` | 从实际模型提取图、按真实执行记录汇总覆盖、报告缺失项 |
 | `app/test/fixtures/flow-contract.json` | 已审查的流程结构和任务要求目录，防止删除要求后覆盖分母缩小却仍通过 |
+| `app/test/ui-interaction.test.js` | 真实浏览器点击、两种宿主桥、聊天交接、保存暂停与切换恢复 |
 | `app/test/flow-coverage.test.js` | 完整覆盖门槛及门槛自身的反例测试 |
 
 报告中保留每个节点、连线、条件结果对应的代表性场景名，以及每项任务的接受/拒绝事件序列，可定位到具体缺口。输出位于 `app/.local/test-results/flow-coverage.json` 和 `flow-coverage.md`，不会提交个人信息或连接生产数据。

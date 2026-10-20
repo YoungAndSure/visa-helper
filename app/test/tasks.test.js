@@ -25,6 +25,27 @@ async function fixture() {
 }
 const checked = (flow) => Object.fromEntries(flow.checkCatalog.map((check) => [check.id, true]));
 
+test("pause and switch retain partial checks, fields and replayable history after reopening the store", async () => {
+  const f = await fixture();
+  await f.step("GUIDE_READY", { ...f.flow.data, fields: { "1": "TEST" } });
+  await f.step("FILLED", { ...f.flow.data, filled: true }); await f.step("SELF_CHECK");
+  const checkId = f.flow.checkCatalog[0].id;
+  await f.step(undefined, { ...f.flow.data, checks: { [checkId]: true } });
+  const revision = f.flow.revision;
+  const paused = await f.store.startTask(f.application.id, "schengen_form", "pause");
+  assert.equal(paused.activeTask, null); assert.equal(paused.taskFlow, null);
+  assert.equal(paused.tasks.find(({ id }) => id === "schengen_form").status, "paused");
+  const reopened = new ApplicationStore(f.store.filePath);
+  await reopened.startTask(f.application.id, "photo");
+  const resumed = await reopened.startTask(f.application.id, "schengen_form");
+  assert.equal(resumed.taskFlow.node, "self_check"); assert.equal(resumed.taskFlow.revision, revision);
+  assert.equal(resumed.taskFlow.data.fields["1"], "TEST"); assert.equal(resumed.taskFlow.data.checks[checkId], true);
+  assert.equal(resumed.tasks.find(({ id }) => id === "photo").status, "paused");
+  const record = (await reopened.readAll())[f.application.id];
+  assert.equal(replayTaskHistory(record.taskProgress.schengen_form).valid, true);
+  assert.equal(replayTaskHistory(record.taskProgress.photo).valid, true);
+});
+
 test("self-check completes without uploading or sharing any personal fields, persists, resumes and reopens", async () => {
   const f = await fixture();
   assert.match(f.flow.source.formUrl, /\.pdf$/);

@@ -1,25 +1,43 @@
 import { randomBytes } from "node:crypto";
+import { readFileSync } from "node:fs";
 import { renderMaterialGuideHtml } from "./material-guide.js";
 
 const escapeHtml = (value) => String(value).replaceAll("&", "&amp;").replaceAll("<", "&lt;")
   .replaceAll(">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&#39;");
+const schengenTemplate = readFileSync(new URL("../public/templates/schengen-guide.html", import.meta.url), "utf8");
+
+function renderSchengenPages(flow) {
+  const catalog = new Map(flow.guide.map((field) => [field.id, field]));
+  const field = (id, { sub = false, size = "" } = {}) => {
+    const entry = catalog.get(id);
+    if (!entry) throw new Error(`Missing Schengen field ${id}`);
+    const hasValue = entry.value !== null;
+    return `<${sub ? "div" : "section"} id="field-${id.replaceAll(".", "-")}" data-field-id="${id}" class="${sub ? "subfield" : "cell full"} ${size}">
+      <div class="field-label"><a href="#field-${id.replaceAll(".", "-")}">${id === "signature" ? "签字区" : id.split(".")[0] + "."}</a> ${escapeHtml(entry.label)}</div>
+      <div class="write-area ${hasValue ? "known" : ""}">${hasValue ? escapeHtml(entry.value) : "________________________"}</div>
+      ${hasValue ? '<span class="known-label">已确认填写内容 · 请对照原表</span>' : ""}
+      <p class="prompt">${hasValue ? "填写提示：" : "请填写："}${escapeHtml(entry.guidance)}</p>
+    </${sub ? "div" : "section"}>`;
+  };
+  const row = (content) => `<div class="row">${content}</div>`;
+  const fields = (ids) => ids.map((id) => row(field(String(id), { size: [7, 9, 10, 12, 17, 18, 22, 23, 28, 29, 30, 31, 32, 33].includes(id) ? "medium" : "" }))).join("");
+  const heading = (page, title, photo = false) => `<header class="page-heading"><div><span class="tag">VISA HELPER · 填写对照指引</span><h2>申根签证申请 · ${title}</h2><p>与官方原表第${page}页对应</p></div>${photo ? '<div class="photo">照片位置<br>按原表要求贴附</div>' : ""}</header>`;
+  const sheet = (page, title, body, photo = false) => `<article class="sheet" id="page-${page}" data-page="${page}">${heading(page, title, photo)}${body}<footer class="footer">第 ${page} / 4 页 · 填写对照</footer></article>`;
+  const first = `<div class="page-one"><div class="form-grid">${fields(Array.from({ length: 16 }, (_, i) => i + 1))}</div><aside class="official"><strong>签证机关专用区域</strong><p>申请人无需填写。</p><p>原表右侧由受理机构记录申请、材料及决定信息。</p></aside></div>`;
+  const entries = `<section class="cell full"><div class="field-label">27. 入境次数及首次抵离日期</div>${field("27.entries", { sub: true })}<div class="subfields">${field("27.arrival", { sub: true })}${field("27.departure", { sub: true })}</div></section>`;
+  const second = `<div class="form-grid">${fields([17, 18, 19, 20, 21, 22, 23, 24, 25, 26])}${row(entries)}${fields([28, 29])}</div>`;
+  const costs = `<section class="cell full"><div class="field-label">32. 旅费、生活费承担与支付方式</div><div class="costs"><div>本人承担<br>核对本人资金证明和支付方式。</div><div>他人承担<br>核对资助人的身份、承担范围及资金证明。</div></div>${field("32", { sub: true })}</section>`;
+  const third = `<div class="form-grid">${fields([30, 31])}${row(costs)}${fields([33])}</div><p class="prompt">本页末尾的费用及医疗保险声明请在原始PDF中阅读、核对。</p>`;
+  const fourth = `<section class="declaration"><h3>个人信息、真实申报与离境声明</h3><p>原表第4页上半部分是英文和中文声明区。请在原始PDF中阅读完整条款，包括个人信息及生物信息处理、如实申报以及按签证条件出行和离境等内容。</p><p>这里保留声明区的位置，提示你对照原文阅读；不要跳过原表声明。</p></section><section class="signature" id="signature-area"><div>地点及日期<div class="sign-space"></div><p class="prompt">填写实际签署地点和日期。</p></div><div>申请人签字<div class="sign-space"></div><p class="prompt">本人签字；适用时按原表要求由亲权人或监护人代签。</p></div></section><div class="form-grid">${row(field("signature"))}</div>`;
+  return sheet(1, "身份与旅行证件", first, true) + sheet(2, "联系、职业与行程", second) + sheet(3, "住宿、资金与填表人", third) + sheet(4, "声明与签字", fourth);
+}
 
 export function renderGuideHtml(flow) {
   if (flow.document?.template && flow.document.template !== "schengen") return renderMaterialGuideHtml(flow);
-  const fields = flow.guide.map((field) => `<section class="item"><small>${escapeHtml(field.reference)}</small>
-    <h2>${escapeHtml(field.label)}</h2>${field.value !== null
-      ? `<div class="value">${escapeHtml(field.value)}</div><p class="hint">填写提示：${escapeHtml(field.guidance)}</p>`
-      : `<p>请填写：${escapeHtml(field.guidance)}</p>`}</section>`).join("\n");
-  return `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-    <meta name="robots" content="noindex,nofollow"><meta name="referrer" content="no-referrer"><title>申根申请表填写对照页</title>
-    <style>body{font:16px/1.65 system-ui,sans-serif;color:#172d36;background:white;max-width:850px;margin:auto;padding:24px}h1{font-size:1.6rem}h2{font-size:1.05rem;margin:4px 0 8px}.item{padding:14px 0;border-bottom:1px solid #dde5e8;break-inside:avoid}.value{background:#edf6f3;padding:12px;border-radius:8px;white-space:pre-wrap;overflow-wrap:anywhere}small,.hint{color:#596c77}.notice{background:#fff6dc;padding:12px;border-radius:8px}a{color:#176e65}@media print{body{font-size:11pt;padding:0}a{color:inherit}}</style></head><body>
-    <h1>申请表填写对照页</h1><p>按原表编号对照填写。已有信息给出填写内容，其余项目说明需要填什么。请自行核对并填写原始 PDF；本页不是正式申请表。</p>
-    ${flow.needsRecheck ? '<p class="notice">申请资料有变化，以下内容需要重新核对。</p>' : ""}
-    <a href="${escapeHtml(flow.source.formUrl)}" rel="noreferrer">打开官方原始申请表 PDF</a>
-    ${fields}<section class="item"><h2>填好后的自查</h2>${flow.checkCatalog.map((check) => `<p>□ ${escapeHtml(check.label)}</p>`).join("")}
-    <p>□ 已填妥并由本人按要求签字</p></section>
-    <p class="hint">这是生成时的填写指引。资料或任务进度变化后，请返回任务重新打开。可使用浏览器打印功能保存本页。</p>
-    </body></html>`;
+  const values = { FORM_URL: escapeHtml(flow.source.formUrl), PAGES: renderSchengenPages(flow),
+    NOTICE: flow.needsRecheck ? '<p class="notice">申请资料有变化，以下内容需要重新核对。</p>' : "",
+    CHECKS: flow.checkCatalog.map((check) => `<p>□ ${escapeHtml(check.label)}</p>`).join("") };
+  return schengenTemplate.replace(/\{\{(FORM_URL|PAGES|NOTICE|CHECKS)\}\}/g, (_, key) => values[key]);
 }
 
 // Only unpredictable, short-lived links are exposed. Never log tokens or page contents.

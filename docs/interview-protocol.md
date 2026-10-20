@@ -1,6 +1,6 @@
 # GPT 与 MCP 的完整问答协议
 
-2026-10-17 确定，协议版本 `1.0`，应用版本 `0.7.0`。第一阶段只使用 `advance_application` 推进申请。GPT 把用户的逐次回答或整段描述整理成完整问答快照；MCP 保存、从根节点运行 XState 决策树，返回有明确类型的 `nextAction`。第二阶段继续使用材料工作台处理文件任务。
+2026-10-20 更新，协议版本 `1.1`，应用版本 `0.11.0`。第一阶段只使用 `advance_application` 推进申请。GPT 把用户的逐次回答或整段描述整理成完整问答快照；MCP 保存、从根节点运行 XState 决策树，返回有明确类型的 `nextAction`。第二阶段继续使用材料工作台处理文件任务。
 
 ## 职责与输入方式
 
@@ -11,6 +11,10 @@
 | 决策树 | 定义问题顺序、条件跳转、缺失信息、矛盾出口、默认分支及材料任务 |
 
 逐题回答与整段描述使用相同接口和字段，没有两套状态或模式参数。用户随时可以补充后续分支的信息或修改早先回答。GPT 优先使用已经明确提供的信息，仅向用户补问当前决策需要的信息。清单生成前不打开 MCP App 问卷。
+
+## 当前问题组
+
+`nextAction.questions` 是当前分支问题组中尚未回答的必答题，含题目、类型及规范选项；`group` 给出组ID及标题。`questionId`/`question` 标识首个缺失项，供定位使用，默认展示以完整 `questions` 数组为准。第一组为9项基本情况与行程问题；成年职业、无业资助、未成年同行等分支仅在适用时返回。用户可一次逐项回答、整段描述或部分回答；已知事实不重复提问。每次仍提交完整问答快照，服务端从根重新判断。
 
 ## 请求
 
@@ -58,7 +62,7 @@
 
 ```json
 {
-  "protocolVersion": "1.0",
+  "protocolVersion": "1.1",
   "applicationId": "申请 UUID",
   "revision": 2,
   "ruleVersion": "iceland-tourism-user-checklist-2025-03-06-xstate-1",
@@ -67,6 +71,8 @@
   "answers": {
     "nationality": "CN",
     "residence": "CN",
+    "destination": "IS",
+    "purpose": "tourism",
     "occupation": "employed"
   },
   "questionCatalog": [
@@ -88,12 +94,21 @@
       "id": "applicationCity",
       "title": "计划在哪个中国城市递交申请？",
       "type": "text"
-    }
+    },
+    "group": { "id": "basic", "title": "基本情况与行程" },
+    "questions": [
+      { "id": "applicationCity", "title": "计划在哪个中国城市递交申请？", "type": "text" },
+      { "id": "arrivalDate", "title": "计划何时进入申根区？", "type": "date" },
+      { "id": "departureDate", "title": "计划何时离开申根区？", "type": "date" },
+      { "id": "ageGroup", "title": "出行时申请人是否已满18岁？", "type": "choice", "options": [{ "value": "adult", "label": "已满18岁" }, { "value": "minor", "label": "未满18岁" }] },
+      { "id": "otherSchengenCountries", "title": "这次是否还会去其他申根国家？", "type": "choice", "options": [{ "value": "yes", "label": "是" }, { "value": "no", "label": "否" }] }
+    ],
+    "instruction": "一次列出这一组全部未答题；接受部分回复，只追问剩余缺口。"
   }
 }
 ```
 
-示例只摘录一个目录问题；实现每次返回该申请的完整目录，避免恢复后缺少定义。响应另含 `decision`、材料来源说明、GPT 操作指引、兼容性检查和 `serverInfo`。目录与回答均以当前返回为准，不从聊天里猜字段编码。`status` 是已保存申请的决策状态；`nextAction` 是这次请求应如何处理，优先解释 `nextAction`。例如无效提交被拒绝后，已保存状态仍可能为 `tasks_ready`，但下一步是 `repair`，不能因此显示旧清单并宣称已更正。
+示例只摘录一个目录问题；实现每次返回该申请的完整目录，避免恢复后缺少定义。响应另含 `decision`、GPT 操作指引、兼容性检查和 `serverInfo`。目录与回答均以当前返回为准，不从聊天里猜字段编码。`status` 是已保存申请的决策状态；`nextAction` 是这次请求应如何处理，优先解释 `nextAction`。例如无效提交被拒绝后，已保存状态仍可能为 `tasks_ready`，但下一步是 `repair`，不能因此显示旧清单并宣称已更正。
 
 `applicationId` 与 `revision` 由服务端管理。`saved: true` 表示该完整快照已经接受，重复相同快照不会再增加版本或历史；`saved: false` 表示只读恢复或提交被拒绝。被拒绝时返回的是已保存的答案，不是此次尝试提交的快照。GPT 应保留本次修改意图，修正后重新提交完整目标快照。
 
@@ -101,7 +116,7 @@
 
 | `type` | 含义 | GPT 行为 |
 | --- | --- | --- |
-| `ask` | 当前路径缺少一个必要答案 | 读取 `questionId` 和完整 `question`；已有明确事实就直接更新问答，否则在聊天中提出该题及选项 |
+| `ask` | 当前公共问题组尚有必答项 | 读取 `questions` 和 `group`；先提交已有明确事实，再将剩余问题及选项一次编号列出，允许部分回复；仅在用户主动要求时逐题提问 |
 | `repair` | 字段未知、选项值错误、日期或文本格式不合法 | 读取逐字段 `issues`；能依据既有事实无歧义修正则直接修正并重交，否则澄清；整个提交未保存 |
 | `clarify` | 答案在业务上矛盾，或完整快照版本过旧 | 读取 `code`、`reason`、`instruction`；澄清矛盾，或结合最新答案重新组织快照 |
 | `blocked` | 路径不支持或规则要求人工复核 | 解释原因，不绕过决策树生成清单 |
@@ -134,7 +149,7 @@
 
 [OpenAI 官方工具参考](https://developers.openai.com/plugins/reference) 将 UI 模板入口定义在工具声明的 `_meta.ui.resourceUri` 上，未确认每次结果动态挂载模板的行为。因此本版不声称一个工具既不挂问卷又能自行弹出清单。GPT 按返回的 `presentation` 调用固定清单展示工具；若客户端没有这个工具，报告版本及接口缺失，保留申请，不声称清单已经显示。清单 UI 的实际载入继续由 `report_ui_ready` 回执确认，工具成功不等于界面已显示。
 
-本版逐题由 GPT 在聊天中引导。原生表单入口及专用代码已删除；以后若需要原生表单展示，必须由同一套完整问答协议协调。
+本版默认由 GPT 在聊天中一次列出当前组的全部未答问题。原生表单入口及专用代码已删除；以后若需要原生表单展示，必须由同一套完整问答协议协调。
 
 ## 持久化与回放
 
@@ -142,7 +157,7 @@
 
 只读恢复、相同快照重传、格式拒绝和版本冲突不会追加执行历史。保留先前历史，不记录用户聊天原文。回放使用指定求值的完整输入，不通过重新调用 GPT 来还原。
 
-已有问答记录没有 `revision` 时按 `0` 读取，首次修改递增为 `1`；不批量改写数据。当前仅保留 `advance_application`、`get_task_queue`、`start_task`、`get_server_info` 和 App 专用 `report_ui_ready` 五个接口；旧的单独创建、查询、补丁提交、原生表单及重复清单入口已删除，不提供转发或别名。完整说明见 [MCP 接口](mcp-api.md)。
+已有问答记录没有 `revision` 时按 `0` 读取，首次修改递增为 `1`；不批量改写数据。当前仅保留 `advance_application`、`get_task_queue`、`start_task`、`advance_task`、`get_server_info` 和 App 专用 `report_ui_ready` 六个接口；旧的单独创建、查询、补丁提交、原生表单及重复清单入口已删除，不提供转发或别名。完整说明见 [MCP 接口](mcp-api.md)。
 
 ## 验收
 

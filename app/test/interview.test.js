@@ -52,9 +52,11 @@ test("one interface supports guided and paragraph snapshots and hands off only a
   assert.ok(tool.description.includes("COMPLETE"));
   assert.deepEqual(tools.map((tool) => tool.name).sort(), ["advance_application", "advance_task", "get_server_info", "get_task_queue", "report_ui_ready", "start_task"]);
   let guided = await advance({ answers: {} });
-  assert.equal(guided.protocolVersion, "1.0");
+  assert.equal(guided.protocolVersion, "1.1");
   assert.equal(guided.revision, 1);
   assert.equal(guided.nextAction.questionId, "nationality");
+  assert.equal(guided.nextAction.questions.length, 9);
+  assert.equal(guided.nextAction.group.id, "basic");
   assert.deepEqual(guided.questionCatalog.find((q) => q.id === "occupation").options.map((o) => o.value), ["employed", "retired", "unemployed"]);
   const premature = await call("get_task_queue", { applicationId: guided.applicationId });
   assert.equal(premature.structuredContent.error.code, "QUESTIONS_INCOMPLETE");
@@ -77,6 +79,22 @@ test("one interface supports guided and paragraph snapshots and hands off only a
   assert.equal(paragraph.nextAction.taskCount, guided.nextAction.taskCount);
   assert.equal(paragraph.decision.nodeId, guided.decision.nodeId);
   assert.deepEqual(paragraph.answers, guided.answers);
+});
+
+test("grouped questions exclude known facts and inactive branches, accepting partial and full replies", async (t) => {
+  const { advance } = await setup(t);
+  let state = await advance({ answers: { nationality: "CN", residence: "CN", destination: "IS", purpose: "tourism" } });
+  assert.deepEqual(state.nextAction.questions.map(({ id }) => id), ["applicationCity", "arrivalDate", "departureDate", "ageGroup", "otherSchengenCountries"]);
+  assert.ok(!state.nextAction.questions.some(({ id }) => id === "minorTravel" || id === "occupation"));
+  state = await advance({ applicationId: state.applicationId, revision: state.revision,
+    answers: { ...facts, occupation: "unemployed" } });
+  assert.deepEqual(state.nextAction.questions.map(({ id }) => id), ["maritalStatus", "sponsor"]);
+  state = await advance({ applicationId: state.applicationId, revision: state.revision,
+    answers: { ...state.answers, maritalStatus: "single" } });
+  assert.deepEqual(state.nextAction.questions.map(({ id }) => id), ["sponsor"]);
+  state = await advance({ applicationId: state.applicationId, revision: state.revision,
+    answers: { ...state.answers, sponsor: "self" } });
+  assert.equal(state.nextAction.type, "complete");
 });
 
 test("later facts skip already answered nodes; replacement, withdrawal and read/resume are distinct", async (t) => {

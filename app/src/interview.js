@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const INTERVIEW_PROTOCOL_VERSION = "1.0";
+export const INTERVIEW_PROTOCOL_VERSION = "1.1";
 const questionSchema = z.object({
   id: z.string(), title: z.string(), type: z.enum(["choice", "date", "text"]),
   options: z.array(z.object({ value: z.string(), label: z.string() })).optional(),
@@ -24,7 +24,8 @@ const advanceSuccessSchema = z.object({
   answers: z.record(z.string(), z.string()), questionCatalog: z.array(questionSchema),
   decision: z.object({ nodeId: z.string(), evaluationId: z.string().nullable() }).passthrough(),
   nextAction: z.discriminatedUnion("type", [
-    z.object({ type: z.literal("ask"), questionId: z.string(), question: questionSchema }),
+    z.object({ type: z.literal("ask"), questionId: z.string(), question: questionSchema,
+      questions: z.array(questionSchema).min(1), group: z.object({ id: z.string(), title: z.string() }), instruction: z.string() }),
     z.object({ type: z.literal("repair"), issues: z.array(issueSchema), instruction: z.string() }),
     z.object({ type: z.literal("clarify"), code: z.string(), reason: z.string(), instruction: z.string() }),
     z.object({ type: z.literal("blocked"), code: z.string(), reason: z.string() }),
@@ -49,13 +50,15 @@ export function interviewReply({ application, saved, issues, conflict }, instruc
     instruction: "Use returned answers and revision as the latest baseline. Reconcile the user's explicit changes, then resubmit a COMPLETE snapshot. Do not blindly retry the stale snapshot or ask the user to repeat facts already known." };
   else if (issues?.length) nextAction = { type: "repair", issues,
     instruction: "No submitted answers were saved. Repair representation using the question catalog and facts already explicitly provided, then resubmit the COMPLETE intended snapshot. Never change a fact to fit an option or an else branch. If meaning is ambiguous, ask the user." };
-  else if (application.status === "questions") nextAction = { type: "ask", questionId: application.nextQuestion.id, question: application.nextQuestion };
+  else if (application.status === "questions") nextAction = { type: "ask", questionId: application.nextQuestion.id, question: application.nextQuestion,
+    questions: application.pendingQuestions, group: { id: application.questionGroup.id, title: application.questionGroup.title },
+    instruction: "List ALL returned questions together as one numbered question group, including readable choices. Skip facts already explicitly known and submit those first. The user may answer the group in one message or describe a plan freely. Accept partial answers and ask only the remaining questions on the next response. Ask one at a time only if the user explicitly prefers it. Do not ask inactive branches from questionCatalog." };
   else if (application.status === "tasks_ready") nextAction = { type: "complete", taskCount: application.tasks.length,
     presentation: { tool: "get_task_queue", arguments: { applicationId: application.id } } };
   else if (application.status === "needs_correction") nextAction = { type: "clarify", code: "CONTRADICTORY_ANSWERS", reason: application.reason,
     instruction: "Check the saved facts against the user's explicit information; correct a transcription error yourself, otherwise ask for clarification. Submit a COMPLETE corrected snapshot using the returned revision." };
   else nextAction = { type: "blocked", code: application.status.toUpperCase(), reason: application.reason ?? application.notice };
-  const message = nextAction.type === "ask" ? `下一题：${nextAction.question.title}`
+  const message = nextAction.type === "ask" ? `${nextAction.group.title}：请一次回答以下问题（也可以只回答已确定的部分）。\n${nextAction.questions.map((question, index) => `${index + 1}. ${question.title}${question.options ? `（${question.options.map(({ label }) => label).join("／")}）` : ""}`).join("\n")}`
     : nextAction.type === "complete" ? "申请信息已齐全。请执行返回的清单展示动作，提示用户点击一项材料开始准备。"
     : nextAction.type === "repair" ? "本次问答未保存，请依据已有事实修正格式；含义不明确时再向用户澄清。"
     : nextAction.reason;

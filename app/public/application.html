@@ -70,21 +70,49 @@
     let tasksExpanded = false;
     let guideLink = null;
     let busy = false;
+    let unsavedTask = false;
+    let standardBridge = false;
     let hydrationStartedFor = null;
     let rpcId = 0;
     const pending = new Map();
     const notify = (method, params) => window.parent.postMessage({ jsonrpc: "2.0", method, params }, "*");
-    const request = (method, params) => new Promise((resolve, reject) => {
+    const request = (method, params, timeoutMs = 30000) => new Promise((resolve, reject) => {
       const id = ++rpcId;
       const timeout = setTimeout(() => {
         pending.delete(id);
         reject(new Error("连接超时，请稍后重试。"));
-      }, 30000);
+      }, timeoutMs);
       pending.set(id, { resolve, reject, timeout });
       window.parent.postMessage({ jsonrpc: "2.0", id, method, params }, "*");
     });
 
+    function normalizeResult(raw) {
+      const envelope = raw?.mcp_tool_result ?? raw?.call_tool_result ?? raw;
+      if (envelope?.structuredContent || envelope?._meta || envelope?.isError) return envelope;
+      if (envelope?.application || envelope?.serverInfo) return { structuredContent: envelope };
+      return envelope;
+    }
+    async function hostRequest(method, params) {
+      await ready;
+      const fallback = () => {
+        const host = window.openai;
+        if (method === "tools/call" && typeof host?.callTool === "function") return host.callTool(params.name, params.arguments);
+        if (method === "ui/message" && typeof host?.sendFollowUpMessage === "function") return host.sendFollowUpMessage({
+          prompt: params.content.filter(({ type }) => type === "text").map(({ text }) => text).join("\n"),
+        });
+        if (method === "ui/open-link" && typeof host?.openExternal === "function") return host.openExternal({ href: params.url });
+        throw new Error("当前客户端不支持此操作，请在聊天中继续；已保存的进度仍在。");
+      };
+      if (!standardBridge) return normalizeResult(await fallback());
+      try { return normalizeResult(await request(method, params)); }
+      catch (error) {
+        // A timeout is ambiguous: never repeat a potentially saved write.
+        if (error?.code === -32601) return normalizeResult(await fallback());
+        throw error;
+      }
+    }
     function applyResult(result) {
+      result = normalizeResult(result);
       const info = result?.structuredContent?.serverInfo ?? result?._meta?.serverInfo;
       if (info) {
         runtimeInfo = info;
@@ -98,6 +126,7 @@
         if (fullState.id !== application?.id || fullState.activeTask?.id !== application?.activeTask?.id) {
           tasksExpanded = false;
         }
+        unsavedTask = false;
         application = fullState.id === application?.id && fullState.status === "tasks_ready" && !Array.isArray(fullState.tasks)
           ? { ...application, ...fullState }
           : fullState;
@@ -112,7 +141,7 @@
           const receiptArgs = { applicationId: application.id, uiSourceHash: embeddedUiHash, buildHash: runtimeInfo.buildHash,
             applicationUpdatedAt: application.updatedAt };
           ready.then(async () => {
-            const result = await request("tools/call", { name: "report_ui_ready", arguments: receiptArgs });
+            const result = await hostRequest("tools/call", { name: "report_ui_ready", arguments: receiptArgs });
             if (result?.isError) throw new Error(result.structuredContent?.error?.message ?? "页面状态确认失败。");
           }).catch((error) => { lastReceiptKey = null; versionEl.textContent += ` · ${error.message}`; });
         }
@@ -121,7 +150,7 @@
     function hydrate(applicationId) {
       if (!applicationId || hydrationStartedFor === applicationId) return;
       hydrationStartedFor = applicationId;
-      ready.then(async () => applyResult(await request("tools/call", {
+      ready.then(async () => applyResult(await hostRequest("tools/call", {
         name: "get_task_queue", arguments: { applicationId },
       }))).catch((error) => { hydrationStartedFor = null; errorEl.textContent = error.message; });
     }
@@ -143,14 +172,27 @@
     const ready = request("ui/initialize", {
       appInfo: { name: "visa-helper-material-checklist", version: embeddedVersion },
       appCapabilities: {}, protocolVersion: "2026-01-26",
-    }).then(() => notify("ui/notifications/initialized", {}));
+    }, typeof window.openai?.callTool === "function" ? 1500 : 15000).then(() => { standardBridge = true; notify("ui/notifications/initialized", {}); }).catch((error) => {
+      if (typeof window.openai?.callTool === "function") return;
+      throw error;
+    });
     ready.catch((error) => { errorEl.textContent = error.message; });
+    ready.then(() => {
+      const resize = () => {
+        const height = Math.ceil(document.querySelector("main").getBoundingClientRect().height) + 32;
+        if (standardBridge) notify("ui/notifications/size-changed", { height });
+        else window.openai?.notifyIntrinsicHeight?.(height);
+      };
+      new ResizeObserver(resize).observe(document.querySelector("main")); resize();
+    }).catch(() => {});
     // Some ChatGPT mounts already have the initial result instead of replaying
     // a tool-result notification. Hydrate by the supplied ID, never ask for it.
     function readInitialHostState() {
       const state = window.openai;
-      if (state?.toolOutput?.application) applyResult({ structuredContent: state.toolOutput,
-        _meta: state.toolResponseMetadata?._meta ?? state.toolResponseMetadata });
+      const envelope = normalizeResult(state?.toolResponseMetadata);
+      if (envelope?.structuredContent?.application || envelope?._meta?.application) applyResult(envelope);
+      else if (state?.toolOutput?.application) applyResult({ structuredContent: state.toolOutput,
+        _meta: envelope?._meta ?? state.toolResponseMetadata });
       if (!application) hydrate(state?.toolInput?.applicationId);
     }
     window.addEventListener("openai:set_globals", readInitialHostState);
@@ -160,34 +202,56 @@
       if (busy) return;
       busy = true;
       errorEl.textContent = "";
-      statusEl.textContent = "";
+      statusEl.textContent = "正在处理，请稍候…";
       render();
       try { await ready; await action(); }
       catch (error) { errorEl.textContent = error?.message ?? "操作失败，请稍后重试。"; }
       finally { busy = false; render(); }
     }
-    function startTask(task) {
-      return perform(async () => applyResult(await request("tools/call", {
-        name: "start_task", arguments: { applicationId: application.id, taskId: task.id },
-      })));
+    async function savePendingTask() {
+      const flow = application?.taskFlow;
+      if (!unsavedTask || !flow || flow.node === "done") return;
+      applyResult(await hostRequest("tools/call", { name: "advance_task", arguments: {
+        applicationId: application.id, taskId: flow.taskId, revision: flow.revision, data: flow.data,
+      } }));
     }
-    function continueInChat(task) {
+    function startTask(task) {
       return perform(async () => {
-        const openGuide = Boolean(application.taskFlow?.document) && application.taskFlow?.taskId === task.id && ["prepare", "filling"].includes(application.taskFlow.node);
-        const result = await request("ui/message", {
-          role: "user", content: [{ type: "text", text:
-            openGuide
-              ? `请读取“${task.title}”任务，取得预填的填写对照页链接，并在当前会话右侧内置浏览器打开；如无法打开，请把链接发给我。保留已保存资料。申请 ID：${application.id}；材料任务 ID：${task.id}。`
-              : `请继续协助我准备“${task.title}”。申请 ID：${application.id}；材料任务 ID：${task.id}。请先调用 start_task 读取当前要求，仅处理这一项，告诉我现在需要提供或准备什么。` }],
-        });
-        if (result?.isError) throw new Error("未能在对话中继续。请在聊天中说明要准备的材料名称。");
-        statusEl.textContent = "已在当前对话中继续，请查看聊天回复。";
+        statusEl.textContent = `正在打开${task.title}…`;
+        await savePendingTask();
+        applyResult(await hostRequest("tools/call", {
+          name: "start_task", arguments: { applicationId: application.id, taskId: task.id },
+        }));
+        if (application.activeTask?.id !== task.id || !application.taskFlow) throw new Error("任务未能载入，请在聊天中说明材料名称继续。");
+        statusEl.textContent = `已进入${task.title}，正在请助手继续引导…`;
+        await sendTaskMessage(task);
+        content.querySelector(".panel")?.scrollIntoView({ block: "start", behavior: "smooth" });
       });
     }
+    function pauseTask(task) {
+      return perform(async () => {
+        await savePendingTask();
+        applyResult(await hostRequest("tools/call", { name: "start_task", arguments: {
+          applicationId: application.id, taskId: task.id, action: "pause",
+        } }));
+        statusEl.textContent = "已暂停并保存进度。可以选择其他材料，之后再回来继续。";
+      });
+    }
+    async function sendTaskMessage(task) {
+      const openGuide = Boolean(application.taskFlow?.document) && application.taskFlow?.taskId === task.id && ["prepare", "filling"].includes(application.taskFlow.node);
+      const result = await hostRequest("ui/message", {
+        role: "user", content: [{ type: "text", text: openGuide
+          ? `请继续“${task.title}”任务，读取已保存资料及预填的填写对照页链接，在当前会话右侧内置浏览器打开；如无法打开，请把链接发给我。随后说明当前一步需要我做什么，保留已保存的进度。申请 ID：${application.id}；材料任务 ID：${task.id}。`
+          : `请继续协助我准备“${task.title}”。申请 ID：${application.id}；材料任务 ID：${task.id}。请调用 start_task 恢复当前任务，保留已保存进度，仅处理这一项，按当前要求开始引导并收集缺少的信息。` }],
+      });
+      if (result?.isError) throw new Error("任务已打开，但未能通知助手。请在聊天中说“继续当前材料”；已保存的进度仍在。");
+      statusEl.textContent = `已打开${task.title}，并已向当前聊天发送继续准备的请求。你也可以直接使用下方任务步骤。`;
+    }
+    function continueInChat(task) { return perform(() => sendTaskMessage(task)); }
     function taskEvent(event, data) {
       return perform(async () => {
         const flow = application.taskFlow;
-        applyResult(await request("tools/call", { name: "advance_task", arguments: {
+        applyResult(await hostRequest("tools/call", { name: "advance_task", arguments: {
           applicationId: application.id, taskId: flow.taskId, revision: flow.revision,
           event, data: data ?? flow.data,
         } }));
@@ -196,7 +260,7 @@
     function downloadGuide(flow) {
       return perform(async () => {
         statusEl.textContent = "正在读取最新的填写对照页链接…";
-        const latest = await request("tools/call", { name: "advance_task", arguments: {
+        const latest = await hostRequest("tools/call", { name: "advance_task", arguments: {
           applicationId: application.id, taskId: flow.taskId,
         } });
         applyResult(latest);
@@ -206,7 +270,7 @@
         const contents = html ? [{ type: "resource", resource: {
           uri: `file:///${flow.taskId}-guide.html`, mimeType: "text/html", text: html,
         } }] : [{ type: "resource_link", uri: link.url, name: `${flow.taskId}-guide.html`, mimeType: "text/html" }];
-        const result = await request("ui/download-file", { contents });
+        const result = await hostRequest("ui/download-file", { contents });
         if (result?.isError) throw new Error("下载未获允许，可在浏览器打开填写对照页查看或复制。");
         statusEl.textContent = "已请求下载网页版对照表。";
       });
@@ -258,7 +322,7 @@
       const checkbox = (label, checked, change) => {
         const wrapper = element("label", "", "check"), input = document.createElement("input");
         input.type = "checkbox"; input.checked = checked; input.disabled = busy || versionMismatch;
-        input.addEventListener("change", () => change(input.checked));
+        input.addEventListener("change", () => { change(input.checked); unsavedTask = true; });
         wrapper.append(input, document.createTextNode(` ${label}`)); panel.append(wrapper);
       };
       if (flow.node === "self_check") for (const check of flow.checkCatalog) {
@@ -291,7 +355,7 @@
       if (events.includes("EDIT")) actions.append(button(passport ? "更新证件并重新检查" : "修改材料并重新检查", () => taskEvent("EDIT"), "secondary"));
       if (flow.node === "done") panel.append(element("p", flow.confirmation?.method === "user_self_check" ? "已完成 · 用户自行检查并确认。" : "已完成 · 辅助检查后由用户确认。"));
       actions.append(button(flow.document && ["prepare", "filling"].includes(flow.node) ? "让助手打开填写对照页" : "在对话中继续", () => continueInChat(task), "secondary"));
-      actions.append(button("刷新任务进度", () => perform(async () => applyResult(await request("tools/call", {
+      actions.append(button("刷新任务进度", () => perform(async () => applyResult(await hostRequest("tools/call", {
         name: "advance_task", arguments: { applicationId: application.id, taskId: flow.taskId },
       }))), "secondary"));
       panel.append(actions);
@@ -303,7 +367,7 @@
       original.addEventListener("click", (event) => {
         event.preventDefault();
         perform(async () => {
-          const result = await request("ui/open-link", { url: flow.source.formUrl });
+          const result = await hostRequest("ui/open-link", { url: flow.source.formUrl });
           if (result?.isError) throw new Error("打开链接未获允许，请在聊天中索取原表链接。");
         });
       });
@@ -328,7 +392,7 @@
       const checkbox = (label, checked, change) => {
         const wrapper = element("label", "", "check");
         const input = document.createElement("input"); input.type = "checkbox"; input.checked = checked;
-        input.disabled = busy || versionMismatch; input.addEventListener("change", () => change(input.checked));
+        input.disabled = busy || versionMismatch; input.addEventListener("change", () => { change(input.checked); unsavedTask = true; });
         wrapper.append(input, document.createTextNode(` ${label}`)); panel.append(wrapper);
       };
       if (flow.node === "self_check") {
@@ -349,7 +413,7 @@
       if (flow.node === "done") panel.append(element("p", flow.confirmation?.method === "user_self_check"
         ? "已完成 · 用户自行检查并确认。" : "已完成 · 辅助检查后由用户确认。"));
       actions.append(button(["prepare", "filling"].includes(flow.node) ? "让助手打开填写对照页" : "在对话中继续", () => continueInChat(task), "secondary"));
-      actions.append(button("刷新任务进度", () => perform(async () => applyResult(await request("tools/call", {
+      actions.append(button("刷新任务进度", () => perform(async () => applyResult(await hostRequest("tools/call", {
         name: "advance_task", arguments: { applicationId: application.id, taskId: flow.taskId },
       }))), "secondary"));
       panel.append(actions);
@@ -380,7 +444,7 @@
       }
       if (!Array.isArray(application.tasks)) {
         content.append(element("p", "请重新打开材料清单以载入完整任务。"));
-        content.append(button("重新读取", () => perform(async () => applyResult(await request("tools/call", {
+        content.append(button("重新读取", () => perform(async () => applyResult(await hostRequest("tools/call", {
           name: "get_task_queue", arguments: { applicationId: application.id },
         })))));
         return;
@@ -399,7 +463,7 @@
       const progress = document.createElement("progress"); progress.max = application.tasks.length; progress.value = completed;
       progress.setAttribute("aria-label", "材料准备完成进度"); content.append(progress);
       if (!activeTask) content.append(element("p", "选择一项材料开始准备。"));
-      const recommended = activeTask ?? application.tasks[0];
+      const recommended = activeTask ?? application.tasks.find((task) => task.status !== "done");
       if (recommended) {
         const next = element("section", "", "panel");
         next.append(element("h2", activeTask ? `正在准备：${activeTask.title}` : `下一步：${recommended.title}`));
@@ -407,6 +471,7 @@
           const method = { form: "填写并核对表格，按要求整理成文件。", collect: "取得或整理这项材料，核对后按要求准备原件或副本。", draft: "根据已确认的行程资料起草并核对文件。" }[activeTask.handling];
           if (method) next.append(element("p", method));
           if (activeTask.note) next.append(element("p", activeTask.note));
+          next.append(button("保存并暂停，准备其他材料", () => pauseTask(activeTask), "secondary"));
           if (application.taskFlow) renderTaskFlow(next, application.taskFlow, activeTask);
           else {
             next.append(element("p", "下一步在对话中继续准备这项材料。这项材料的独立流程尚未开放。", "muted"));
@@ -424,12 +489,11 @@
         const row = element("div", "", "task");
         const text = element("div", "", "task-text");
         text.append(element("strong", `${index + 1}. ${task.title}`));
-        text.append(element("small", task.status === "done" ? "已完成" : task.status === "in_progress" ? "准备中" : "待准备"));
-        row.append(text, button(task.id === activeTask?.id ? "查看当前项" : "开始准备", () => startTask(task), "secondary"));
+        text.append(element("small", task.status === "done" ? "已完成" : task.status === "paused" ? "已暂停 · 进度已保存" : task.status === "in_progress" ? "准备中" : "待准备"));
+        row.append(text, button(task.id === activeTask?.id ? "查看当前项" : task.status === "paused" ? "继续准备" : task.status === "done" ? "查看材料" : "开始准备", () => startTask(task), "secondary"));
         list.append(row);
       });
       content.append(list);
-      content.append(element("p", application.notice, "muted"));
       for (const note of application.reviewNotes ?? []) content.append(element("p", `待核实：${note}`, "notice"));
       content.append(element("p", "情况有变化？直接在对话中说明，材料清单会随答案重新计算。", "muted"));
     }

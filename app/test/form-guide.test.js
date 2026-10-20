@@ -38,6 +38,14 @@ test("standalone links render safe HTML with known values and do not expose the 
   assert.match(page.body, /TEST &lt;b&gt;NAME&lt;\/b&gt;/);
   assert.doesNotMatch(page.body, /<script|<iframe|<b>NAME/);
   assert.match(page.body, /请填写：按实际进入申根区/);
+  assert.deepEqual([...page.body.matchAll(/data-page="(\d)"/g)].map((match) => match[1]), ["1", "2", "3", "4"]);
+  for (const entry of f.application.taskFlow.guide) {
+    assert.equal(page.body.split(`data-field-id="${entry.id}"`).length - 1, 1, `Field ${entry.id} must appear once in its official page group`);
+    const section = page.body.split(`data-page="${entry.page}"`)[1]?.split('<article class="sheet"')[0];
+    assert.ok(section.includes(`data-field-id="${entry.id}"`), `Field ${entry.id} on wrong page`);
+  }
+  assert.match(page.body, /签证机关专用区域/);
+  assert.match(page.body, /id="signature-area"/);
   assert.equal(new URL(f.link.url).pathname.split("/").at(-1).length, 43);
   assert.ok(!f.link.url.includes(f.application.id));
   assert.equal(page.headers["Cache-Control"], "no-store, private");

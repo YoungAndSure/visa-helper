@@ -1,6 +1,6 @@
 # Visa Helper MCP 接口
 
-应用版本 `0.10.0`，问答协议 `1.0`。MCP 服务仅注册以下 **6 个工具**，其中 5 个供 GPT 调用，1 个仅供 App UI 调用。问答全过程只使用 `advance_application`；其他接口分别负责展示、材料处理和诊断。
+应用版本 `0.11.0`，问答协议 `1.1`。MCP 服务仅注册以下 **6 个工具**，其中 5 个供 GPT 调用，1 个仅供 App UI 调用。问答全过程只使用 `advance_application`；其他接口分别负责展示、材料处理和诊断。
 
 ## 接口总览
 
@@ -8,7 +8,7 @@
 | --- | --- | --- | --- |
 | `advance_application` | GPT | 创建或恢复申请，取得问题与选项；提交完整问答，运行决策树并返回 `nextAction` | 创建和提交时修改；恢复只读 |
 | `get_task_queue` | GPT 或 App UI | 展示材料清单 App，或刷新其完整任务数据 | 否 |
-| `start_task` | GPT 或 App UI | 选择或恢复一项材料；申请表返回独立任务流程 | 是，选择任务；保留已有进度 |
+| `start_task` | GPT 或 App UI | 选择、恢复或暂停一项材料 | 是，保留已保存步骤与数据 |
 | `advance_task` | GPT 或 App UI | 读取或推进材料任务，保存完整任务数据与执行记录 | 提交时修改，读取不修改 |
 | `get_server_info` | GPT 或 App UI | 查询版本、构建、工具、规则和 UI 指纹；检查当前客户端工具是否齐全 | 否 |
 | `report_ui_ready` | 仅 App UI | 清单渲染完成后发送回执，校验服务和页面版本 | 是，仅写入载入回执 |
@@ -50,7 +50,7 @@
 
 **返回**：`applicationId`、`revision`、`ruleVersion`、`saved`、完整 `answers`、`questionCatalog`、`decision`、`nextAction`，以及来源说明和服务诊断信息。
 
-`nextAction.type` 为 `ask`（补问）、`repair`（格式修正）、`clarify`（澄清或版本冲突）、`blocked`（停止）或 `complete`（清单已生成）。完成时按 `nextAction.presentation` 调用展示接口。无效字段整批拒绝，过期版本不能覆盖最新答案。不存在的申请等工具错误返回 `isError: true`、`error` 和 `blocked` 动作。完整交互规范见[问答协议](interview-protocol.md)。
+`nextAction.type` 为 `ask`（一次返回当前组全部未答必答题 `questions`，默认一起展示）、`repair`（格式修正）、`clarify`（澄清或版本冲突）、`blocked`（停止）或 `complete`（清单已生成）。完成时按 `nextAction.presentation` 调用展示接口。无效字段整批拒绝，过期版本不能覆盖最新答案。不存在的申请等工具错误返回 `isError: true`、`error` 和 `blocked` 动作。完整交互规范见[问答协议](interview-protocol.md)。
 
 ## get_task_queue
 
@@ -62,7 +62,9 @@
 
 ## start_task
 
-**输入**：`{ "applicationId": "申请 UUID", "taskId": "任务ID" }`。
+**输入**：`{ "applicationId": "申请 UUID", "taskId": "任务ID", "action": "start" }`。`action` 可省略；`"pause"` 暂停当前材料并回到全部任务。
+
+暂停保留节点、数据、勾选、任务revision和执行历史，只改变工作台活动状态；重新选择原任务从原步骤继续。选择另一材料时，未完成的原活动材料自动标为暂停。暂停不是完成，也不需要清除检查。GPT遇到“等等／暂停”时先用 `advance_task` 保存已明确收集的信息，再调用此接口暂停；页卡会在暂停或切换前保存尚未提交的勾选。
 
 检查任务仍属于当前清单，选择为当前任务；已有进度和完成状态不会重置。清单中的全部材料任务返回各自的 `taskFlow`：独立任务版本、任务 revision、当前节点、完整字段目录、自查目录、填写指引和 `nextAction`。任务还返回 workflow、policy、requirements、acquisition、requiredCoverage、reviewInstructions 和适用的HTML文档信息。护照及直接准备类任务不返回表格网页。
 

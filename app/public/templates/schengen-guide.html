@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <meta name="referrer" content="no-referrer">
+  <title>申根申请表填写对照页</title>
+  <style>
+    *{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:#edf1f5;color:#253659;font:14px/1.55 system-ui,sans-serif}
+    .toolbar{max-width:1040px;margin:24px auto;padding:0 20px}.toolbar h1{font-size:24px;margin:0 0 8px}.toolbar p{margin:8px 0}a{color:#174ab5}
+    nav{display:flex;gap:10px;flex-wrap:wrap;margin:14px 0}nav a{padding:6px 14px;border:1px solid #c5d0e4;border-radius:8px;background:white;text-decoration:none}
+    .sheet{width:min(100% - 32px,960px);margin:24px auto;background:white;padding:38px 32px;box-shadow:0 4px 24px #24395914;border-radius:3px;break-after:page;scroll-margin:16px}
+    .page-heading{display:flex;justify-content:space-between;gap:18px;margin-bottom:18px;color:#2447a7}.page-heading h2{font-size:19px;margin:0}.page-heading p{margin:2px 0}.tag{font-size:12px;font-weight:600;color:#50617a}
+    .photo{width:110px;min-height:126px;display:grid;place-items:center;background:#edf0f6;color:#526994;text-align:center;font-size:12px;flex-shrink:0}
+    .page-one{display:grid;grid-template-columns:minmax(0,1fr) 150px;align-items:stretch}.official{border:1px solid #5368b8;border-left:0;padding:10px;color:#6977a0;font-size:12px;background:#fafbfe}
+    .official strong{display:block}.official p{margin-top:24px}.form-grid{border-top:1px solid #5368b8;border-left:1px solid #5368b8}
+    .row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.cell{border-right:1px solid #5368b8;border-bottom:1px solid #5368b8;min-width:0;padding:8px 10px;break-inside:avoid;scroll-margin:20px;position:relative}
+    .cell.full{grid-column:1/-1}.field-label{color:#2b489c;font-size:12px;display:flex;gap:5px}.field-label a{text-decoration:none}.write-area{padding:9px 0 6px;min-height:40px;white-space:pre-wrap;overflow-wrap:anywhere;color:#182c42;font-size:16px}
+    .write-area.known{color:#145746;font-weight:600}.prompt{background:#f3f6fc;border-left:3px solid #9db4e3;padding:6px 8px;color:#536378;font-size:12px;margin:3px 0 0}.known-label{font-size:11px;color:#237361}
+    .cell:target{outline:3px solid #e7aa3a;outline-offset:-3px;background:#fffaf0}.tall{min-height:128px}.medium{min-height:96px}.costs{display:grid;grid-template-columns:42% 58%;margin:10px 0;border:1px solid #d3dced}.costs div{padding:10px}.costs div+div{border-left:1px solid #d3dced}
+    .subfield+.subfield{margin-top:12px;padding-top:10px;border-top:1px dashed #c7d2e8}.subfields{display:grid;grid-template-columns:1fr 1fr;gap:12px}.subfields .subfield+.subfield{border-top:0;border-left:1px solid #c7d2e8;padding-left:12px;padding-top:0;margin-top:0}
+    .declaration{border:1px solid #5368b8;padding:18px;margin-bottom:18px;color:#465a87;min-height:150px}.declaration h3{font-size:15px;margin-top:0}.declaration p{margin:12px 0}.signature{display:grid;grid-template-columns:40% 60%;border:1px solid #5368b8;min-height:150px}.signature>div{padding:12px}.signature>div+div{border-left:1px solid #5368b8}.sign-space{min-height:70px}
+    .footer{font-size:12px;color:#6b7891;text-align:right;margin-top:14px}.checklist{max-width:960px;margin:20px auto;padding:20px 28px;background:white}.checklist p{margin:8px 0}.notice{background:#fff5d9;padding:12px}
+    @media(max-width:640px){.sheet{padding:20px 14px;width:calc(100% - 16px)}.page-one{grid-template-columns:minmax(0,1fr) 76px}.official{font-size:10px;padding:6px}.page-heading h2{font-size:16px}.photo{width:70px;min-height:95px}.row,.subfields{grid-template-columns:1fr}.subfields .subfield+.subfield{border-left:0;border-top:1px dashed #c7d2e8;padding:10px 0 0;margin:0}.toolbar{padding:0 14px}.write-area{font-size:14px}.field-label,.prompt{font-size:11px}}
+    @media print{body{background:white}.toolbar{display:none}.sheet{width:100%;margin:0;padding:10mm 7mm;box-shadow:none;border-radius:0}.sheet:last-of-type{break-after:auto}.prompt,.known-label{-webkit-print-color-adjust:exact;print-color-adjust:exact}.checklist{break-before:page}.footer{margin-top:8px}a{color:inherit;text-decoration:none}@page{size:A4;margin:8mm}}
+  </style>
+</head>
+<body>
+  <header class="toolbar">
+    <h1>申请表填写对照页</h1>
+    <p>按官方PDF的四页顺序和栏位分组对照：绿色内容是已确认的填写值，浅色提示说明这一栏怎么填。原表要求用英文填写。</p>
+    <p><a href="{{FORM_URL}}" rel="noreferrer">打开官方原始申请表 PDF</a> · 自行用软件填写或打印手写；本页是填写指引。</p>
+    <nav aria-label="申请表页码"><a href="#page-1">第1页 · 身份与护照</a><a href="#page-2">第2页 · 联系与行程</a><a href="#page-3">第3页 · 住宿与资金</a><a href="#page-4">第4页 · 声明与签字</a></nav>
+    {{NOTICE}}
+  </header>
+  {{PAGES}}
+  <section class="checklist"><h2>填好后的自查</h2>{{CHECKS}}<p>□ 已填妥并由本人按要求签字</p><p>可选择自行核对，或在聊天中自愿上传，请助手辅助检查。</p></section>
+</body>
+</html>
