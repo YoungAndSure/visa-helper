@@ -35,12 +35,12 @@ app/scripts/build-image.sh
 
 ## 发布到腾讯云镜像仓库
 
-沿用之前的仓库 `ccr.ccs.tencentyun.com/visa-helper/visa-helper`，当前版本标签为 `0.11.0-6b5251497a1f`。使用仓库控制台提供的登录信息，在实际执行推送的机器上运行 `docker login ccr.ccs.tencentyun.com`。密码只在终端输入，不写进仓库或聊天。默认的 `sudo docker` 使用 root 凭据，普通用户使用自己的配置；可以分别登录，也可以用 `sudo docker --config /home/ubuntu/.docker ...` 明确读取现有用户配置。不要仅凭网页登录成功判断 Docker 已登录。
+沿用之前的仓库 `ccr.ccs.tencentyun.com/visa-helper/visa-helper`，当前版本标签为 `0.12.0-cd889d36ce17`。使用仓库控制台提供的登录信息，在实际执行推送的机器上运行 `docker login ccr.ccs.tencentyun.com`。密码只在终端输入，不写进仓库或聊天。默认的 `sudo docker` 使用 root 凭据，普通用户使用自己的配置；可以分别登录，也可以用 `sudo docker --config /home/ubuntu/.docker ...` 明确读取现有用户配置。不要仅凭网页登录成功判断 Docker 已登录。
 
 在已登录的机器上，推送本地已构建镜像：
 
 ```bash
-app/scripts/publish-image.sh   visa-helper-mcp:0.11.0-6b5251497a1f   ccr.ccs.tencentyun.com/visa-helper/visa-helper   app/.local/releases/0.11.0-6b5251497a1f/registry.env
+app/scripts/publish-image.sh   visa-helper-mcp:0.12.0-cd889d36ce17   ccr.ccs.tencentyun.com/visa-helper/visa-helper   app/.local/releases/0.12.0-cd889d36ce17/registry.env
 ```
 
 该脚本只添加仓库标签并推送，成功后取得仓库摘要。第三个参数可选；提供时生成 `registry.env`，其中 `VISA_HELPER_IMAGE` 固定为 `仓库@sha256:摘要`，拉取策略为 `missing`。推送失败不写入新发布配置，不能将本地打标签当成已经上传成功。
@@ -63,8 +63,8 @@ sudo docker --config /home/ubuntu/.docker compose --project-name visa-helper-mcp
 以下是当前服务器目录，后续发布替换其中的版本目录即可。
 
 ```bash
-ssh ubuntu@129.204.29.242 'mkdir -p /home/ubuntu/visa-helper-mcp/releases/0.11.0-6b5251497a1f'
-scp app/.local/releases/0.11.0-6b5251497a1f/* ubuntu@129.204.29.242:/home/ubuntu/visa-helper-mcp/releases/0.11.0-6b5251497a1f/
+ssh ubuntu@129.204.29.242 'mkdir -p /home/ubuntu/visa-helper-mcp/releases/0.12.0-cd889d36ce17'
+scp app/.local/releases/0.12.0-cd889d36ce17/* ubuntu@129.204.29.242:/home/ubuntu/visa-helper-mcp/releases/0.12.0-cd889d36ce17/
 ```
 
 服务器的 `deploy/container.env` 保存环境固定配置，不包含 API 密钥：
@@ -79,7 +79,7 @@ VISA_HELPER_PORT=18081
 在服务器导入并启动：
 
 ```bash
-cd /home/ubuntu/visa-helper-mcp/releases/0.11.0-6b5251497a1f
+cd /home/ubuntu/visa-helper-mcp/releases/0.12.0-cd889d36ce17
 sha256sum -c SHA256SUMS
 sudo docker load -i image.tar.gz
 sudo docker compose --project-name visa-helper-mcp \
@@ -93,7 +93,7 @@ sudo docker compose --project-name visa-helper-mcp \
 确认启动成功后，更新 `current` 符号链接指向本次发布目录：
 
 ```bash
-ln -sfn releases/0.11.0-6b5251497a1f /home/ubuntu/visa-helper-mcp/current
+ln -sfn releases/0.12.0-cd889d36ce17 /home/ubuntu/visa-helper-mcp/current
 ```
 
 ## 查看状态与验证
@@ -219,3 +219,9 @@ VISA_HELPER_GUIDE_ALLOW_HTTP=1
 原数据校验和不变，容器健康，容器内及开发机经SSH转发的完整发布检查通过。实际Visa Helper连接返回版本0.11.0、构建6b5251497a1f、UI a1db8d5e0940；问答协议1.1，工具仍为6个。测试与镜像自检均使用虚构或只读数据，未替用户确认任何材料或完成任务。
 
 本次修正问题组批量提问、移除产品中的内部核对状态文案、开始任务到聊天的交接、保存暂停与切换恢复，以及按官方PDF四页布局的HTML指引。自动浏览器测试覆盖标准桥和兼容桥；真实GPT是否接住交接并继续引导仍需实际宿主反馈。
+
+## 2026年10月21日 0.12.0 后台任务交接发布
+
+镜像标签 `ccr.ccs.tencentyun.com/visa-helper/visa-helper:0.12.0-cd889d36ce17`，固定摘要 `sha256:3955a4a6a665e7a2e250d5ddf9854449b9b23397b2c704aa7e1a28d94ad759b2`。服务器从仓库拉取，预检18份已有申请及5份任务历史，备份后切换到 `/home/ubuntu/visa-helper-mcp/releases/0.12.0-cd889d36ce17-registry`，0.11.0及前一构建发布包保留供回退。原数据校验和未变，容器健康、容器内及开发机SSH转发的完整版本检查通过，实际Tunnel连接返回0.12.0、构建cd889d36ce17、UI 03d211438952。
+
+64项本地和GitHub最终代码回归通过。当前模型上下文交接取代正文中的内部编号与长指令；仍用简短动作消息触发回复，不宣称静默后台同步本身会启动GPT。自查问题推迟到用户填好并选择自查后，完成或暂停后返回全清单。实际GPT接收及回复效果仍需真实宿主验收。
