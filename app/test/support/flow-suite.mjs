@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 import { loadRulePack, getActiveRuleVersion } from "../../src/checklist.js";
 import { runDecision } from "../../src/decision-machine.js";
 import { taskDefinitions } from "../../src/task-definitions.js";
+import { formFieldCatalog, schengenPdfRelease } from "../../src/schengen-pdf.js";
 import { createCoverage, graphOf, choiceExemptions, assertCovered, canonical, signature } from "./flow-coverage.mjs";
 import { decisionScenarios, basicAnswers } from "./decision-scenarios.mjs";
 import { taskScenarios, runRuleExamples } from "./task-scenarios.mjs";
@@ -18,7 +19,8 @@ export function flowContract(pack, definitions) {
       entry: state.entry ?? [], questionId: state.meta?.questionId ?? null, groupId: state.meta?.groupId ?? null, status: state.meta?.status ?? null,
     }])) },
     tasks: definitions.map((definition) => ({ id: definition.id, workflow: definition.workflow, policy: definition.policy,
-      graph: structure(definition.machine), fields: definition.fields.map(({ id, type }) => ({ id, type: type ?? "string" })),
+      graph: structure(definition.machine), fields: formFieldCatalog(definition).map(({ id, type }) => ({ id, type: type ?? "string" })),
+      ...(definition.policy === "form" ? { prefillTemplate: schengenPdfRelease } : {}),
       checks: definition.checks.map(({ id, evidence }) => ({ id, evidence: evidence ?? "document" })),
       coverage: (definition.requiredCoverage ?? []).map(({ id }) => id).sort(), rules: definition.rules ?? [], document: definition.document?.template ?? null,
     })).sort((a, b) => a.id.localeCompare(b.id)) };

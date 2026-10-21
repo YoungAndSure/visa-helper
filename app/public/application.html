@@ -69,6 +69,7 @@
     let application = null;
     let latestTaskResult = null;
     let guideLink = null;
+    let formDocument = null;
     let busy = false;
     let unsavedTask = false;
     let standardBridge = false;
@@ -124,6 +125,7 @@
         versionEl.textContent = `界面 ${embeddedVersion} · 服务 ${info.version} · 构建 ${info.buildHash.slice(0, 12)} · UI ${embeddedUiHash.slice(0, 12)}`;
       }
       const fullState = result?._meta?.application ?? result?.structuredContent?.application;
+      formDocument = result?.structuredContent?.formDocument ?? null;
       const returnedLink = result?.structuredContent?.guidePresentation ?? result?._meta?.guideLink;
       if (returnedLink) guideLink = returnedLink;
       if (fullState?.id) {
@@ -295,6 +297,25 @@
       const labels = { self_check: `自行检查${task.title}`, await_upload: `上传检查${task.title}`, acquiring: `了解${task.title}的准备方式` };
       if (labels[application.taskFlow?.node]) await continueInChat(task, labels[application.taskFlow.node]);
     }
+    async function formPath(mode, task) {
+      const flow = application.taskFlow;
+      await taskEvent(mode === "manual" && flow.nextAction.events.includes("GUIDE_READY") ? "GUIDE_READY" : undefined,
+        { ...flow.data, fillMode: mode });
+      if (errorEl.textContent || application.taskFlow?.data.fillMode !== mode || application.taskFlow.revision === flow.revision) return;
+      await continueInChat(task, mode === "manual" ? "我自己填写申根申请表，请提供填写提示" : "帮我整理资料并预填申根申请表");
+    }
+    function downloadForm() {
+      return perform(async () => {
+        await savePendingTask();
+        const flow = application.taskFlow;
+        applyResult(await hostRequest("tools/call", { name: "advance_task", arguments: { applicationId: application.id, taskId: flow.taskId } }));
+        if (!formDocument?.url) throw new Error("尚未取得预填PDF，请刷新任务进度或在聊天中索取。");
+        const result = await hostRequest("ui/download-file", { contents: [{ type: "resource_link", uri: formDocument.url,
+          name: formDocument.filename, mimeType: "application/pdf" }] });
+        if (result?.isError) throw new Error("未能下载，可点击预填PDF链接在浏览器中保存。");
+        statusEl.textContent = "已请求下载预填PDF。请补齐留空项目、核对并按要求签字。";
+      });
+    }
     function renderGuideControls(panel, flow, task) {
       const known = flow.guide.filter((field) => field.value !== null).length;
       panel.append(element("p", `已整理 ${known} 项填写内容，其余项目提供填写说明。`));
@@ -387,10 +408,10 @@
           if (result?.isError) throw new Error("打开链接未获允许，请在聊天中索取原表链接。");
         });
       });
-      panel.append(original, element("p", "可自行手写或用软件填写；无需先提供个人资料，也无需上传表格。", "muted"));
+      panel.append(element("p", "可以让助手根据已确认资料预填原PDF，也可以按提示自行填写；生成后仍需核对、补齐并签字。", "muted"));
       const stepGuidance = {
-        prepare: "先看看每一项需要填什么。已有的申请信息会整理到填写对照页中，不确定的内容可以在对话中补充。",
-        filling: "打开填写对照页，一边对照，一边填写原始申请表。你可以使用软件，也可以打印后手写。",
+        prepare: "默认由助手整理已有资料并预填官方原PDF，缺少的信息在对话中补充；也可选择自己填写。",
+        filling: flow.data.fillMode === "manual" ? "对照填写提示自行填原表，也可以打印后手写。" : "在对话中补齐适用资料后下载预填原PDF；未知项目留空，下载后仍可修改。",
         review_choice: "表格填好后，可以按清单自行核对，也可以自愿上传，让助手协助检查。",
         self_check: "请逐项核对下面的内容，确认表格已填妥并签字。无需上传表格。",
         await_upload: "如果愿意，请在当前聊天中上传 PDF 或清晰照片。也可以随时改为自行检查。",
@@ -399,9 +420,24 @@
       };
       panel.append(element("h2", flow.nextAction.title), element("p", stepGuidance[flow.node] ?? flow.nextAction.title));
       if (flow.needsRecheck) panel.append(element("p", "申请资料已变化，请重新核对填写内容；旧检查和完成确认已清除。", "notice"));
-      renderGuideControls(panel, flow, task);
+      if (["prepare", "filling"].includes(flow.node)) {
+        const methods = element("div", "", "actions");
+        methods.append(button("让助手帮我预填", () => formPath("assisted", task)),
+          button("按提示自己填写", () => formPath("manual", task), "secondary"));
+        panel.append(methods);
+      }
+      if (formDocument?.url) {
+        const pdf = element("a", "打开预填申请表 PDF"); pdf.href = formDocument.url; pdf.target = "_blank"; pdf.rel = "noreferrer";
+        panel.append(element("p", `原PDF已预填 ${formDocument.filledCount} 项，未知或不适用的项目留空。`), pdf);
+        if (standardBridge) panel.append(button("下载预填申请表 PDF", downloadForm, "secondary"));
+        else panel.append(element("p", "打开预填PDF后可另存为文件。", "muted"));
+        for (const issue of formDocument.issues) panel.append(element("p", `${flow.fieldCatalog.find(({ id }) => id === issue.fieldId)?.label ?? "填写内容"}：${issue.message}`, "notice"));
+      }
+      const manual = element("details", ""); manual.open = flow.data.fillMode === "manual";
+      manual.append(element("summary", "原表下载与逐项填写提示"), original);
+      renderGuideControls(manual, flow, task); panel.append(manual);
       const actions = element("div", "", "actions");
-      if (flow.nextAction.events.includes("GUIDE_READY")) actions.append(button("使用填写指引", () => taskEvent("GUIDE_READY")));
+      if (flow.nextAction.events.includes("GUIDE_READY") && flow.data.fillMode !== "manual") actions.append(button("查看已生成的预填表", () => taskEvent("GUIDE_READY"), "secondary"));
       if (flow.nextAction.events.includes("FILLED")) actions.append(button("我已填好，选择检查方式", () => taskEvent("FILLED", { ...flow.data, filled: true })));
       if (flow.nextAction.events.includes("SELF_CHECK")) actions.append(button("不上传，自己检查", () => materialPath("SELF_CHECK", task), "secondary"));
       if (flow.nextAction.events.includes("ASSISTED_CHECK")) actions.append(button("自愿上传，请协助检查", () => materialPath("ASSISTED_CHECK", task), "secondary"));

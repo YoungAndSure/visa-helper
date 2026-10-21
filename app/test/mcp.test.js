@@ -53,8 +53,9 @@ test("guide URLs remain available when a client omits private tool metadata", as
     assert.equal(modelVisible.structuredContent.guidePresentation.url, _meta.guideLink.url);
     assert.equal(modelVisible.structuredContent.guidePresentation.placement, "right");
     assert.equal(modelVisible.structuredContent.guidePresentation.action, "open_in_client_browser");
-    assert.equal(modelVisible.structuredContent.nextAction.type, "open_url");
-    assert.equal(modelVisible.structuredContent.nextAction.url, modelVisible.structuredContent.guidePresentation.url);
+    assert.equal(modelVisible.structuredContent.nextAction.type, "prepare_form");
+    assert.equal(modelVisible.structuredContent.nextAction.document.url, modelVisible.structuredContent.formDocument.url);
+    assert.match(modelVisible.structuredContent.formDocument.url, /\/forms\/.*\/application\.pdf$/);
     assert.equal(modelVisible.structuredContent.nextAction.taskAction.type, "prepare_guide");
     assert.match(modelVisible.structuredContent.assistantGuidance, /native browser tool/);
     assert.equal(modelVisible.structuredContent.application.taskFlow.revision, 0);

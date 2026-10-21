@@ -127,6 +127,6 @@ test("actual MCP accepts passport snapshots and returns task-specific actions wi
     const done = await call({ revision: 2, event: "FINISH", data: { ...entered.structuredContent.taskFlow.data, checks: passed, prepared: true } });
     assert.equal(done.isError, undefined); assert.equal(done.structuredContent.taskFlow.node, "done");
     const selected = await client.callTool({ name: "start_task", arguments: { applicationId: f.application.id, taskId: "schengen_form" } });
-    assert.equal(selected.structuredContent.nextAction.type, "open_url");
+    assert.equal(selected.structuredContent.nextAction.type, "prepare_form");
   } finally { await client.close(); await server.close(); }
 });

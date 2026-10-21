@@ -11,6 +11,7 @@ import { ApplicationStore } from "../src/workflow.js";
 import { GuideLinks, createGuideHandler } from "../src/form-guide.js";
 import { browser, until } from "./support/browser.mjs";
 import { basicAnswers } from "./support/decision-scenarios.mjs";
+import { PDFDocument } from "pdf-lib";
 
 for (const mode of ["standard", "compatibility", "no-context"]) test(`material buttons, chat handoff, pause and resume work with ${mode} host bridge`, { timeout: 60000 }, async () => {
   const root = await mkdtemp(join(tmpdir(), "visa-ui-regression-")), store = new ApplicationStore(join(root, "applications.json"));
@@ -19,7 +20,7 @@ for (const mode of ["standard", "compatibility", "no-context"]) test(`material b
   const [ct, st] = InMemoryTransport.createLinkedPair(); await mcp.connect(st); await client.connect(ct);
   const call = (params) => client.callTool(params), initial = await call({ name: "get_task_queue", arguments: { applicationId: application.id } });
   const widget = (await client.readResource({ uri: initial.structuredContent.serverInfo.ui.resourceUri })).contents[0].text;
-  const messages = [], calls = [], contexts = []; let failStart = false, activeBrowser;
+  const messages = [], calls = [], contexts = [], downloads = []; let failStart = false, activeBrowser;
   const escape = (value) => JSON.stringify(value).replaceAll("<", "\\u003c");
   const host = `<!doctype html><meta charset="utf-8"><iframe id="widget" style="width:900px;height:1000px;border:0" src="/widget"></iframe><script>
     const initial=${escape(initial)};
@@ -37,6 +38,7 @@ for (const mode of ["standard", "compatibility", "no-context"]) test(`material b
         await fetch('/context',{method:'POST',body:JSON.stringify(m.params)});
       }
       if(m.method==='ui/message')await fetch('/message',{method:'POST',body:JSON.stringify(m.params)});
+      if(m.method==='ui/download-file')await fetch('/download',{method:'POST',body:JSON.stringify(m.params)});
       source.postMessage({jsonrpc:'2.0',id:m.id,result},'*');
     });</script>`;
   const legacy = `<script>window.openai={toolOutput:${escape(initial.structuredContent)},toolResponseMetadata:{mcp_tool_result:${escape(initial)}},
@@ -50,11 +52,12 @@ for (const mode of ["standard", "compatibility", "no-context"]) test(`material b
     try {
       if (req.url === "/") return res.end(host);
       if (req.url === "/widget") return res.end(mode === "compatibility" ? widget.replace('<script type="module">', legacy + '<script type="module">') : widget);
-      if (req.url.startsWith("/guides/")) return guideHandler(req, res);
+      if (req.url.startsWith("/guides/") || req.url.startsWith("/forms/")) return guideHandler(req, res);
       let body = ""; for await (const chunk of req) body += chunk;
       res.setHeader("Content-Type", "application/json");
       if (req.url === "/message") { messages.push(JSON.parse(body)); return res.end("{}"); }
       if (req.url === "/context") { contexts.push(JSON.parse(body).structuredContent); return res.end("{}"); }
+      if (req.url === "/download") { downloads.push(JSON.parse(body)); return res.end("{}"); }
       if (req.url === "/rpc") {
         const params = JSON.parse(body); calls.push(params);
         if (params.name === "start_task" && failStart) { failStart = false; return res.end(JSON.stringify({ isError: true, structuredContent: { error: { message: "测试连接暂不可用，请重试" } } })); }
@@ -99,16 +102,29 @@ for (const mode of ["standard", "compatibility", "no-context"]) test(`material b
     assert.equal(messages[0].content[0].text, "准备统一申根签证申请表");
     assert.equal(contexts.at(-1).taskId, "schengen_form");
     assert.equal(contexts.at(-1).applicationId, application.id);
-    assert.equal(contexts.at(-1).nextAction.type, "open_url");
+    assert.equal(contexts.at(-1).nextAction.type, "prepare_form");
     assert.equal(await evaluate(`${frame}.querySelector('#all-tasks').hidden`), true);
     assert.equal(await evaluate(`${frame}.querySelector('progress').getAttribute('aria-label')`), "当前任务阶段进度");
     assert.match(await text(), /阶段 1 \/ 3/);
     assert.doesNotMatch(await text(), /已完成 0 \/ 12 项材料/);
-    await click("使用填写指引"); await until(async () => (await store.get(application.id)).taskFlow?.node === "filling");
+    await click("查看已生成的预填表"); await until(async () => (await store.get(application.id)).taskFlow?.node === "filling");
     await until(async () => (await text()).includes("阶段 2 / 3"));
     const guideUrl = await evaluate(`${frame}.querySelector('a[href*="/guides/"]').href`);
     const page = await (await fetch(guideUrl)).text(); assert.equal((page.match(/data-page="/g) ?? []).length, 4);
     assert.doesNotMatch(page, /填好后的自查|□/);
+    const pdfUrl = await evaluate(`${frame}.querySelector('a[href*="/forms/"]').href`);
+    const pdfResponse = await fetch(pdfUrl); assert.equal(pdfResponse.status, 200);
+    assert.equal((await PDFDocument.load(await pdfResponse.arrayBuffer())).getForm().getTextField("Intended date of arrival 1").getText(), "01-06-2027");
+    if (mode === "standard") {
+      await click("下载预填申请表 PDF"); await until(() => downloads.length === 1, "PDF download channel");
+      assert.equal(downloads[0].contents[0].mimeType, "application/pdf");
+    } else assert.match(await text(), /打开预填PDF后可另存为文件/);
+    await click("按提示自己填写");
+    await until(async () => (await store.get(application.id)).taskFlow?.data.fillMode === "manual" && await idle());
+    assert.equal(contexts.at(-1).nextAction.type, "open_url");
+    await click("让助手帮我预填");
+    await until(async () => (await store.get(application.id)).taskFlow?.data.fillMode === "assisted" && await idle());
+    assert.equal(contexts.at(-1).nextAction.type, "prepare_form");
     await click("保存并暂停，准备其他材料");
     await until(async () => !(await store.get(application.id)).activeTask && await idle());
     assert.match(await text(), /已暂停/);
@@ -118,7 +134,8 @@ for (const mode of ["standard", "compatibility", "no-context"]) test(`material b
     failStart = true;
     await evaluate(`Array.from(${frame}.querySelectorAll('.task')).find(row=>row.textContent.includes('护照照片')).querySelector('button').click()`);
     await until(async () => (await text()).includes("测试连接暂不可用"), "visible tool error");
-    await selectRow("photo", "护照照片"); await until(() => messages.length === 2, "row button chat handoff");
+    const beforePhoto = messages.length;
+    await selectRow("photo", "护照照片"); await until(() => messages.length === beforePhoto + 1, "row button chat handoff");
     assert.equal(messages.at(-1).content[0].text, "准备护照照片");
     assert.equal(contexts.at(-1).taskId, "photo");
     assert.match(await text(), /阶段 1 \/ 2/);
@@ -131,6 +148,7 @@ for (const mode of ["standard", "compatibility", "no-context"]) test(`material b
     assert.equal(persisted.tasks.find(({ id }) => id === "photo").status, "paused");
     await selectRow("schengen_form", "统一申根签证申请表");
     assert.equal((await store.get(application.id)).taskFlow.node, "filling");
+    assert.equal((await store.get(application.id)).taskFlow.data.fillMode, "assisted");
     assert.match(await text(), /阶段 2 \/ 3/);
     await selectRow("photo", "护照照片");
     assert.equal((await store.get(application.id)).taskFlow.node, "self_check");

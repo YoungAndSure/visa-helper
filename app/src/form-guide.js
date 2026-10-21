@@ -1,6 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { renderMaterialGuideHtml } from "./material-guide.js";
+import { renderPrefilledPdf } from "./schengen-pdf.js";
 
 const escapeHtml = (value) => String(value).replaceAll("&", "&amp;").replaceAll("<", "&lt;")
   .replaceAll(">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&#39;");
@@ -17,6 +18,7 @@ function renderSchengenPages(flow) {
       <div class="write-area ${hasValue ? "known" : ""}">${hasValue ? escapeHtml(entry.value) : "________________________"}</div>
       ${hasValue ? '<span class="known-label">已确认填写内容 · 请对照原表</span>' : ""}
       <p class="prompt">${hasValue ? "填写提示：" : "请填写："}${escapeHtml(entry.guidance)}</p>
+      ${(flow.prefill?.fields ?? []).map((value) => ({ ...flow.fieldCatalog.find((f) => f.id === value.id), ...value })).filter((f) => f.parentId === id && f.id !== id).map((f) => `<div class="subfield"><strong>${escapeHtml(f.label)}</strong><p>${f.value === null ? escapeHtml(f.guidance) : escapeHtml(f.value)}</p></div>`).join("")}
     </${sub ? "div" : "section"}>`;
   };
   const row = (content) => `<div class="row">${content}</div>`;
@@ -61,6 +63,22 @@ export class GuideLinks {
       taskId: flow.taskId, taskRevision: flow.revision, expiresAt, html: renderGuideHtml(flow) });
     return { url: `${this.baseUrl}/guides/${token}`, expiresAt: new Date(expiresAt).toISOString() };
   }
+  async createPdf(application, flow) {
+    if (!this.baseUrl || !flow.prefill) return null;
+    for (const [token, entry] of this.entries) if (entry.expiresAt <= this.now()) this.entries.delete(token);
+    for (const [token, entry] of this.entries) if (entry.format === "pdf" && entry.applicationId === application.id
+      && entry.applicationRevision === application.revision && entry.taskId === flow.taskId && entry.taskRevision === flow.revision) return entry.document;
+    while (this.entries.size >= 80) this.entries.delete(this.entries.keys().next().value);
+    const result = await renderPrefilledPdf(flow);
+    const token = randomBytes(32).toString("base64url"), expiresAt = this.now() + this.ttlMs;
+    const document = { url: `${this.baseUrl}/forms/${token}/application.pdf`, expiresAt: new Date(expiresAt).toISOString(),
+      mimeType: "application/pdf", filename: "schengen-application-prefilled.pdf", partial: true,
+      filledCount: result.written.length, issues: result.issues, writtenFieldIds: result.written,
+      instruction: "已知信息预填，未知或不能写入的项目留空。请逐项核对补齐、阅读声明并打印签字；生成不代表任务完成。" };
+    this.entries.set(token, { applicationId: application.id, applicationRevision: application.revision,
+      taskId: flow.taskId, taskRevision: flow.revision, expiresAt, format: "pdf", bytes: result.bytes, document });
+    return document;
+  }
 }
 
 export function createGuideHandler(store, links) {
@@ -71,20 +89,25 @@ export function createGuideHandler(store, links) {
     res.setHeader("X-Robots-Tag", "noindex, nofollow");
     res.setHeader("Content-Security-Policy", "default-src 'none'; style-src 'unsafe-inline'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'");
     const url = new URL(req.url ?? "/", "http://localhost");
-    const match = url.pathname.match(/^\/guides\/([A-Za-z0-9_-]{43})$/);
+    const match = url.pathname.match(/^\/guides\/([A-Za-z0-9_-]{43})$/) ?? url.pathname.match(/^\/forms\/([A-Za-z0-9_-]{43})\/application\.pdf$/);
     if (!match || url.search || !["GET", "HEAD"].includes(req.method)) { res.writeHead(404).end("Not found"); return; }
     const entry = links.entries.get(match[1]);
     if (!entry || entry.expiresAt <= links.now()) {
       if (entry) links.entries.delete(match[1]);
       res.writeHead(410, { "Content-Type": "text/plain; charset=utf-8" }).end("链接已过期，请返回申请表任务重新打开填写对照页。"); return;
     }
+    if ((entry.format === "pdf") !== url.pathname.startsWith("/forms/")) { res.writeHead(404).end("Not found"); return; }
     try {
       const { application, taskFlow } = await store.advanceTask({ applicationId: entry.applicationId, taskId: entry.taskId });
       if (application.revision !== entry.applicationRevision || taskFlow.revision !== entry.taskRevision) {
         links.entries.delete(match[1]);
         res.writeHead(410, { "Content-Type": "text/plain; charset=utf-8" }).end("申请资料或任务已更新，请返回任务重新打开填写对照页。"); return;
       }
-      res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" }).end(req.method === "HEAD" ? undefined : entry.html);
+      if (entry.format === "pdf") {
+        res.writeHead(200, { "Content-Type": "application/pdf", "Content-Disposition": 'inline; filename="schengen-application-prefilled.pdf"',
+          "Content-Length": entry.bytes.length, "X-Visa-Prefill-Written": entry.document.filledCount, "X-Visa-Prefill-Issues": entry.document.issues.length })
+          .end(req.method === "HEAD" ? undefined : Buffer.from(entry.bytes));
+      } else res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" }).end(req.method === "HEAD" ? undefined : entry.html);
     } catch {
       res.writeHead(410, { "Content-Type": "text/plain; charset=utf-8" }).end("这份填写指引已不可用，请返回申请表任务重新打开。");
     }

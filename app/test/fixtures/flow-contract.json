@@ -3359,67 +3359,67 @@
       "fields": [
         {
           "id": "1",
-          "type": "string"
+          "type": "text"
         },
         {
           "id": "2",
-          "type": "string"
+          "type": "text"
         },
         {
           "id": "3",
-          "type": "string"
+          "type": "text"
         },
         {
           "id": "4",
-          "type": "string"
+          "type": "text"
         },
         {
           "id": "5",
-          "type": "string"
+          "type": "text"
         },
         {
           "id": "6",
-          "type": "string"
+          "type": "text"
         },
         {
           "id": "7",
-          "type": "string"
+          "type": "text"
         },
         {
           "id": "8",
-          "type": "string"
+          "type": "choice"
         },
         {
           "id": "9",
-          "type": "string"
+          "type": "choice"
         },
         {
           "id": "10",
-          "type": "string"
+          "type": "text"
         },
         {
           "id": "11",
-          "type": "string"
+          "type": "text"
         },
         {
           "id": "12",
-          "type": "string"
+          "type": "choice"
         },
         {
           "id": "13",
-          "type": "string"
+          "type": "text"
         },
         {
           "id": "14",
-          "type": "string"
+          "type": "text"
         },
         {
           "id": "15",
-          "type": "string"
+          "type": "text"
         },
         {
           "id": "16",
-          "type": "string"
+          "type": "text"
         },
         {
           "id": "17",
@@ -3427,55 +3427,55 @@
         },
         {
           "id": "18",
-          "type": "string"
+          "type": "choice"
         },
         {
           "id": "19",
-          "type": "string"
+          "type": "text"
         },
         {
           "id": "20",
-          "type": "string"
+          "type": "choice"
         },
         {
           "id": "21",
-          "type": "string"
+          "type": "text"
         },
         {
           "id": "22",
-          "type": "string"
+          "type": "text"
         },
         {
           "id": "23",
-          "type": "string"
+          "type": "multi_choice"
         },
         {
           "id": "24",
-          "type": "string"
+          "type": "text"
         },
         {
           "id": "25",
-          "type": "string"
+          "type": "text"
         },
         {
           "id": "26",
-          "type": "string"
+          "type": "text"
         },
         {
           "id": "27.entries",
-          "type": "string"
+          "type": "choice"
         },
         {
           "id": "27.arrival",
-          "type": "string"
+          "type": "text"
         },
         {
           "id": "27.departure",
-          "type": "string"
+          "type": "text"
         },
         {
           "id": "28",
-          "type": "string"
+          "type": "choice"
         },
         {
           "id": "29",
@@ -3483,11 +3483,11 @@
         },
         {
           "id": "30",
-          "type": "string"
+          "type": "text"
         },
         {
           "id": "31",
-          "type": "string"
+          "type": "text"
         },
         {
           "id": "32",
@@ -3500,8 +3500,198 @@
         {
           "id": "signature",
           "type": "string"
+        },
+        {
+          "id": "7.birth",
+          "type": "text"
+        },
+        {
+          "id": "7.other",
+          "type": "text"
+        },
+        {
+          "id": "9.other",
+          "type": "text"
+        },
+        {
+          "id": "12.other",
+          "type": "text"
+        },
+        {
+          "id": "17.surname",
+          "type": "text"
+        },
+        {
+          "id": "17.firstName",
+          "type": "text"
+        },
+        {
+          "id": "17.birthDate",
+          "type": "text"
+        },
+        {
+          "id": "17.nationality",
+          "type": "text"
+        },
+        {
+          "id": "17.document",
+          "type": "text"
+        },
+        {
+          "id": "18.other",
+          "type": "text"
+        },
+        {
+          "id": "19.phone",
+          "type": "text"
+        },
+        {
+          "id": "20.permitType",
+          "type": "text"
+        },
+        {
+          "id": "20.permitNumber",
+          "type": "text"
+        },
+        {
+          "id": "20.permitExpiry",
+          "type": "text"
+        },
+        {
+          "id": "23.other",
+          "type": "text"
+        },
+        {
+          "id": "28.date",
+          "type": "text"
+        },
+        {
+          "id": "28.sticker",
+          "type": "text"
+        },
+        {
+          "id": "29.issuer",
+          "type": "text"
+        },
+        {
+          "id": "29.from",
+          "type": "text"
+        },
+        {
+          "id": "29.until",
+          "type": "text"
+        },
+        {
+          "id": "30.address",
+          "type": "text"
+        },
+        {
+          "id": "30.phone",
+          "type": "text"
+        },
+        {
+          "id": "31.contact",
+          "type": "text"
+        },
+        {
+          "id": "31.phone",
+          "type": "text"
+        },
+        {
+          "id": "32.self",
+          "type": "choice"
+        },
+        {
+          "id": "32.self.cash",
+          "type": "choice"
+        },
+        {
+          "id": "32.self.travellersCheques",
+          "type": "choice"
+        },
+        {
+          "id": "32.self.creditCard",
+          "type": "choice"
+        },
+        {
+          "id": "32.self.accommodation",
+          "type": "choice"
+        },
+        {
+          "id": "32.self.transport",
+          "type": "choice"
+        },
+        {
+          "id": "32.self.other",
+          "type": "choice"
+        },
+        {
+          "id": "32.self.otherText",
+          "type": "text"
+        },
+        {
+          "id": "32.sponsor",
+          "type": "choice"
+        },
+        {
+          "id": "32.sponsor.referenced",
+          "type": "choice"
+        },
+        {
+          "id": "32.sponsor.other",
+          "type": "choice"
+        },
+        {
+          "id": "32.sponsor.referenceText",
+          "type": "text"
+        },
+        {
+          "id": "32.sponsor.otherText",
+          "type": "text"
+        },
+        {
+          "id": "32.sponsor.cash",
+          "type": "choice"
+        },
+        {
+          "id": "32.sponsor.accommodation",
+          "type": "choice"
+        },
+        {
+          "id": "32.sponsor.allExpenses",
+          "type": "choice"
+        },
+        {
+          "id": "32.sponsor.transport",
+          "type": "choice"
+        },
+        {
+          "id": "32.sponsor.otherSupport",
+          "type": "choice"
+        },
+        {
+          "id": "32.sponsor.otherSupportText",
+          "type": "text"
+        },
+        {
+          "id": "33.name",
+          "type": "text"
+        },
+        {
+          "id": "33.address",
+          "type": "text"
+        },
+        {
+          "id": "33.phone",
+          "type": "text"
         }
       ],
+      "prefillTemplate": {
+        "taskId": "schengen_form",
+        "templateId": "iceland-schengen-en-cn-2025-03",
+        "templateHash": "f1ca8f0676fc0ccd1bb1a83e65adbd9b38f3e8950632dda5b12eb0c0d999337a",
+        "sourceHash": "c415e3103fcf878d2a817e70cb27f2d46fe971c34618bfa23ac31aad6d43b072"
+      },
       "checks": [
         {
           "id": "english",

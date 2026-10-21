@@ -6,6 +6,7 @@ import { getActiveRuleVersion, loadRulePack } from "./checklist.js";
 import { INTERVIEW_PROTOCOL_VERSION } from "./interview.js";
 import { ENGINE_VERSION, hash } from "./decision-machine.js";
 import { taskRelease } from "./tasks.js";
+import { schengenPdfRelease } from "./schengen-pdf.js";
 
 const appDir = join(dirname(fileURLToPath(import.meta.url)), "..");
 const digest = (text) => createHash("sha256").update(text).digest("hex");
@@ -19,9 +20,10 @@ export const REQUIRED_CLIENT_TOOLS = [
   "advance_application", "get_task_queue", "start_task", "advance_task",
 ];
 const files = ["package.json", "package-lock.json", "public/application.html", "public/templates/material-guide.html", "public/templates/schengen-guide.html", "config/task-workflows.json",
+  ...readdirSync(join(appDir, "config/forms")).sort().map((file) => `config/forms/${file}`),
   ...readdirSync(join(appDir, "config/tasks")).filter((file) => file.endsWith(".json")).sort().map((file) => `config/tasks/${file}`),
   ...readdirSync(join(appDir, "src")).filter((file) => file.endsWith(".js")).sort().map((file) => `src/${file}`)];
-const buildHash = digest(files.map((file) => `${file}\0${readFileSync(join(appDir, file), "utf8")}\0`).join(""));
+const buildHash = digest(files.map((file) => `${file}\0${digest(readFileSync(join(appDir, file)))}\0`).join(""));
 const instanceId = randomUUID();
 const startedAt = new Date().toISOString();
 
@@ -37,6 +39,7 @@ export function serverInfo(contracts, configDir) {
     ui: { resourceUri: UI_RESOURCE_URI, sourceHash: UI_SOURCE_HASH },
     rules: { activeVersion, modelHash: hash(active), engine: "xstate", engineVersion: ENGINE_VERSION },
     taskWorkflow: { ...taskRelease, tool: "advance_task" },
+    formDocuments: [schengenPdfRelease],
   };
 }
 

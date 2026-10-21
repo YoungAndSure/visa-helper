@@ -1,0 +1,1114 @@
+{
+  "id": "iceland-schengen-en-cn-2025-03",
+  "taskId": "schengen_form",
+  "file": "schengen-en-cn-2025-03.pdf",
+  "sourceUrl": "https://www.vfsglobal.com/one-pager/iceland/china/chinese/pdf/Schengen-Visa-Form-EN-CN-Mar-2025.pdf",
+  "sha256": "c415e3103fcf878d2a817e70cb27f2d46fe971c34618bfa23ac31aad6d43b072",
+  "pages": 4,
+  "fields": [
+    {
+      "id": "1",
+      "pdfName": "Surname 1",
+      "label": "姓",
+      "page": 1,
+      "type": "text",
+      "parentId": "1",
+      "guidance": "仅根据用户明确提供或确认的信息填写；不适用或未确定时留空。英文填写；不要把说明文字写入表格。"
+    },
+    {
+      "id": "2",
+      "pdfName": "Surname at birth 1",
+      "label": "出生时姓氏／曾用姓",
+      "page": 1,
+      "type": "text",
+      "parentId": "2",
+      "guidance": "仅根据用户明确提供或确认的信息填写；不适用或未确定时留空。英文填写；不要把说明文字写入表格。"
+    },
+    {
+      "id": "3",
+      "pdfName": "First name(s) 1",
+      "label": "名",
+      "page": 1,
+      "type": "text",
+      "parentId": "3",
+      "guidance": "仅根据用户明确提供或确认的信息填写；不适用或未确定时留空。英文填写；不要把说明文字写入表格。"
+    },
+    {
+      "id": "4",
+      "pdfName": "Date of birth 1",
+      "label": "出生日期（日-月-年）",
+      "page": 1,
+      "type": "text",
+      "parentId": "4",
+      "guidance": "仅根据用户明确提供或确认的信息填写；不适用或未确定时留空。英文填写；不要把说明文字写入表格。"
+    },
+    {
+      "id": "5",
+      "pdfName": "Place of birth 1",
+      "label": "出生地",
+      "page": 1,
+      "type": "text",
+      "parentId": "5",
+      "guidance": "仅根据用户明确提供或确认的信息填写；不适用或未确定时留空。英文填写；不要把说明文字写入表格。"
+    },
+    {
+      "id": "6",
+      "pdfName": "Country of birth 1",
+      "label": "出生国",
+      "page": 1,
+      "type": "text",
+      "parentId": "6",
+      "guidance": "仅根据用户明确提供或确认的信息填写；不适用或未确定时留空。英文填写；不要把说明文字写入表格。"
+    },
+    {
+      "id": "7",
+      "pdfName": "Current nationality 1",
+      "label": "现国籍",
+      "page": 1,
+      "type": "text",
+      "parentId": "7",
+      "guidance": "仅根据用户明确提供或确认的信息填写；不适用或未确定时留空。英文填写；不要把说明文字写入表格。"
+    },
+    {
+      "id": "7.birth",
+      "pdfName": "Nationality at birth 2",
+      "label": "出生时国籍（如不同）",
+      "page": 1,
+      "type": "text",
+      "parentId": "7",
+      "guidance": "仅根据用户明确提供或确认的信息填写；不适用或未确定时留空。英文填写；不要把说明文字写入表格。"
+    },
+    {
+      "id": "7.other",
+      "pdfName": "Nationality at birth 3",
+      "label": "其他国籍",
+      "page": 1,
+      "type": "text",
+      "parentId": "7",
+      "guidance": "仅根据用户明确提供或确认的信息填写；不适用或未确定时留空。英文填写；不要把说明文字写入表格。"
+    },
+    {
+      "id": "8",
+      "pdfName": "Sex",
+      "label": "性别",
+      "page": 1,
+      "type": "choice",
+      "options": [
+        {
+          "value": "male",
+          "label": "男",
+          "pdfValue": "0"
+        },
+        {
+          "value": "female",
+          "label": "女",
+          "pdfValue": "1"
+        },
+        {
+          "value": "other",
+          "label": "其他",
+          "pdfValue": "2"
+        }
+      ],
+      "parentId": "8",
+      "guidance": "仅根据用户明确提供或确认的信息填写；不适用或未确定时留空。英文填写；不要把说明文字写入表格。"
+    },
+    {
+      "id": "9",
+      "pdfName": "Civil status",
+      "label": "婚姻状况",
+      "page": 1,
+      "type": "choice",
+      "options": [
+        {
+          "value": "single",
+          "label": "未婚",
+          "pdfValue": "Single"
+        },
+        {
+          "value": "married",
+          "label": "已婚",
+          "pdfValue": "Married"
+        },
+        {
+          "value": "registered_partnership",
+          "label": "注册伴侣",
+          "pdfValue": "Registered partnershio"
+        },
+        {
+          "value": "separated",
+          "label": "分居",
+          "pdfValue": "Separated"
+        },
+        {
+          "value": "divorced",
+          "label": "离婚",
+          "pdfValue": "Divorced"
+        },
+        {
+          "value": "widowed",
+          "label": "丧偶",
+          "pdfValue": "Widow(er)"
+        },
+        {
+          "value": "other",
+          "label": "其他",
+          "pdfValue": "Other"
+        }
+      ],
+      "parentId": "9",
+      "guidance": "仅根据用户明确提供或确认的信息填写；不适用或未确定时留空。英文填写；不要把说明文字写入表格。"
+    },
+    {
+      "id": "9.other",
+      "pdfName": "Text Field 15",
+      "label": "其他婚姻状况说明",
+      "page": 1,
+      "type": "text",
+      "parentId": "9",
+      "guidance": "仅根据用户明确提供或确认的信息填写；不适用或未确定时留空。英文填写；不要把说明文字写入表格。"
+    },
+    {
+      "id": "10",
+      "pdfName": "Parental authority 1",
+      "label": "亲权人／合法监护人姓名、地址、电话、邮箱及国籍",
+      "page": 1,
+      "type": "text",
+      "parentId": "10",
+      "guidance": "仅根据用户明确提供或确认的信息填写；不适用或未确定时留空。英文填写；不要把说明文字写入表格。"
+    },
+    {
+      "id": "11",
+      "pdfName": "National identity number 1",
+      "label": "公民身份证号码（如适用）",
+      "page": 1,
+      "type": "text",
+      "parentId": "11",
+      "guidance": "仅根据用户明确提供或确认的信息填写；不适用或未确定时留空。英文填写；不要把说明文字写入表格。"
+    },
+    {
+      "id": "12",
+      "pdfName": "Type of travel document",
+      "label": "旅行证件类型",
+      "page": 1,
+      "type": "choice",
+      "options": [
+        {
+          "value": "ordinary",
+          "label": "普通护照",
+          "pdfValue": "0"
+        },
+        {
+          "value": "diplomatic",
+          "label": "外交护照",
+          "pdfValue": "1"
+        },
+        {
+          "value": "service",
+          "label": "公务护照",
+          "pdfValue": "2"
+        },
+        {
+          "value": "official",
+          "label": "因公护照",
+          "pdfValue": "3"
+        },
+        {
+          "value": "special",
+          "label": "特殊护照",
+          "pdfValue": "4"
+        },
+        {
+          "value": "other",
+          "label": "其他旅行证件",
+          "pdfValue": "5"
+        }
+      ],
+      "parentId": "12",
+      "guidance": "仅根据用户明确提供或确认的信息填写；不适用或未确定时留空。英文填写；不要把说明文字写入表格。"
+    },
+    {
+      "id": "12.other",
+      "pdfName": "Other travel document 1",
+      "label": "其他旅行证件说明",
+      "page": 1,
+      "type": "text",
+      "parentId": "12",
+      "guidance": "仅根据用户明确提供或确认的信息填写；不适用或未确定时留空。英文填写；不要把说明文字写入表格。"
+    },
+    {
+      "id": "13",
+      "pdfName": "Number of trvel document 1",
+      "label": "旅行证件编号",
+      "page": 1,
+      "type": "text",
+      "parentId": "13",
+      "guidance": "仅根据用户明确提供或确认的信息填写；不适用或未确定时留空。英文填写；不要把说明文字写入表格。"
+    },
+    {
+      "id": "14",
+      "pdfName": "Date of issue 1",
+      "label": "签发日期（日-月-年）",
+      "page": 1,
+      "type": "text",
+      "parentId": "14",
+      "guidance": "仅根据用户明确提供或确认的信息填写；不适用或未确定时留空。英文填写；不要把说明文字写入表格。"
+    },
+    {
+      "id": "15",
+      "pdfName": "Valid until 1",
+      "label": "有效期至（日-月-年）",
+      "page": 1,
+      "type": "text",
+      "parentId": "15",
+      "guidance": "仅根据用户明确提供或确认的信息填写；不适用或未确定时留空。英文填写；不要把说明文字写入表格。"
+    },
+    {
+      "id": "16",
+      "pdfName": "Issued by (country) 1",
+      "label": "签发国",
+      "page": 1,
+      "type": "text",
+      "parentId": "16",
+      "guidance": "仅根据用户明确提供或确认的信息填写；不适用或未确定时留空。英文填写；不要把说明文字写入表格。"
+    },
+    {
+      "id": "17.surname",
+      "pdfName": "Surname 2",
+      "label": "符合表内条件的欧洲家庭成员：姓",
+      "page": 2,
+      "type": "text",
+      "parentId": "17",
+      "guidance": "仅符合原表欧洲家庭成员条款时填写，先核实适用性，不因同行而推断。"
+    },
+    {
+      "id": "17.firstName",
+      "pdfName": "First names 1",
+      "label": "上述家庭成员：名",
+      "page": 2,
+      "type": "text",
+      "parentId": "17",
+      "guidance": "仅符合原表欧洲家庭成员条款时填写，先核实适用性，不因同行而推断。"
+    },
+    {
+      "id": "17.birthDate",
+      "pdfName": "Date of birth 2",
+      "label": "上述家庭成员：出生日期",
+      "page": 2,
+      "type": "text",
+      "parentId": "17",
+      "guidance": "仅符合原表欧洲家庭成员条款时填写，先核实适用性，不因同行而推断。"
+    },
+    {
+      "id": "17.nationality",
+      "pdfName": "Nationality 1",
+      "label": "上述家庭成员：国籍",
+      "page": 2,
+      "type": "text",
+      "parentId": "17",
+      "guidance": "仅符合原表欧洲家庭成员条款时填写，先核实适用性，不因同行而推断。"
+    },
+    {
+      "id": "17.document",
+      "pdfName": "Number of travel document or ID card 1",
+      "label": "上述家庭成员：旅行证件／身份证编号",
+      "page": 2,
+      "type": "text",
+      "parentId": "17",
+      "guidance": "仅符合原表欧洲家庭成员条款时填写，先核实适用性，不因同行而推断。"
+    },
+    {
+      "id": "18",
+      "pdfName": "Family relationship",
+      "label": "与上述家庭成员的关系（如适用）",
+      "page": 2,
+      "type": "choice",
+      "options": [
+        {
+          "value": "spouse",
+          "label": "配偶",
+          "pdfValue": "0"
+        },
+        {
+          "value": "child",
+          "label": "子女",
+          "pdfValue": "1"
+        },
+        {
+          "value": "grandchild",
+          "label": "孙子女",
+          "pdfValue": "2"
+        },
+        {
+          "value": "dependent_ascendant",
+          "label": "受养人",
+          "pdfValue": "3"
+        },
+        {
+          "value": "registered_partner",
+          "label": "注册伴侣",
+          "pdfValue": "4"
+        },
+        {
+          "value": "other",
+          "label": "其他",
+          "pdfValue": "5"
+        }
+      ],
+      "parentId": "18",
+      "guidance": "仅符合原表欧洲家庭成员条款时填写，先核实适用性，不因同行而推断。"
+    },
+    {
+      "id": "18.other",
+      "pdfName": "Family relationship other 1",
+      "label": "其他家庭关系说明",
+      "page": 2,
+      "type": "text",
+      "parentId": "18",
+      "guidance": "仅符合原表欧洲家庭成员条款时填写，先核实适用性，不因同行而推断。"
+    },
+    {
+      "id": "19",
+      "pdfName": "Applicants home adress 1",
+      "label": "本人住址及电子邮箱",
+      "page": 2,
+      "type": "text",
+      "parentId": "19",
+      "guidance": "仅根据用户明确提供或确认的信息填写；不适用或未确定时留空。英文填写；不要把说明文字写入表格。"
+    },
+    {
+      "id": "19.phone",
+      "pdfName": "Telephone no  1",
+      "label": "本人电话号码",
+      "page": 2,
+      "type": "text",
+      "parentId": "19",
+      "guidance": "仅根据用户明确提供或确认的信息填写；不适用或未确定时留空。英文填写；不要把说明文字写入表格。"
+    },
+    {
+      "id": "20",
+      "pdfName": "Residence",
+      "label": "是否居住在现国籍以外的国家",
+      "page": 2,
+      "type": "choice",
+      "options": [
+        {
+          "value": "No",
+          "label": "否",
+          "pdfValue": "0"
+        },
+        {
+          "value": "Yes",
+          "label": "是",
+          "pdfValue": "1"
+        }
+      ],
+      "parentId": "20",
+      "guidance": "仅根据用户明确提供或确认的信息填写；不适用或未确定时留空。英文填写；不要把说明文字写入表格。"
+    },
+    {
+      "id": "20.permitType",
+      "pdfName": "Rrsidence permit 2",
+      "label": "居留许可或同等证明",
+      "page": 2,
+      "type": "text",
+      "parentId": "20",
+      "guidance": "仅根据用户明确提供或确认的信息填写；不适用或未确定时留空。英文填写；不要把说明文字写入表格。"
+    },
+    {
+      "id": "20.permitNumber",
+      "pdfName": "Rrsidence permit no 1",
+      "label": "居留许可编号",
+      "page": 2,
+      "type": "text",
+      "parentId": "20",
+      "guidance": "仅根据用户明确提供或确认的信息填写；不适用或未确定时留空。英文填写；不要把说明文字写入表格。"
+    },
+    {
+      "id": "20.permitExpiry",
+      "pdfName": "Rrsidence permit 3",
+      "label": "居留许可有效期",
+      "page": 2,
+      "type": "text",
+      "parentId": "20",
+      "guidance": "仅根据用户明确提供或确认的信息填写；不适用或未确定时留空。英文填写；不要把说明文字写入表格。"
+    },
+    {
+      "id": "21",
+      "pdfName": "Current occupation 1",
+      "label": "当前职业",
+      "page": 2,
+      "type": "text",
+      "parentId": "21",
+      "guidance": "仅根据用户明确提供或确认的信息填写；不适用或未确定时留空。英文填写；不要把说明文字写入表格。"
+    },
+    {
+      "id": "22",
+      "pdfName": "Employer 1",
+      "label": "单位名称、地址、电话／学校名称、地址",
+      "page": 2,
+      "type": "text",
+      "parentId": "22",
+      "guidance": "仅根据用户明确提供或确认的信息填写；不适用或未确定时留空。英文填写；不要把说明文字写入表格。"
+    },
+    {
+      "id": "23",
+      "label": "旅行目的（多项用 | 分隔）",
+      "page": 2,
+      "type": "multi_choice",
+      "options": [
+        {
+          "value": "Tourism",
+          "label": "个人旅游",
+          "pdfName": "Tourism"
+        },
+        {
+          "value": "Business",
+          "label": "商务",
+          "pdfName": "Business¨"
+        },
+        {
+          "value": "Visiting family or friends",
+          "label": "探亲访友",
+          "pdfName": "Visiting family or friends"
+        },
+        {
+          "value": "Cultural",
+          "label": "文化",
+          "pdfName": "Cultural"
+        },
+        {
+          "value": "Sports",
+          "label": "体育",
+          "pdfName": "Sports"
+        },
+        {
+          "value": "Official visit",
+          "label": "官方访问",
+          "pdfName": "Official visit"
+        },
+        {
+          "value": "Medical reasons",
+          "label": "医疗",
+          "pdfName": "Medical reasons"
+        },
+        {
+          "value": "Study",
+          "label": "学习",
+          "pdfName": "Study"
+        },
+        {
+          "value": "Airport transit",
+          "label": "机场过境",
+          "pdfName": "Airport transit"
+        },
+        {
+          "value": "Other",
+          "label": "其他",
+          "pdfName": "Other (please specify)"
+        }
+      ],
+      "parentId": "23",
+      "guidance": "仅根据用户明确提供或确认的信息填写；不适用或未确定时留空。英文填写；不要把说明文字写入表格。"
+    },
+    {
+      "id": "23.other",
+      "pdfName": "Employer Other 1",
+      "label": "其他旅行目的说明",
+      "page": 2,
+      "type": "text",
+      "parentId": "23",
+      "guidance": "仅根据用户明确提供或确认的信息填写；不适用或未确定时留空。英文填写；不要把说明文字写入表格。"
+    },
+    {
+      "id": "24",
+      "pdfName": "Additional information on purpose of stay 1",
+      "label": "停留原因补充信息",
+      "page": 2,
+      "type": "text",
+      "parentId": "24",
+      "guidance": "仅根据用户明确提供或确认的信息填写；不适用或未确定时留空。英文填写；不要把说明文字写入表格。"
+    },
+    {
+      "id": "25",
+      "pdfName": "Member State of main destination 1",
+      "label": "主要及其他申根目的地",
+      "page": 2,
+      "type": "text",
+      "parentId": "25",
+      "guidance": "仅根据用户明确提供或确认的信息填写；不适用或未确定时留空。英文填写；不要把说明文字写入表格。"
+    },
+    {
+      "id": "26",
+      "pdfName": "Member State of first entry 1",
+      "label": "首入申根国",
+      "page": 2,
+      "type": "text",
+      "parentId": "26",
+      "guidance": "仅根据用户明确提供或确认的信息填写；不适用或未确定时留空。英文填写；不要把说明文字写入表格。"
+    },
+    {
+      "id": "27.entries",
+      "pdfName": "Number of entries requested",
+      "label": "申请入境次数",
+      "page": 2,
+      "type": "choice",
+      "options": [
+        {
+          "value": "single",
+          "label": "单次",
+          "pdfValue": "0"
+        },
+        {
+          "value": "double",
+          "label": "两次",
+          "pdfValue": "1"
+        },
+        {
+          "value": "multiple",
+          "label": "多次",
+          "pdfValue": "2"
+        }
+      ],
+      "parentId": "27.entries",
+      "guidance": "仅根据用户明确提供或确认的信息填写；不适用或未确定时留空。英文填写；不要把说明文字写入表格。"
+    },
+    {
+      "id": "27.arrival",
+      "pdfName": "Intended date of arrival 1",
+      "label": "预计首次抵达日期（日-月-年）",
+      "page": 2,
+      "type": "text",
+      "parentId": "27.arrival",
+      "guidance": "仅根据用户明确提供或确认的信息填写；不适用或未确定时留空。英文填写；不要把说明文字写入表格。"
+    },
+    {
+      "id": "27.departure",
+      "pdfName": "Intended date of departure 1",
+      "label": "预计首次离开日期（日-月-年）",
+      "page": 2,
+      "type": "text",
+      "parentId": "27.departure",
+      "guidance": "仅根据用户明确提供或确认的信息填写；不适用或未确定时留空。英文填写；不要把说明文字写入表格。"
+    },
+    {
+      "id": "28",
+      "pdfName": "Fingerprints",
+      "label": "以往申根签证是否采集指纹",
+      "page": 2,
+      "type": "choice",
+      "options": [
+        {
+          "value": "No",
+          "label": "否",
+          "pdfValue": "0"
+        },
+        {
+          "value": "Yes",
+          "label": "是",
+          "pdfValue": "1"
+        }
+      ],
+      "parentId": "28",
+      "guidance": "仅根据用户明确提供或确认的信息填写；不适用或未确定时留空。英文填写；不要把说明文字写入表格。"
+    },
+    {
+      "id": "28.date",
+      "pdfName": "Date if known 1",
+      "label": "已知指纹采集日期",
+      "page": 2,
+      "type": "text",
+      "parentId": "28",
+      "guidance": "仅根据用户明确提供或确认的信息填写；不适用或未确定时留空。英文填写；不要把说明文字写入表格。"
+    },
+    {
+      "id": "28.sticker",
+      "pdfName": "Visa sticker number if known 1",
+      "label": "已知签证贴纸编号",
+      "page": 2,
+      "type": "text",
+      "parentId": "28",
+      "guidance": "仅根据用户明确提供或确认的信息填写；不适用或未确定时留空。英文填写；不要把说明文字写入表格。"
+    },
+    {
+      "id": "29.issuer",
+      "pdfName": "Issued by 1",
+      "label": "最终目的地入境许可签发方（如适用）",
+      "page": 2,
+      "type": "text",
+      "parentId": "29",
+      "guidance": "仅根据用户明确提供或确认的信息填写；不适用或未确定时留空。英文填写；不要把说明文字写入表格。"
+    },
+    {
+      "id": "29.from",
+      "pdfName": "Valid from 1",
+      "label": "上述许可有效期起",
+      "page": 2,
+      "type": "text",
+      "parentId": "29",
+      "guidance": "仅根据用户明确提供或确认的信息填写；不适用或未确定时留空。英文填写；不要把说明文字写入表格。"
+    },
+    {
+      "id": "29.until",
+      "pdfName": "until 1",
+      "label": "上述许可有效期止",
+      "page": 2,
+      "type": "text",
+      "parentId": "29",
+      "guidance": "仅根据用户明确提供或确认的信息填写；不适用或未确定时留空。英文填写；不要把说明文字写入表格。"
+    },
+    {
+      "id": "30",
+      "pdfName": "Inviting persons 1",
+      "label": "邀请人姓名／酒店或暂住居所名称",
+      "page": 3,
+      "type": "text",
+      "parentId": "30",
+      "guidance": "仅根据用户明确提供或确认的信息填写；不适用或未确定时留空。英文填写；不要把说明文字写入表格。"
+    },
+    {
+      "id": "30.address",
+      "pdfName": "Inviting persons address 1",
+      "label": "邀请人／酒店地址及邮箱",
+      "page": 3,
+      "type": "text",
+      "parentId": "30",
+      "guidance": "仅根据用户明确提供或确认的信息填写；不适用或未确定时留空。英文填写；不要把说明文字写入表格。"
+    },
+    {
+      "id": "30.phone",
+      "pdfName": "Inviting persons telephone 1",
+      "label": "邀请人／酒店电话",
+      "page": 3,
+      "type": "text",
+      "parentId": "30",
+      "guidance": "仅根据用户明确提供或确认的信息填写；不适用或未确定时留空。英文填写；不要把说明文字写入表格。"
+    },
+    {
+      "id": "31",
+      "pdfName": "Inviting company 1",
+      "label": "邀请公司／机构名称及地址（如适用）",
+      "page": 3,
+      "type": "text",
+      "parentId": "31",
+      "guidance": "仅根据用户明确提供或确认的信息填写；不适用或未确定时留空。英文填写；不要把说明文字写入表格。"
+    },
+    {
+      "id": "31.contact",
+      "pdfName": "Inviting company contact person 1",
+      "label": "上述机构联系人姓名、地址、电话及邮箱",
+      "page": 3,
+      "type": "text",
+      "parentId": "31",
+      "guidance": "仅根据用户明确提供或确认的信息填写；不适用或未确定时留空。英文填写；不要把说明文字写入表格。"
+    },
+    {
+      "id": "31.phone",
+      "pdfName": "Inviting company telephone 1",
+      "label": "上述机构电话",
+      "page": 3,
+      "type": "text",
+      "parentId": "31",
+      "guidance": "仅根据用户明确提供或确认的信息填写；不适用或未确定时留空。英文填写；不要把说明文字写入表格。"
+    },
+    {
+      "id": "32.self",
+      "pdfName": "Cost of travelling by 1",
+      "label": "费用由本人承担",
+      "page": 3,
+      "type": "choice",
+      "options": [
+        {
+          "value": "yes",
+          "label": "是",
+          "pdfValue": true
+        },
+        {
+          "value": "no",
+          "label": "否",
+          "pdfValue": false
+        }
+      ],
+      "checkbox": true,
+      "parentId": "32",
+      "guidance": "仅根据用户明确提供或确认的信息填写；不适用或未确定时留空。英文填写；不要把说明文字写入表格。"
+    },
+    {
+      "id": "32.self.cash",
+      "pdfName": "Means of support 11",
+      "label": "本人支付方式：现金",
+      "page": 3,
+      "type": "choice",
+      "options": [
+        {
+          "value": "yes",
+          "label": "是",
+          "pdfValue": true
+        },
+        {
+          "value": "no",
+          "label": "否",
+          "pdfValue": false
+        }
+      ],
+      "checkbox": true,
+      "parentId": "32",
+      "guidance": "仅根据用户明确提供或确认的信息填写；不适用或未确定时留空。英文填写；不要把说明文字写入表格。"
+    },
+    {
+      "id": "32.self.travellersCheques",
+      "pdfName": "Means of support 12",
+      "label": "本人支付方式：旅行支票",
+      "page": 3,
+      "type": "choice",
+      "options": [
+        {
+          "value": "yes",
+          "label": "是",
+          "pdfValue": true
+        },
+        {
+          "value": "no",
+          "label": "否",
+          "pdfValue": false
+        }
+      ],
+      "checkbox": true,
+      "parentId": "32",
+      "guidance": "仅根据用户明确提供或确认的信息填写；不适用或未确定时留空。英文填写；不要把说明文字写入表格。"
+    },
+    {
+      "id": "32.self.creditCard",
+      "pdfName": "Means of support 13",
+      "label": "本人支付方式：信用卡",
+      "page": 3,
+      "type": "choice",
+      "options": [
+        {
+          "value": "yes",
+          "label": "是",
+          "pdfValue": true
+        },
+        {
+          "value": "no",
+          "label": "否",
+          "pdfValue": false
+        }
+      ],
+      "checkbox": true,
+      "parentId": "32",
+      "guidance": "仅根据用户明确提供或确认的信息填写；不适用或未确定时留空。英文填写；不要把说明文字写入表格。"
+    },
+    {
+      "id": "32.self.accommodation",
+      "pdfName": "Means of support 14",
+      "label": "本人支付方式：预缴住宿",
+      "page": 3,
+      "type": "choice",
+      "options": [
+        {
+          "value": "yes",
+          "label": "是",
+          "pdfValue": true
+        },
+        {
+          "value": "no",
+          "label": "否",
+          "pdfValue": false
+        }
+      ],
+      "checkbox": true,
+      "parentId": "32",
+      "guidance": "仅根据用户明确提供或确认的信息填写；不适用或未确定时留空。英文填写；不要把说明文字写入表格。"
+    },
+    {
+      "id": "32.self.transport",
+      "pdfName": "Means of support 15",
+      "label": "本人支付方式：预缴交通",
+      "page": 3,
+      "type": "choice",
+      "options": [
+        {
+          "value": "yes",
+          "label": "是",
+          "pdfValue": true
+        },
+        {
+          "value": "no",
+          "label": "否",
+          "pdfValue": false
+        }
+      ],
+      "checkbox": true,
+      "parentId": "32",
+      "guidance": "仅根据用户明确提供或确认的信息填写；不适用或未确定时留空。英文填写；不要把说明文字写入表格。"
+    },
+    {
+      "id": "32.self.other",
+      "pdfName": "Means of support 16",
+      "label": "本人支付方式：其他",
+      "page": 3,
+      "type": "choice",
+      "options": [
+        {
+          "value": "yes",
+          "label": "是",
+          "pdfValue": true
+        },
+        {
+          "value": "no",
+          "label": "否",
+          "pdfValue": false
+        }
+      ],
+      "checkbox": true,
+      "parentId": "32",
+      "guidance": "仅根据用户明确提供或确认的信息填写；不适用或未确定时留空。英文填写；不要把说明文字写入表格。"
+    },
+    {
+      "id": "32.self.otherText",
+      "pdfName": "Means of support 10 spcify 1",
+      "label": "本人其他支付方式说明",
+      "page": 3,
+      "type": "text",
+      "parentId": "32",
+      "guidance": "仅根据用户明确提供或确认的信息填写；不适用或未确定时留空。英文填写；不要把说明文字写入表格。"
+    },
+    {
+      "id": "32.sponsor",
+      "pdfName": "Means of support 17",
+      "label": "费用由赞助方承担",
+      "page": 3,
+      "type": "choice",
+      "options": [
+        {
+          "value": "yes",
+          "label": "是",
+          "pdfValue": true
+        },
+        {
+          "value": "no",
+          "label": "否",
+          "pdfValue": false
+        }
+      ],
+      "checkbox": true,
+      "parentId": "32",
+      "guidance": "仅根据用户明确提供或确认的信息填写；不适用或未确定时留空。英文填写；不要把说明文字写入表格。"
+    },
+    {
+      "id": "32.sponsor.referenced",
+      "pdfName": "By a sponsor spcify r 2",
+      "label": "赞助方参见第30或31项",
+      "page": 3,
+      "type": "choice",
+      "options": [
+        {
+          "value": "yes",
+          "label": "是",
+          "pdfValue": true
+        },
+        {
+          "value": "no",
+          "label": "否",
+          "pdfValue": false
+        }
+      ],
+      "checkbox": true,
+      "parentId": "32",
+      "guidance": "仅根据用户明确提供或确认的信息填写；不适用或未确定时留空。英文填写；不要把说明文字写入表格。"
+    },
+    {
+      "id": "32.sponsor.other",
+      "pdfName": "By a sponsor spcify r 3",
+      "label": "其他赞助方",
+      "page": 3,
+      "type": "choice",
+      "options": [
+        {
+          "value": "yes",
+          "label": "是",
+          "pdfValue": true
+        },
+        {
+          "value": "no",
+          "label": "否",
+          "pdfValue": false
+        }
+      ],
+      "checkbox": true,
+      "parentId": "32",
+      "guidance": "仅根据用户明确提供或确认的信息填写；不适用或未确定时留空。英文填写；不要把说明文字写入表格。"
+    },
+    {
+      "id": "32.sponsor.referenceText",
+      "pdfName": "By a sponsor spcify 2",
+      "label": "第30或31项赞助方说明",
+      "page": 3,
+      "type": "text",
+      "parentId": "32",
+      "guidance": "仅根据用户明确提供或确认的信息填写；不适用或未确定时留空。英文填写；不要把说明文字写入表格。"
+    },
+    {
+      "id": "32.sponsor.otherText",
+      "pdfName": "By a sponsor spcify 3",
+      "label": "其他赞助方说明",
+      "page": 3,
+      "type": "text",
+      "parentId": "32",
+      "guidance": "仅根据用户明确提供或确认的信息填写；不适用或未确定时留空。英文填写；不要把说明文字写入表格。"
+    },
+    {
+      "id": "32.sponsor.cash",
+      "pdfName": "Means of support 18",
+      "label": "赞助方式：现金",
+      "page": 3,
+      "type": "choice",
+      "options": [
+        {
+          "value": "yes",
+          "label": "是",
+          "pdfValue": true
+        },
+        {
+          "value": "no",
+          "label": "否",
+          "pdfValue": false
+        }
+      ],
+      "checkbox": true,
+      "parentId": "32",
+      "guidance": "仅根据用户明确提供或确认的信息填写；不适用或未确定时留空。英文填写；不要把说明文字写入表格。"
+    },
+    {
+      "id": "32.sponsor.accommodation",
+      "pdfName": "Means of support 19",
+      "label": "赞助方式：提供住宿",
+      "page": 3,
+      "type": "choice",
+      "options": [
+        {
+          "value": "yes",
+          "label": "是",
+          "pdfValue": true
+        },
+        {
+          "value": "no",
+          "label": "否",
+          "pdfValue": false
+        }
+      ],
+      "checkbox": true,
+      "parentId": "32",
+      "guidance": "仅根据用户明确提供或确认的信息填写；不适用或未确定时留空。英文填写；不要把说明文字写入表格。"
+    },
+    {
+      "id": "32.sponsor.allExpenses",
+      "pdfName": "Means of support 20",
+      "label": "赞助方式：支付全部开支",
+      "page": 3,
+      "type": "choice",
+      "options": [
+        {
+          "value": "yes",
+          "label": "是",
+          "pdfValue": true
+        },
+        {
+          "value": "no",
+          "label": "否",
+          "pdfValue": false
+        }
+      ],
+      "checkbox": true,
+      "parentId": "32",
+      "guidance": "仅根据用户明确提供或确认的信息填写；不适用或未确定时留空。英文填写；不要把说明文字写入表格。"
+    },
+    {
+      "id": "32.sponsor.transport",
+      "pdfName": "Means of support 21",
+      "label": "赞助方式：预缴交通",
+      "page": 3,
+      "type": "choice",
+      "options": [
+        {
+          "value": "yes",
+          "label": "是",
+          "pdfValue": true
+        },
+        {
+          "value": "no",
+          "label": "否",
+          "pdfValue": false
+        }
+      ],
+      "checkbox": true,
+      "parentId": "32",
+      "guidance": "仅根据用户明确提供或确认的信息填写；不适用或未确定时留空。英文填写；不要把说明文字写入表格。"
+    },
+    {
+      "id": "32.sponsor.otherSupport",
+      "pdfName": "Means of support 22",
+      "label": "赞助方式：其他",
+      "page": 3,
+      "type": "choice",
+      "options": [
+        {
+          "value": "yes",
+          "label": "是",
+          "pdfValue": true
+        },
+        {
+          "value": "no",
+          "label": "否",
+          "pdfValue": false
+        }
+      ],
+      "checkbox": true,
+      "parentId": "32",
+      "guidance": "仅根据用户明确提供或确认的信息填写；不适用或未确定时留空。英文填写；不要把说明文字写入表格。"
+    },
+    {
+      "id": "32.sponsor.otherSupportText",
+      "pdfName": "Cost of travelling Means on support 3",
+      "label": "其他赞助方式说明",
+      "page": 3,
+      "type": "text",
+      "parentId": "32",
+      "guidance": "仅根据用户明确提供或确认的信息填写；不适用或未确定时留空。英文填写；不要把说明文字写入表格。"
+    },
+    {
+      "id": "33.name",
+      "pdfName": "Filling in the application",
+      "label": "非申请人本人填表时的填表人姓名（如适用）",
+      "page": 3,
+      "type": "text",
+      "parentId": "33",
+      "guidance": "仅实际由其他自然人填表时适用；不要把AI虚构为自然人填表人。"
+    },
+    {
+      "id": "33.address",
+      "pdfName": "Filling in the application2",
+      "label": "上述填表人地址和邮箱",
+      "page": 3,
+      "type": "text",
+      "parentId": "33",
+      "guidance": "仅实际由其他自然人填表时适用；不要把AI虚构为自然人填表人。"
+    },
+    {
+      "id": "33.phone",
+      "pdfName": "Filling in the application3",
+      "label": "上述填表人电话",
+      "page": 3,
+      "type": "text",
+      "parentId": "33",
+      "guidance": "仅实际由其他自然人填表时适用；不要把AI虚构为自然人填表人。"
+    }
+  ],
+  "manualFields": [
+    "照片粘贴",
+    "声明阅读",
+    "地点及实际签署日期",
+    "申请人本人或适用监护人签字"
+  ]
+}

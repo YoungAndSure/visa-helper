@@ -90,6 +90,15 @@ export function taskScenarios(definition) {
   if (draft) {
     driver("partial guide, modify, fill and return").step("GUIDE_READY", "filling").step("EDIT", "prepare")
       .step("GUIDE_READY", "filling").step("FILLED", "review_choice").step("EDIT", "prepare").replay();
+    if (definition.policy === "form") for (const fillMode of ["assisted", "manual"]) {
+      const mode = driver(`official PDF ${fillMode} mode retains granular fields and still requires review`);
+      mode.step("GUIDE_READY", "filling", { ...mode.data, fillMode, fields: { "1": "EXAMPLE", "19.phone": "+86 13800000000" } });
+      assert.equal(mode.data.fillMode, fillMode); assert.equal(mode.data.filled, false);
+      mode.step("FILLED", "review_choice", { ...mode.data, filled: true }).step("SELF_CHECK", "self_check");
+      mode.reject("FINISH", mode.data, "PDF generation does not confirm review or signature");
+      mode.step("FINISH", "done", goodData(definition, mode.data)).replay();
+      assert.equal(mode.data.fields["19.phone"], "+86 13800000000");
+    }
   } else if (definition.policy === "material") {
     driver("acquire actual material and resume").step("ACQUIRE", "acquiring").step("READY", "prepare")
       .step("ACQUIRE", "acquiring").step("EDIT", "prepare").replay();

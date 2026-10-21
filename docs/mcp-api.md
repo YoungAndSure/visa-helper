@@ -1,6 +1,6 @@
 # Visa Helper MCP 接口
 
-应用版本 `0.13.0`，问答协议 `1.1`。MCP 服务仅注册以下 **6 个工具**，其中 5 个供 GPT 调用，1 个仅供 App UI 调用。问答全过程只使用 `advance_application`；其他接口分别负责展示、材料处理和诊断。
+应用版本 `0.14.0`，问答协议 `1.1`。MCP 服务仅注册以下 **6 个工具**，其中 5 个供 GPT 调用，1 个仅供 App UI 调用。问答全过程只使用 `advance_application`；其他接口分别负责展示、材料处理和诊断。
 
 ## 接口总览
 
@@ -224,3 +224,9 @@ App 专用 `_meta` 仍可包含 `guideDocument` HTML；下载在该字段缺失�
 - 表格/草稿任务为准备材料 → 填写与整理 → 检查与确认；直接提供材料为准备材料 → 检查与确认。自查、等待上传、辅助检查合并在检查阶段，切换路径不虚增进度；编辑退回准备阶段，暂停恢复保留原阶段。进度条显示已完成阶段，只有完成条件通过后才满格。
 - `start_task` 的开始、恢复与暂停结果均带 `nextAction.presentation`，调用现有 `get_task_queue` 展示工作台。完成仍使用同一展示动作。GPT在聊天中导航后执行展示动作；页卡内点击已直接更新界面，不重复展示。无新增工具或输入参数。
 - 清单总览标记所有材料状态；进入任务页卡后不展示其他材料。返回“全部任务”先保存未提交勾选并暂停，返回过程不发送额外用户消息。
+
+## 0.14.0 申根原PDF预填
+
+仍为6个工具。`advance_task` 的form快照增加可选 `fillMode:assisted|manual`；完整data.fields支持fieldCatalog中pdf:true的细分字段。旧数据不要求补fillMode，默认助手预填。任务返回prefill（模板指纹、值及状态、手工项）、formDocument（可下载的预填原PDF临时链接、实际写入项与issues）。预填阶段nextAction为prepare_form，manual阶段仍为open_url指引；FILLED、检查及签字确认条件不变。
+
+GPT按规范字段选项复用已确认信息、收集适用缺项并提交完整快照，再给用户PDF。未知留空，无法写入明确反馈，不自动标记填妥。每份表原文件和字段映射独立配置；本次只对冰岛schengen_form生效。详见[PDF预填协议及维护](pdf-prefill.md)。`get_server_info.formDocuments`暴露原文件及映射指纹。工具输入增加可选字段，客户端需要载入更新后的advance_task定义；原申请和任务不需重建。

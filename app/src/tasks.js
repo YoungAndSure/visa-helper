@@ -2,6 +2,7 @@ import { createActor, setup } from "xstate";
 import { z } from "zod";
 import { getTaskDefinition, definitionForProgress } from "./task-definitions.js";
 import { dateSchema, passportDateChecks, materialChecks, travelDays } from "./task-policies.js";
+import { formFieldCatalog, prefillState } from "./schengen-pdf.js";
 export { taskRelease } from "./task-definitions.js";
 
 export class TaskError extends Error {
@@ -12,6 +13,7 @@ const findingSchema = z.object({ fieldId: z.string().optional(), message: z.stri
   severity: z.enum(["issue", "unreadable", "note"]) }).strict();
 const fieldsSchema = z.record(z.string(), z.string().trim().min(1).max(8000));
 const formData = z.object({ fields: fieldsSchema.default({}), checks: checksSchema.default({}),
+  fillMode: z.enum(["assisted", "manual"]).optional(),
   filled: z.boolean().default(false), signed: z.boolean().default(false),
   review: z.object({ documentRead: z.literal(true), pages: z.array(z.number().int().min(1).max(4)).min(1).max(4),
     checks: checksSchema, findings: z.array(findingSchema).max(80) }).strict().nullable().default(null),
@@ -30,7 +32,7 @@ const materialData = z.object({ fields: fieldsSchema.default({}), checks: checks
 const schemas = { form: formData, passport: passportData, material: materialData };
 // Apply defaults only after taskId selects the task policy.
 const inputData = Object.values(schemas).map((schema) => z.object(Object.fromEntries(
-  Object.entries(schema.shape).map(([key, field]) => [key, field.removeDefault().optional()]),
+  Object.entries(schema.shape).map(([key, field]) => [key, (field.removeDefault?.() ?? field).optional()]),
 )).strict());
 export const advanceTaskInputSchema = z.object({ applicationId: z.string().uuid(), taskId: z.string().min(1),
   revision: z.number().int().nonnegative().optional(),
@@ -98,6 +100,7 @@ function knownValues(definition, answers) {
     return values;
   }
   const values = {};
+  if (answers.nationality === "CN") values["7"] = "Chinese";
   if (answers.nationality === "CN" && answers.residence === "CN") values["20"] = "No";
   if (answers.purpose === "tourism") values["23"] = "Tourism";
   if (answers.destination === "IS" && answers.otherSchengenCountries === "no") values["25"] = "Iceland";
@@ -134,7 +137,8 @@ export function taskState(id, progress, answers = {}) {
   return { taskId: id, version: current.version, modelHash: definition.modelHash, workflow: definition.workflow, policy: definition.policy,
     revision: current.revision, node: current.node, status: current.status, data: current.data, confirmation: current.confirmation,
     progress: stageProgress(definition, current.node),
-    needsRecheck: current.needsRecheck ?? false, source: definition.source, fieldCatalog: definition.fields, checkCatalog: definition.checks,
+    needsRecheck: current.needsRecheck ?? false, source: definition.source, fieldCatalog: formFieldCatalog(definition), checkCatalog: definition.checks,
+    ...(definition.policy === "form" ? { prefill: prefillState(guide, current.data) } : {}),
     requirements: definition.requirements ?? [], acquisition: definition.acquisition ?? [], reviewInstructions: definition.reviewInstructions,
     requiredCoverage: definition.requiredCoverage ?? [], automaticChecks: automaticChecks(definition, current.data, answers),
     ...(definition.policy === "form" || definition.document ? { guide, document: definition.document ?? { template: "schengen", title: "申根申请表填写对照页" },
@@ -147,7 +151,7 @@ export function taskState(id, progress, answers = {}) {
 function validateData(definition, value) {
   const parsed = schemas[definition.policy].safeParse(value);
   if (!parsed.success) fail("TASK_DATA_INVALID", "任务数据无效，请使用当前字段目录及完整数据结构，不提交原文件或无关信息。");
-  const data = parsed.data, fields = new Map(definition.fields.map((field) => [field.id, field])), checks = new Set(definition.checks.map(({ id }) => id));
+  const data = parsed.data, fields = new Map(formFieldCatalog(definition).map((field) => [field.id, field])), checks = new Set(definition.checks.map(({ id }) => id));
   if (Object.keys(data.fields).some((id) => !fields.has(id)) || [...Object.keys(data.checks), ...Object.keys(data.review?.checks ?? {})].some((id) => !checks.has(id))
     || data.review?.findings.some(({ fieldId }) => fieldId && !fields.has(fieldId))) fail("TASK_DATA_INVALID", "字段或检查项不在当前任务目录中。");
   for (const [id, value] of Object.entries(data.fields)) {

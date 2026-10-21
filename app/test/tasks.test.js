@@ -165,7 +165,7 @@ test("MCP task interface returns catalogs and typed errors through the actual SD
   try {
     await server.connect(st); await client.connect(ct);
     const result = await client.callTool({ name: "advance_task", arguments: { applicationId: f.application.id, taskId: "schengen_form" } });
-    assert.equal(result.structuredContent.nextAction.type, "prepare_guide");
+    assert.equal(result.structuredContent.nextAction.type, "prepare_form");
     assert.ok(result.structuredContent.taskFlow.fieldCatalog.some((field) => field.id === "33"));
     assert.equal(result.structuredContent.handoff.applicationId, f.application.id);
     assert.equal(result.structuredContent.handoff.taskId, "schengen_form");
