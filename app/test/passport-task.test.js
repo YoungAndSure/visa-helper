@@ -29,7 +29,7 @@ async function fixture() {
 
 test("passport private self-check needs every explicit confirmation, no dates or upload, and resumes as one completed task", async () => {
   const f = await fixture();
-  assert.equal(f.flow.node, "prepare"); assert.equal(f.flow.nextAction.questions.length, 3);
+  assert.equal(f.flow.node, "prepare"); assert.equal(f.flow.nextAction.questions.length, 0);
   await f.step("SELF_CHECK");
   await assert.rejects(f.step("FINISH"), { code: "TASK_CONDITIONS_UNMET" });
   await f.step(undefined, { ...f.flow.data, checks: passed });

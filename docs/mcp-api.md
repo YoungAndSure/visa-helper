@@ -1,6 +1,6 @@
 # Visa Helper MCP 接口
 
-应用版本 `0.11.0`，问答协议 `1.1`。MCP 服务仅注册以下 **6 个工具**，其中 5 个供 GPT 调用，1 个仅供 App UI 调用。问答全过程只使用 `advance_application`；其他接口分别负责展示、材料处理和诊断。
+应用版本 `0.12.0`，问答协议 `1.1`。MCP 服务仅注册以下 **6 个工具**，其中 5 个供 GPT 调用，1 个仅供 App UI 调用。问答全过程只使用 `advance_application`；其他接口分别负责展示、材料处理和诊断。
 
 ## 接口总览
 
@@ -207,3 +207,13 @@ GPT 读取 `open_url` 后调用当前客户端的原生浏览器工具；用户�
 App 专用 `_meta` 仍可包含 `guideDocument` HTML；下载在该字段缺失时使用 `guidePresentation.url` 的 `resource_link`。这兼容客户端省略私有元数据的情况，不增加 MCP 工具或修改任务模型版本。
 
 独立网页监听器与 MCP 分离，仅允许 GET/HEAD `/guides/随机令牌`，不开放 `/mcp` 或 `/version`。令牌 15 分钟有效，服务重启、申请 revision 或任务 revision 改变后失效。页面不缓存、不索引、不加载第三方脚本；链接持有人可读取该次指引，不应转发。HTTP 的 IP 加端口入口仅为当前用户明确选择的临时测试方式；正式入口使用 HTTPS。
+
+## 0.12.0 任务后台上下文与清单返回
+
+清单及材料结果增加 `handoff`，协议标识 `visa-helper-task-context/1`。其中包含申请/任务定位、当前任务revision和节点、工作台视图（task/checklist）、服务端nextAction；清单视图包含任务名称及done/paused等状态。它不复制个人字段、完整问答或附件。页卡点击后先执行MCP，再将这段结果同步至宿主后台模型上下文，随后发送“准备护照”等短动作。GPT据此继续nextAction，必要时用advance_task读取细节；不重复start_task，不向用户展示内部编号或要求复制工具指令。
+
+优先使用标准 `ui/update-model-context` 的structuredContent，兼容桥使用 `setWidgetState({modelContent: handoff})`。标准消息ui/message或sendFollowUpMessage只包含动作名称。上下文并不触发推理，不能把后台同步成功当作GPT已经回复。不支持上下文的宿主不得回退为带编号的长提示词。
+
+`advance_task` 完成后的 `application.activeTask/taskFlow` 为null，仍在响应的 `taskFlow` 返回刚完成任务以便核验。外层 `nextAction` 为choose_task并含completedTaskId及get_task_queue展示动作。页卡直接渲染完整清单；GPT在聊天中完成任务后调用展示动作。无新增材料自动开始。暂停保留相同节点及确认进度。
+
+`taskFlow.nextAction.questions` 仅在self_check中包含尚未明确通过的检查题。prepare/filling/review_choice/await_upload均为空；填写HTML不嵌自查清单。用户明确填好后先FILLED，再选检查方式；选SELF_CHECK后才在对话中互动确认，不能把缺失或未检查项推断为通过。

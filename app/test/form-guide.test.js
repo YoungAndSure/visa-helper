@@ -46,6 +46,7 @@ test("standalone links render safe HTML with known values and do not expose the 
   }
   assert.match(page.body, /签证机关专用区域/);
   assert.match(page.body, /id="signature-area"/);
+  assert.doesNotMatch(page.body, /填好后的自查|□/);
   assert.equal(new URL(f.link.url).pathname.split("/").at(-1).length, 43);
   assert.ok(!f.link.url.includes(f.application.id));
   assert.equal(page.headers["Cache-Control"], "no-store, private");

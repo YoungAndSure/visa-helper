@@ -192,7 +192,12 @@ export class ApplicationStore {
       record.taskProgress ??= {};
       const progress = record.taskProgress[taskId]?.version ? record.taskProgress[taskId] : newTaskProgress(taskId);
       record.taskProgress[taskId] = advanceTask(progress, { revision, event, data }, record.answers);
-      record.activeTaskId = taskId;
+      const previous = record.taskProgress[record.activeTaskId];
+      if (record.activeTaskId !== taskId && previous && previous.status !== "done") {
+        previous.status = "paused"; previous.pausedAt = new Date().toISOString();
+      }
+      if (record.taskProgress[taskId].status === "done") delete record.activeTaskId;
+      else record.activeTaskId = taskId;
       record.updatedAt = new Date().toISOString();
       return { application: publicState(record, this.configDir), taskFlow: taskState(taskId, record.taskProgress[taskId], record.answers) };
     });

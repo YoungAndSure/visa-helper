@@ -12,14 +12,14 @@ import { GuideLinks, createGuideHandler } from "../src/form-guide.js";
 import { browser, until } from "./support/browser.mjs";
 import { basicAnswers } from "./support/decision-scenarios.mjs";
 
-for (const mode of ["standard", "compatibility"]) test(`material buttons, chat handoff, pause and resume work with ${mode} host bridge`, { timeout: 60000 }, async () => {
+for (const mode of ["standard", "compatibility", "no-context"]) test(`material buttons, chat handoff, pause and resume work with ${mode} host bridge`, { timeout: 60000 }, async () => {
   const root = await mkdtemp(join(tmpdir(), "visa-ui-regression-")), store = new ApplicationStore(join(root, "applications.json"));
   const { application } = await store.advance({ answers: { ...basicAnswers, occupation: "employed" } });
   const links = new GuideLinks(), mcp = createVisaServer(store, links), client = new Client({ name: "ui-regression", version: "1" });
   const [ct, st] = InMemoryTransport.createLinkedPair(); await mcp.connect(st); await client.connect(ct);
   const call = (params) => client.callTool(params), initial = await call({ name: "get_task_queue", arguments: { applicationId: application.id } });
   const widget = (await client.readResource({ uri: initial.structuredContent.serverInfo.ui.resourceUri })).contents[0].text;
-  const messages = [], calls = []; let failStart = false, activeBrowser;
+  const messages = [], calls = [], contexts = []; let failStart = false, activeBrowser;
   const escape = (value) => JSON.stringify(value).replaceAll("<", "\\u003c");
   const host = `<!doctype html><meta charset="utf-8"><iframe id="widget" style="width:900px;height:1000px;border:0" src="/widget"></iframe><script>
     const initial=${escape(initial)};
@@ -32,12 +32,17 @@ for (const mode of ["standard", "compatibility"]) test(`material buttons, chat h
       }
       let result={};
       if(m.method==='tools/call') result=await(await fetch('/rpc',{method:'POST',body:JSON.stringify(m.params)})).json();
+      if(m.method==='ui/update-model-context'){
+        if('${mode}'==='no-context'){source.postMessage({jsonrpc:'2.0',id:m.id,error:{code:-32601,message:'Context unsupported'}},'*');return;}
+        await fetch('/context',{method:'POST',body:JSON.stringify(m.params)});
+      }
       if(m.method==='ui/message')await fetch('/message',{method:'POST',body:JSON.stringify(m.params)});
       source.postMessage({jsonrpc:'2.0',id:m.id,result},'*');
     });</script>`;
   const legacy = `<script>window.openai={toolOutput:${escape(initial.structuredContent)},toolResponseMetadata:{mcp_tool_result:${escape(initial)}},
     callTool:async(name,args)=>({mcp_tool_result:await(await fetch('/rpc',{method:'POST',body:JSON.stringify({name,arguments:args})})).json()}),
-    sendFollowUpMessage:async({prompt})=>{await fetch('/message',{method:'POST',body:JSON.stringify({content:[{type:'text',text:prompt}]})});}
+    setWidgetState:(state)=>{window.savedWidgetState=state;},
+    sendFollowUpMessage:async({prompt})=>{await fetch('/context',{method:'POST',body:JSON.stringify({structuredContent:window.savedWidgetState.modelContent})});await fetch('/message',{method:'POST',body:JSON.stringify({content:[{type:'text',text:prompt}]})});}
   };</script>`;
   let guideHandler;
   const server = createServer(async (req, res) => {
@@ -48,6 +53,7 @@ for (const mode of ["standard", "compatibility"]) test(`material buttons, chat h
       let body = ""; for await (const chunk of req) body += chunk;
       res.setHeader("Content-Type", "application/json");
       if (req.url === "/message") { messages.push(JSON.parse(body)); return res.end("{}"); }
+      if (req.url === "/context") { contexts.push(JSON.parse(body).structuredContent); return res.end("{}"); }
       if (req.url === "/rpc") {
         const params = JSON.parse(body); calls.push(params);
         if (params.name === "start_task" && failStart) { failStart = false; return res.end(JSON.stringify({ isError: true, structuredContent: { error: { message: "测试连接暂不可用，请重试" } } })); }
@@ -76,12 +82,22 @@ for (const mode of ["standard", "compatibility"]) test(`material buttons, chat h
     assert.doesNotMatch(await text(), /尚待|2025|材料依据/);
     // Top-level entry must both change the task view AND ask the current chat to continue.
     await click("开始准备"); await selected("schengen_form");
+    if (mode === "no-context") {
+      await until(async () => (await text()).includes("当前客户端不支持此操作"), "unsupported context error");
+      assert.equal(messages.length, 0, "Never expose IDs or send an ambiguous trigger if background delivery failed");
+      assert.doesNotMatch(await text(), /申请 ID|start_task/);
+      return;
+    }
     await until(() => messages.length === 1, "top button chat handoff");
-    assert.match(messages[0].content[0].text, /schengen_form/);
+    assert.equal(messages[0].content[0].text, "准备统一申根签证申请表");
+    assert.equal(contexts.at(-1).taskId, "schengen_form");
+    assert.equal(contexts.at(-1).applicationId, application.id);
+    assert.equal(contexts.at(-1).nextAction.type, "open_url");
     assert.equal(await evaluate(`${frame}.querySelector('#all-tasks').hidden`), true);
     await click("使用填写指引"); await until(async () => (await store.get(application.id)).taskFlow?.node === "filling");
     const guideUrl = await evaluate(`${frame}.querySelector('a[href*="/guides/"]').href`);
     const page = await (await fetch(guideUrl)).text(); assert.equal((page.match(/data-page="/g) ?? []).length, 4);
+    assert.doesNotMatch(page, /填好后的自查|□/);
     await click("保存并暂停，准备其他材料");
     await until(async () => !(await store.get(application.id)).activeTask && await idle());
     assert.match(await text(), /已暂停/);
@@ -90,7 +106,8 @@ for (const mode of ["standard", "compatibility"]) test(`material buttons, chat h
     await evaluate(`Array.from(${frame}.querySelectorAll('.task')).find(row=>row.textContent.includes('护照照片')).querySelector('button').click()`);
     await until(async () => (await text()).includes("测试连接暂不可用"), "visible tool error");
     await selectRow("photo", "护照照片"); await until(() => messages.length === 2, "row button chat handoff");
-    assert.match(messages.at(-1).content[0].text, /photo/);
+    assert.equal(messages.at(-1).content[0].text, "准备护照照片");
+    assert.equal(contexts.at(-1).taskId, "photo");
     await click("不上传，自己检查"); await until(async () => (await store.get(application.id)).taskFlow?.node === "self_check"); await until(idle);
     await evaluate(`${frame}.querySelector('input[type=checkbox]').click()`);
     const flow = (await store.get(application.id)).taskFlow, check = flow.checkCatalog[0].id;
@@ -102,6 +119,17 @@ for (const mode of ["standard", "compatibility"]) test(`material buttons, chat h
     await selectRow("photo", "护照照片");
     assert.equal((await store.get(application.id)).taskFlow.node, "self_check");
     assert.equal((await store.get(application.id)).taskFlow.data.checks[check], true);
+    await evaluate(`Array.from(${frame}.querySelectorAll('input[type=checkbox]')).filter(input=>!input.checked).forEach(input=>input.click())`);
+    const messageCount = messages.length;
+    await click("确认完成这项材料");
+    await until(async () => !(await store.get(application.id)).activeTask && await idle(), "complete returns to full list");
+    assert.equal(await evaluate(`${frame}.querySelector('#all-tasks').hidden`), false);
+    assert.match(await evaluate(`Array.from(${frame}.querySelectorAll('.task')).find(row=>row.textContent.includes('护照照片')).textContent`), /已完成/);
+    assert.match(await evaluate(`Array.from(${frame}.querySelectorAll('.task')).find(row=>row.textContent.includes('统一申根签证申请表')).textContent`), /已暂停/);
+    assert.equal(messages.length, messageCount, "Completion must show the queue without another synthetic user message");
+    for (const message of messages) {
+      assert.doesNotMatch(JSON.stringify(message), /[0-9a-f]{8}-[0-9a-f-]{27,}|申请 ID|材料任务 ID|start_task|advance_task|applicationId|taskId/);
+    }
     assert.equal((await store.get(application.id)).answers.arrivalDate, basicAnswers.arrivalDate);
     assert.equal(activeBrowser.errors.length, 0);
     assert.ok(calls.some(({ name, arguments: args }) => name === "start_task" && args.action === "pause"));

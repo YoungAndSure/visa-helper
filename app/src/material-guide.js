@@ -13,6 +13,6 @@ export function renderMaterialGuideHtml(flow) {
   }
   const values = { title: e(flow.document.title), fields, itinerary,
     notice: [flow.needsRecheck ? "资料已变化，需要重新核对。" : "", ...flow.automaticChecks.filter(({ status }) => status === "fail").map(({ guidance }) => guidance)].filter(Boolean).map((text) => `<p class="notice">待处理：${e(text)}</p>`).join(""),
-    acquisition: flow.acquisition.map((text) => `<p>${e(text)}</p>`).join(""), checks: flow.checkCatalog.map(({ label }) => `<p>□ ${e(label)}</p>`).join("") };
-  return template.replace(/\{\{(title|notice|fields|itinerary|acquisition|checks)\}\}/g, (_, key) => values[key]);
+    acquisition: flow.acquisition.map((text) => `<p>${e(text)}</p>`).join("") };
+  return template.replace(/\{\{(title|notice|fields|itinerary|acquisition)\}\}/g, (_, key) => values[key]);
 }

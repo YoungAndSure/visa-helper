@@ -126,7 +126,8 @@ export function taskState(id, progress, answers = {}) {
     ...(definition.policy === "form" || definition.document ? { guide, document: definition.document ?? { template: "schengen", title: "申根申请表填写对照页" },
       travelDates: travelDays(answers) } : {}),
     nextAction: { type: node.meta.action, title: node.meta.title, guidance: node.meta.guidance,
-      questions: definition.checks.map(({ id, label, question, guidance }) => ({ id, question: question ?? label, guidance: guidance ?? label, answer: current.data.checks[id] ?? null })),
+      questions: current.node === "self_check" ? definition.checks.map(({ id, label, question, guidance }) => ({ id, question: question ?? label, guidance: guidance ?? label, answer: current.data.checks[id] ?? null }))
+        .filter(({ answer }) => answer !== true) : [],
       events: Object.keys(node.on ?? {}), tool: "advance_task" } };
 }
 function validateData(definition, value) {

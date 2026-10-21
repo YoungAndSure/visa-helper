@@ -104,6 +104,9 @@ test("itinerary draft shows known travel dates without fabricating plans; day co
   const f = fixture("daily_itinerary");
   const blank = renderGuideHtml(f.flow);
   assert.match(blank, /2027-06-01/); assert.match(blank, /2027-06-03/); assert.match(blank, /待补充/);
+  for (const definition of taskDefinitions().filter(({ document }) => document)) {
+    assert.doesNotMatch(renderGuideHtml(fixture(definition.id).flow), /完成前检查|填好后的自查|□/);
+  }
   f.step("GUIDE_READY", { ...f.flow.data, fields: { applicantName: "<img src=x onerror=alert(1)>" }, rows: [{ date: "2027-06-01", location: "Reykjavik", plan: "Confirmed plan" }] });
   assert.equal(f.flow.automaticChecks[0].status, "fail");
   const html = renderGuideHtml(f.flow); assert.doesNotMatch(html, /<img|<script/); assert.match(html, /&lt;img/);

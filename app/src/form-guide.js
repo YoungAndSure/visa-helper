@@ -35,9 +35,8 @@ function renderSchengenPages(flow) {
 export function renderGuideHtml(flow) {
   if (flow.document?.template && flow.document.template !== "schengen") return renderMaterialGuideHtml(flow);
   const values = { FORM_URL: escapeHtml(flow.source.formUrl), PAGES: renderSchengenPages(flow),
-    NOTICE: flow.needsRecheck ? '<p class="notice">申请资料有变化，以下内容需要重新核对。</p>' : "",
-    CHECKS: flow.checkCatalog.map((check) => `<p>□ ${escapeHtml(check.label)}</p>`).join("") };
-  return schengenTemplate.replace(/\{\{(FORM_URL|PAGES|NOTICE|CHECKS)\}\}/g, (_, key) => values[key]);
+    NOTICE: flow.needsRecheck ? '<p class="notice">申请资料有变化，以下内容需要重新核对。</p>' : "" };
+  return schengenTemplate.replace(/\{\{(FORM_URL|PAGES|NOTICE)\}\}/g, (_, key) => values[key]);
 }
 
 // Only unpredictable, short-lived links are exposed. Never log tokens or page contents.

@@ -67,6 +67,7 @@
     let versionMismatch = false;
     let lastReceiptKey = null;
     let application = null;
+    let latestTaskResult = null;
     let tasksExpanded = false;
     let guideLink = null;
     let busy = false;
@@ -100,6 +101,10 @@
         if (method === "ui/message" && typeof host?.sendFollowUpMessage === "function") return host.sendFollowUpMessage({
           prompt: params.content.filter(({ type }) => type === "text").map(({ text }) => text).join("\n"),
         });
+        if (method === "ui/update-model-context" && typeof host?.setWidgetState === "function") {
+          host.setWidgetState({ modelContent: params.structuredContent, privateContent: {} });
+          return {};
+        }
         if (method === "ui/open-link" && typeof host?.openExternal === "function") return host.openExternal({ href: params.url });
         throw new Error("当前客户端不支持此操作，请在聊天中继续；已保存的进度仍在。");
       };
@@ -123,6 +128,7 @@
       const returnedLink = result?.structuredContent?.guidePresentation ?? result?._meta?.guideLink;
       if (returnedLink) guideLink = returnedLink;
       if (fullState?.id) {
+        latestTaskResult = result;
         if (fullState.id !== application?.id || fullState.activeTask?.id !== application?.activeTask?.id) {
           tasksExpanded = false;
         }
@@ -235,19 +241,26 @@
           applicationId: application.id, taskId: task.id, action: "pause",
         } }));
         statusEl.textContent = "已暂停并保存进度。可以选择其他材料，之后再回来继续。";
+        await syncTaskContext();
       });
     }
-    async function sendTaskMessage(task) {
-      const openGuide = Boolean(application.taskFlow?.document) && application.taskFlow?.taskId === task.id && ["prepare", "filling"].includes(application.taskFlow.node);
+    async function syncTaskContext() {
+      const handoff = latestTaskResult?.structuredContent?.handoff;
+      if (!handoff || handoff.applicationId !== application?.id) throw new Error("任务已保存，但未取得助手上下文，请重新读取材料清单。");
+      const result = await hostRequest("ui/update-model-context", { structuredContent: handoff });
+      if (result?.isError) throw new Error("任务已保存，但客户端未能同步助手上下文。可以继续使用页卡，或在聊天中选择材料名称。");
+    }
+    async function sendTaskMessage(task, label) {
+      // Publish the MCP response first. Never put its internal references into a
+      // user message, even as a fallback when a host lacks background context.
+      await syncTaskContext();
       const result = await hostRequest("ui/message", {
-        role: "user", content: [{ type: "text", text: openGuide
-          ? `请继续“${task.title}”任务，读取已保存资料及预填的填写对照页链接，在当前会话右侧内置浏览器打开；如无法打开，请把链接发给我。随后说明当前一步需要我做什么，保留已保存的进度。申请 ID：${application.id}；材料任务 ID：${task.id}。`
-          : `请继续协助我准备“${task.title}”。申请 ID：${application.id}；材料任务 ID：${task.id}。请调用 start_task 恢复当前任务，保留已保存进度，仅处理这一项，按当前要求开始引导并收集缺少的信息。` }],
+        role: "user", content: [{ type: "text", text: label ?? `${task.status === "done" ? "查看" : "准备"}${task.title}` }],
       });
       if (result?.isError) throw new Error("任务已打开，但未能通知助手。请在聊天中说“继续当前材料”；已保存的进度仍在。");
       statusEl.textContent = `已打开${task.title}，并已向当前聊天发送继续准备的请求。你也可以直接使用下方任务步骤。`;
     }
-    function continueInChat(task) { return perform(() => sendTaskMessage(task)); }
+    function continueInChat(task, label) { return perform(() => sendTaskMessage(task, label)); }
     function taskEvent(event, data) {
       return perform(async () => {
         const flow = application.taskFlow;
@@ -255,6 +268,8 @@
           applicationId: application.id, taskId: flow.taskId, revision: flow.revision,
           event, data: data ?? flow.data,
         } }));
+        if (event === "FINISH") statusEl.textContent = "这项材料已完成。请选择下一项材料，也可以继续之前暂停的材料。";
+        await syncTaskContext();
       });
     }
     function downloadGuide(flow) {
@@ -277,7 +292,8 @@
     }
     async function materialPath(event, task) {
       await taskEvent(event);
-      if (["self_check", "await_upload", "acquiring"].includes(application.taskFlow?.node)) await continueInChat(task);
+      const labels = { self_check: `自行检查${task.title}`, await_upload: `上传检查${task.title}`, acquiring: `了解${task.title}的准备方式` };
+      if (labels[application.taskFlow?.node]) await continueInChat(task, labels[application.taskFlow.node]);
     }
     function renderGuideControls(panel, flow, task) {
       const known = flow.guide.filter((field) => field.value !== null).length;
@@ -354,7 +370,7 @@
       if (events.includes("RETRY")) actions.append(button("重新上传检查", () => materialPath("RETRY", task), "secondary"));
       if (events.includes("EDIT")) actions.append(button(passport ? "更新证件并重新检查" : "修改材料并重新检查", () => taskEvent("EDIT"), "secondary"));
       if (flow.node === "done") panel.append(element("p", flow.confirmation?.method === "user_self_check" ? "已完成 · 用户自行检查并确认。" : "已完成 · 辅助检查后由用户确认。"));
-      actions.append(button(flow.document && ["prepare", "filling"].includes(flow.node) ? "让助手打开填写对照页" : "在对话中继续", () => continueInChat(task), "secondary"));
+      actions.append(button(flow.document && ["prepare", "filling"].includes(flow.node) ? "让助手打开填写对照页" : "在对话中继续", () => continueInChat(task, flow.document && ["prepare", "filling"].includes(flow.node) ? "打开填写对照页" : `继续准备${task.title}`), "secondary"));
       actions.append(button("刷新任务进度", () => perform(async () => applyResult(await hostRequest("tools/call", {
         name: "advance_task", arguments: { applicationId: application.id, taskId: flow.taskId },
       }))), "secondary"));
@@ -387,8 +403,8 @@
       const actions = element("div", "", "actions");
       if (flow.nextAction.events.includes("GUIDE_READY")) actions.append(button("使用填写指引", () => taskEvent("GUIDE_READY")));
       if (flow.nextAction.events.includes("FILLED")) actions.append(button("我已填好，选择检查方式", () => taskEvent("FILLED", { ...flow.data, filled: true })));
-      if (flow.nextAction.events.includes("SELF_CHECK")) actions.append(button("不上传，自己检查", () => taskEvent("SELF_CHECK"), "secondary"));
-      if (flow.nextAction.events.includes("ASSISTED_CHECK")) actions.append(button("自愿上传，请协助检查", () => taskEvent("ASSISTED_CHECK"), "secondary"));
+      if (flow.nextAction.events.includes("SELF_CHECK")) actions.append(button("不上传，自己检查", () => materialPath("SELF_CHECK", task), "secondary"));
+      if (flow.nextAction.events.includes("ASSISTED_CHECK")) actions.append(button("自愿上传，请协助检查", () => materialPath("ASSISTED_CHECK", task), "secondary"));
       const checkbox = (label, checked, change) => {
         const wrapper = element("label", "", "check");
         const input = document.createElement("input"); input.type = "checkbox"; input.checked = checked;
@@ -412,7 +428,7 @@
       if (flow.nextAction.events.includes("EDIT")) actions.append(button("返回修改并重新核对", () => taskEvent("EDIT"), "secondary"));
       if (flow.node === "done") panel.append(element("p", flow.confirmation?.method === "user_self_check"
         ? "已完成 · 用户自行检查并确认。" : "已完成 · 辅助检查后由用户确认。"));
-      actions.append(button(["prepare", "filling"].includes(flow.node) ? "让助手打开填写对照页" : "在对话中继续", () => continueInChat(task), "secondary"));
+      actions.append(button(["prepare", "filling"].includes(flow.node) ? "让助手打开填写对照页" : "在对话中继续", () => continueInChat(task, flow.document && ["prepare", "filling"].includes(flow.node) ? "打开填写对照页" : `继续准备${task.title}`), "secondary"));
       actions.append(button("刷新任务进度", () => perform(async () => applyResult(await hostRequest("tools/call", {
         name: "advance_task", arguments: { applicationId: application.id, taskId: flow.taskId },
       }))), "secondary"));
@@ -478,7 +494,7 @@
             next.append(button("在对话中继续准备", () => continueInChat(activeTask)));
           }
         } else {
-          next.append(button("开始准备", () => startTask(recommended)));
+          next.append(button(recommended.status === "paused" ? "继续准备" : "开始准备", () => startTask(recommended)));
         }
         content.append(next);
       }

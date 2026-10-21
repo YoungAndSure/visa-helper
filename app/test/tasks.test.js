@@ -46,6 +46,23 @@ test("pause and switch retain partial checks, fields and replayable history afte
   assert.equal(replayTaskHistory(record.taskProgress.photo).valid, true);
 });
 
+test("form self-check questions appear only after filling and choosing private checks; completion returns the full queue", async () => {
+  const f = await fixture();
+  assert.deepEqual(f.flow.nextAction.questions, []);
+  await f.step("GUIDE_READY"); assert.deepEqual(f.flow.nextAction.questions, []);
+  await f.step("FILLED", { ...f.flow.data, filled: true }); assert.deepEqual(f.flow.nextAction.questions, []);
+  await f.step("ASSISTED_CHECK"); assert.deepEqual(f.flow.nextAction.questions, []);
+  await f.step("SELF_CHECK"); assert.equal(f.flow.nextAction.questions.length, f.flow.checkCatalog.length);
+  const first = f.flow.checkCatalog[0].id;
+  await f.step(undefined, { ...f.flow.data, checks: { [first]: true } });
+  assert.ok(!f.flow.nextAction.questions.some(({ id }) => id === first));
+  assert.equal(f.flow.nextAction.questions.length, f.flow.checkCatalog.length - 1);
+  const completed = await f.step("FINISH", { ...f.flow.data, checks: checked(f.flow), signed: true });
+  assert.equal(completed.application.activeTask, null); assert.equal(completed.application.taskFlow, null);
+  assert.equal(completed.taskFlow.status, "done");
+  assert.equal((await new ApplicationStore(f.store.filePath).get(f.application.id)).tasks.find(({ id }) => id === "schengen_form").status, "done");
+});
+
 test("self-check completes without uploading or sharing any personal fields, persists, resumes and reopens", async () => {
   const f = await fixture();
   assert.match(f.flow.source.formUrl, /\.pdf$/);
@@ -144,8 +161,22 @@ test("MCP task interface returns catalogs and typed errors through the actual SD
     const result = await client.callTool({ name: "advance_task", arguments: { applicationId: f.application.id, taskId: "schengen_form" } });
     assert.equal(result.structuredContent.nextAction.type, "prepare_guide");
     assert.ok(result.structuredContent.taskFlow.fieldCatalog.some((field) => field.id === "33"));
+    assert.equal(result.structuredContent.handoff.applicationId, f.application.id);
+    assert.equal(result.structuredContent.handoff.taskId, "schengen_form");
+    assert.equal(result.structuredContent.handoff.workspace, "task");
+    assert.equal(result.structuredContent.handoff.answers, undefined);
+    assert.equal(result.structuredContent.handoff.data, undefined);
     const bad = await client.callTool({ name: "advance_task", arguments: { applicationId: f.application.id, taskId: "schengen_form", revision: 100, event: "FILLED" } });
     assert.equal(bad.isError, true);
     assert.equal(bad.structuredContent.error.code, "TASK_REVISION_CONFLICT");
+    await f.step("FILLED", { ...f.flow.data, filled: true }); await f.step("SELF_CHECK");
+    const done = await client.callTool({ name: "advance_task", arguments: { applicationId: f.application.id, taskId: "schengen_form",
+      revision: f.flow.revision, event: "FINISH", data: { ...f.flow.data, checks: checked(f.flow), signed: true } } });
+    assert.equal(done.isError, undefined);
+    assert.equal(done.structuredContent.nextAction.type, "choose_task");
+    assert.equal(done.structuredContent.nextAction.presentation.tool, "get_task_queue");
+    assert.equal(done.structuredContent.handoff.workspace, "checklist");
+    assert.equal(done.structuredContent.handoff.nextAction.completedTaskId, "schengen_form");
+    assert.ok(done.structuredContent.handoff.tasks.some(({ id, status }) => id === "schengen_form" && status === "done"));
   } finally { await client.close(); await server.close(); }
 });

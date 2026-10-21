@@ -21,9 +21,9 @@
     .cell:target{outline:3px solid #e7aa3a;outline-offset:-3px;background:#fffaf0}.tall{min-height:128px}.medium{min-height:96px}.costs{display:grid;grid-template-columns:42% 58%;margin:10px 0;border:1px solid #d3dced}.costs div{padding:10px}.costs div+div{border-left:1px solid #d3dced}
     .subfield+.subfield{margin-top:12px;padding-top:10px;border-top:1px dashed #c7d2e8}.subfields{display:grid;grid-template-columns:1fr 1fr;gap:12px}.subfields .subfield+.subfield{border-top:0;border-left:1px solid #c7d2e8;padding-left:12px;padding-top:0;margin-top:0}
     .declaration{border:1px solid #5368b8;padding:18px;margin-bottom:18px;color:#465a87;min-height:150px}.declaration h3{font-size:15px;margin-top:0}.declaration p{margin:12px 0}.signature{display:grid;grid-template-columns:40% 60%;border:1px solid #5368b8;min-height:150px}.signature>div{padding:12px}.signature>div+div{border-left:1px solid #5368b8}.sign-space{min-height:70px}
-    .footer{font-size:12px;color:#6b7891;text-align:right;margin-top:14px}.checklist{max-width:960px;margin:20px auto;padding:20px 28px;background:white}.checklist p{margin:8px 0}.notice{background:#fff5d9;padding:12px}
+    .footer{font-size:12px;color:#6b7891;text-align:right;margin-top:14px}.notice{background:#fff5d9;padding:12px}
     @media(max-width:640px){.sheet{padding:20px 14px;width:calc(100% - 16px)}.page-one{grid-template-columns:minmax(0,1fr) 76px}.official{font-size:10px;padding:6px}.page-heading h2{font-size:16px}.photo{width:70px;min-height:95px}.row,.subfields{grid-template-columns:1fr}.subfields .subfield+.subfield{border-left:0;border-top:1px dashed #c7d2e8;padding:10px 0 0;margin:0}.toolbar{padding:0 14px}.write-area{font-size:14px}.field-label,.prompt{font-size:11px}}
-    @media print{body{background:white}.toolbar{display:none}.sheet{width:100%;margin:0;padding:10mm 7mm;box-shadow:none;border-radius:0}.sheet:last-of-type{break-after:auto}.prompt,.known-label{-webkit-print-color-adjust:exact;print-color-adjust:exact}.checklist{break-before:page}.footer{margin-top:8px}a{color:inherit;text-decoration:none}@page{size:A4;margin:8mm}}
+    @media print{body{background:white}.toolbar{display:none}.sheet{width:100%;margin:0;padding:10mm 7mm;box-shadow:none;border-radius:0}.sheet:last-of-type{break-after:auto}.prompt,.known-label{-webkit-print-color-adjust:exact;print-color-adjust:exact}.footer{margin-top:8px}a{color:inherit;text-decoration:none}@page{size:A4;margin:8mm}}
   </style>
 </head>
 <body>
@@ -35,6 +35,6 @@
     {{NOTICE}}
   </header>
   {{PAGES}}
-  <section class="checklist"><h2>填好后的自查</h2>{{CHECKS}}<p>□ 已填妥并由本人按要求签字</p><p>可选择自行核对，或在聊天中自愿上传，请助手辅助检查。</p></section>
+  <footer class="toolbar"><p>填好原表后，回到聊天中说“填好了”，再选择上传辅助检查或不上传自行检查。</p></footer>
 </body>
 </html>
