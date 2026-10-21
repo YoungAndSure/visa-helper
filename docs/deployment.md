@@ -1,12 +1,12 @@
 # ChatGPT MCP App 部署与测试
 
-当前版本为 `0.13.0`，问答协议 `1.1`。服务注册 6 个接口：`advance_application`、`get_task_queue`、`start_task`、`advance_task`、`get_server_info` 和仅供 App 使用的 `report_ui_ready`。七个旧问答或重复入口、原生表单实现及旧 UI 资源别名均已删除，不提供旧接口兼容。接口参数与职责见 [MCP 接口说明](mcp-api.md)，问答循环见[完整问答协议](interview-protocol.md)。
+当前版本为 `0.14.0`，问答协议 `1.1`。服务注册 6 个接口：`advance_application`、`get_task_queue`、`start_task`、`advance_task`、`get_server_info` 和仅供 App 使用的 `report_ui_ready`。七个旧问答或重复入口、原生表单实现及旧 UI 资源别名均已删除，不提供旧接口兼容。接口参数与职责见 [MCP 接口说明](mcp-api.md)，问答循环见[完整问答协议](interview-protocol.md)。
 
 ## 当前部署方式
 
 当前已改用 Docker 镜像，详见[镜像构建与部署](container-deployment.md)。正式容器为 `visa-helper-mcp-server-1`，使用原有数据目录和 `127.0.0.1:18081`。旧版 `18080` 容器已删除，直接运行 Node 的 systemd 服务已停用并移除。SSH 转发与 Secure MCP Tunnel 保持原路径；本次扩展全部材料的共用任务数据与说明，并更新运行指纹。
 
-当前容器已使用腾讯云仓库 `ccr.ccs.tencentyun.com/visa-helper/visa-helper` 的固定摘要镜像运行，服务器直接拉取、独立数据预检、正式切换和原申请恢复均通过。`current` 指向 `releases/0.13.0-ed234173dbf1-registry`。仓库凭据位于服务器 `ubuntu` 用户配置，命令需使用 `sudo docker --config /home/ubuntu/.docker ...`。详见[仓库拉取与切换记录](container-deployment.md)。
+当前容器已使用腾讯云仓库 `ccr.ccs.tencentyun.com/visa-helper/visa-helper` 的固定摘要镜像运行，服务器直接拉取、独立数据预检、正式切换和原申请恢复均通过。`current` 指向 `releases/0.14.0-bfebad9c4d59-registry`。仓库凭据位于服务器 `ubuntu` 用户配置，命令需使用 `sudo docker --config /home/ubuntu/.docker ...`。详见[仓库拉取与切换记录](container-deployment.md)。
 
 下列记录中的 systemd 启动方式仅描述历史发布。当前排查服务请用 Docker Compose 状态和日志，不再启动已退役的系统服务。
 
@@ -309,3 +309,9 @@ ChatGPT 首次添加时曾提示无法连接。排查发现 tunnel-client 仍处
 已部署0.13.0，构建ed234173dbf1，UI 308ada14a972。总清单展示整体进度与各项状态；点击进入单项任务页卡，展示阶段进度。暂停/完成及“全部任务”返回总览，保存的节点、检查和填写数据不丢失。聊天导航返回get_task_queue展示动作，页卡点击直接更新已有界面，不重复生成卡片。未增加工具或输入参数，原会话重新打开材料清单加载新UI，无需重填。
 
 65项本地测试及GitHub回归通过，25种任务所有节点具有阶段映射，表格和直接提供材料分别为三/两阶段。标准桥及兼容桥浏览器验证暂停保存、重新选择、完成返回总览和阶段恢复；不支持后台上下文的宿主显示明确提示。原模型、契约及图保持一致。新镜像从腾讯云仓库按摘要拉取，18份原申请和5份任务历史预检通过，备份和原文件校验通过。实际Tunnel版本和原申请只读恢复、指导页HTTP200检查通过；真实GPT对话和点击仍需用户验收。
+
+## 2026年10月21日 0.14.0 原PDF预填
+
+已部署0.14.0，构建bfebad9c4d59，UI 4deff19b6dd1。冰岛申根表默认助手预填，按提示自行填写仍可选。GPT用原任务完整字段快照提交，MCP输出保留官方版式、可继续编辑的原PDF；未知留空，无法写入明确报issue，仍要求填妥、检查及签字确认。独立PDF模板及映射有版本指纹。下载走原公网页面监听器的随机短时链接，不暴露MCP，不另存生成文件到申请磁盘。
+
+客户端需刷新Visa Helper连接加载advance_task的可选fillMode字段；工具数仍为6，无需新建申请。恢复原申请进入申根表，选择“让助手帮我预填”或“按提示自己填写”；已到检查阶段可先返回修改。标准下载通道及兼容宿主的打开另存路径均已自动回归。70项测试、模板契约、流程覆盖与图一致性、GitHub回归通过；正式镜像按摘要拉取、数据备份与校验通过。实际Tunnel版本、原申请恢复、预填PDF和HTML指导链接只读检查通过；实际GPT收集资料和用户下载后填写检查仍待验收。
