@@ -17,7 +17,7 @@ export class WorkflowError extends Error {
   }
 }
 
-export function publicState(record, configDir = DEFAULT_CONFIG_DIR, evaluation) {
+export function publicState(record, configDir = DEFAULT_CONFIG_DIR, evaluation, { viewCompletedTask = false } = {}) {
   if (!record.answers) throw new WorkflowError("UNSUPPORTED_APPLICATION", "这份记录不支持当前问答流程，请新建申请。");
   const result = evaluation ?? evaluateChecklist(record.answers, record.ruleVersion, configDir);
   const pack = loadRulePack(record.ruleVersion, configDir);
@@ -26,6 +26,7 @@ export function publicState(record, configDir = DEFAULT_CONFIG_DIR, evaluation) 
     ? result.questions.filter((question) => record.answers[question.id] === undefined)
     : result.questions;
   const tasks = result.tasks.map((task) => ({ ...task, status: record.taskProgress?.[task.id]?.status ?? "todo" }));
+  const activeTask = tasks.find((task) => task.id === record.activeTaskId && (viewCompletedTask || task.status !== "done")) ?? null;
   return {
     id: record.id,
     revision: record.revision ?? 0,
@@ -40,9 +41,8 @@ export function publicState(record, configDir = DEFAULT_CONFIG_DIR, evaluation) 
     nextQuestion: result.status === "questions" ? pendingQuestions[0] ?? null : null,
     questionCatalog,
     tasks,
-    activeTask: tasks.find((task) => task.id === record.activeTaskId) ?? null,
-    taskFlow: record.activeTaskId && tasks.some((task) => task.id === record.activeTaskId)
-      ? taskState(record.activeTaskId, record.taskProgress?.[record.activeTaskId], record.answers) : null,
+    activeTask,
+    taskFlow: activeTask ? taskState(activeTask.id, record.taskProgress?.[activeTask.id], record.answers) : null,
     uiReceipt: record.uiReceipt ?? null,
     reviewNotes: result.reviewNotes ?? [],
     reason: result.reason?.replaceAll("本模拟", "当前流程").replaceAll("当前模拟", "当前版本") ?? null,
@@ -167,7 +167,7 @@ export class ApplicationStore {
       delete record.taskProgress[taskId].pausedAt;
       record.activeTaskId = taskId;
       record.updatedAt = new Date().toISOString();
-      return publicState(record, this.configDir);
+      return publicState(record, this.configDir, undefined, { viewCompletedTask: true });
     });
   }
 

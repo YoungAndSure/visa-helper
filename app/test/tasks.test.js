@@ -61,6 +61,12 @@ test("form self-check questions appear only after filling and choosing private c
   assert.equal(completed.application.activeTask, null); assert.equal(completed.application.taskFlow, null);
   assert.equal(completed.taskFlow.status, "done");
   assert.equal((await new ApplicationStore(f.store.filePath).get(f.application.id)).tasks.find(({ id }) => id === "schengen_form").status, "done");
+  const viewed = await f.store.startTask(f.application.id, "schengen_form");
+  assert.equal(viewed.taskFlow.node, "done", "Completed material can still be explicitly viewed");
+  // Older releases left the finished material selected in the saved record.
+  const restored = await new ApplicationStore(f.store.filePath).get(f.application.id);
+  assert.equal(restored.activeTask, null, "Restoring a finished selection must show the full queue");
+  assert.equal(restored.taskFlow, null);
 });
 
 test("self-check completes without uploading or sharing any personal fields, persists, resumes and reopens", async () => {
