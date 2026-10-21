@@ -175,6 +175,18 @@ test("MCP task interface returns catalogs and typed errors through the actual SD
     const bad = await client.callTool({ name: "advance_task", arguments: { applicationId: f.application.id, taskId: "schengen_form", revision: 100, event: "FILLED" } });
     assert.equal(bad.isError, true);
     assert.equal(bad.structuredContent.error.code, "TASK_REVISION_CONFLICT");
+    const pause = await client.callTool({ name: "start_task", arguments: { applicationId: f.application.id, taskId: "schengen_form", action: "pause" } });
+    assert.equal(pause.structuredContent.handoff.workspace, "checklist");
+    assert.equal(pause.structuredContent.nextAction.presentation.tool, "get_task_queue");
+    const resumed = await client.callTool({ name: "start_task", arguments: { applicationId: f.application.id, taskId: "schengen_form" } });
+    assert.equal(resumed.structuredContent.handoff.workspace, "task");
+    assert.equal(resumed.structuredContent.nextAction.presentation.tool, "get_task_queue");
+    assert.equal(resumed.structuredContent.taskFlow.progress.currentStage, "prepare");
+    const display = resumed.structuredContent.nextAction.presentation;
+    const displayed = await client.callTool({ name: display.tool, arguments: display.arguments });
+    assert.equal(displayed.structuredContent.application.activeTask.id, "schengen_form");
+    assert.equal(displayed.structuredContent.taskFlow.progress.currentStage, "prepare");
+    assert.equal(displayed.structuredContent.nextAction.type, "prepare_guide", "Rendering the selected task must not tell GPT to choose a different task");
     await f.step("FILLED", { ...f.flow.data, filled: true }); await f.step("SELF_CHECK");
     const done = await client.callTool({ name: "advance_task", arguments: { applicationId: f.application.id, taskId: "schengen_form",
       revision: f.flow.revision, event: "FINISH", data: { ...f.flow.data, checks: checked(f.flow), signed: true } } });

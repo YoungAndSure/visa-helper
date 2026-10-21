@@ -106,6 +106,19 @@ function knownValues(definition, answers) {
   if (formDate(answers.departureDate)) values["27.departure"] = formDate(answers.departureDate);
   return values;
 }
+// Presentation stages group alternate paths and retries; they are not an estimate
+// of elapsed work. Derive them from the saved node without changing task histories.
+function stageProgress(definition, node) {
+  const stages = [{ id: "prepare", label: "准备材料" },
+    ...(definition.workflow === "collect-v1" ? [] : [{ id: "fill", label: "填写与整理" }]),
+    { id: "check", label: "检查与确认" }];
+  const stage = { prepare: "prepare", acquiring: "prepare", filling: "fill", review_choice: "check",
+    self_check: "check", await_upload: "check", assisted_check: "check" }[node];
+  if (node !== "done" && !stages.some(({ id }) => id === stage)) fail("TASK_STATE_INVALID", "当前节点尚未配置任务阶段。");
+  return { stages, currentStage: node === "done" ? null : stage,
+    completedStages: node === "done" ? stages.length : stages.findIndex(({ id }) => id === stage),
+    totalStages: stages.length, complete: node === "done" };
+}
 export function taskState(id, progress, answers = {}) {
   const definition = getTaskDefinition(id);
   if (!definition) return null;
@@ -120,6 +133,7 @@ export function taskState(id, progress, answers = {}) {
     valueStatus: current.data.fields[field.id] ? "provided" : known[field.id] ? "from_application" : "needs_confirmation" }));
   return { taskId: id, version: current.version, modelHash: definition.modelHash, workflow: definition.workflow, policy: definition.policy,
     revision: current.revision, node: current.node, status: current.status, data: current.data, confirmation: current.confirmation,
+    progress: stageProgress(definition, current.node),
     needsRecheck: current.needsRecheck ?? false, source: definition.source, fieldCatalog: definition.fields, checkCatalog: definition.checks,
     requirements: definition.requirements ?? [], acquisition: definition.acquisition ?? [], reviewInstructions: definition.reviewInstructions,
     requiredCoverage: definition.requiredCoverage ?? [], automaticChecks: automaticChecks(definition, current.data, answers),

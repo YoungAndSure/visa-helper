@@ -68,7 +68,6 @@
     let lastReceiptKey = null;
     let application = null;
     let latestTaskResult = null;
-    let tasksExpanded = false;
     let guideLink = null;
     let busy = false;
     let unsavedTask = false;
@@ -129,9 +128,6 @@
       if (returnedLink) guideLink = returnedLink;
       if (fullState?.id) {
         latestTaskResult = result;
-        if (fullState.id !== application?.id || fullState.activeTask?.id !== application?.activeTask?.id) {
-          tasksExpanded = false;
-        }
         unsavedTask = false;
         application = fullState.id === application?.id && fullState.status === "tasks_ready" && !Array.isArray(fullState.tasks)
           ? { ...application, ...fullState }
@@ -244,7 +240,7 @@
         applyResult(await hostRequest("tools/call", { name: "start_task", arguments: {
           applicationId: application.id, taskId: task.id, action: "pause",
         } }));
-        statusEl.textContent = "已暂停并保存进度。可以选择其他材料，之后再回来继续。";
+        statusEl.textContent = task.status === "done" ? "已返回材料清单。" : "已暂停并保存进度。可以选择其他材料，之后再回来继续。";
         await syncTaskContext();
       });
     }
@@ -470,18 +466,28 @@
         return;
       }
       const activeTask = application.activeTask;
-      document.querySelector("h1").textContent = activeTask ? "准备当前材料" : "你的签证材料清单";
+      document.querySelector("h1").textContent = activeTask ? activeTask.title : "你的签证材料清单";
       const completed = application.tasks.filter((task) => task.status === "done").length;
       const header = element("div", "", "workspace-header");
-      header.append(element("h2", `已完成 ${completed} / ${application.tasks.length} 项材料`));
       if (activeTask) {
-        const toggle = button(tasksExpanded ? "收起任务" : "全部任务", () => { tasksExpanded = !tasksExpanded; render(); }, "secondary");
-        toggle.setAttribute("aria-expanded", String(tasksExpanded)); toggle.setAttribute("aria-controls", "all-tasks");
-        header.append(toggle);
+        header.append(element("h2", "当前任务"), button("全部任务", () => pauseTask(activeTask), "secondary"));
+      } else {
+        header.append(element("h2", `已完成 ${completed} / ${application.tasks.length} 项材料`));
       }
       content.append(header);
-      const progress = document.createElement("progress"); progress.max = application.tasks.length; progress.value = completed;
-      progress.setAttribute("aria-label", "材料准备完成进度"); content.append(progress);
+      const taskProgress = activeTask && application.taskFlow?.progress;
+      if (taskProgress) {
+        const index = taskProgress.stages.findIndex(({ id }) => id === taskProgress.currentStage);
+        const label = taskProgress.complete ? "本项材料已完成"
+          : `阶段 ${index + 1} / ${taskProgress.totalStages} · ${taskProgress.stages[index].label}`;
+        content.append(element("p", label, "muted"));
+        const progress = document.createElement("progress"); progress.max = taskProgress.totalStages; progress.value = taskProgress.completedStages;
+        progress.setAttribute("aria-label", "当前任务阶段进度"); progress.setAttribute("aria-valuetext", label); content.append(progress);
+        content.append(element("p", taskProgress.stages.map(({ label }) => label).join(" → "), "muted"));
+      } else if (!activeTask) {
+        const progress = document.createElement("progress"); progress.max = application.tasks.length; progress.value = completed;
+        progress.setAttribute("aria-label", "材料准备完成进度"); content.append(progress);
+      }
       if (!activeTask) content.append(element("p", "选择一项材料开始准备。"));
       const recommended = activeTask ?? application.tasks.find((task) => task.status !== "done");
       if (recommended) {
@@ -503,7 +509,7 @@
         content.append(next);
       }
       const list = element("section", "", "panel");
-      list.id = "all-tasks"; list.hidden = Boolean(activeTask && !tasksExpanded);
+      list.id = "all-tasks"; list.hidden = Boolean(activeTask);
       list.append(element("h2", "全部材料"));
       application.tasks.forEach((task, index) => {
         const row = element("div", "", "task");
@@ -514,8 +520,10 @@
         list.append(row);
       });
       content.append(list);
-      for (const note of application.reviewNotes ?? []) content.append(element("p", `待核实：${note}`, "notice"));
-      content.append(element("p", "情况有变化？直接在对话中说明，材料清单会随答案重新计算。", "muted"));
+      if (!activeTask) {
+        for (const note of application.reviewNotes ?? []) content.append(element("p", `待核实：${note}`, "notice"));
+        content.append(element("p", "情况有变化？直接在对话中说明，材料清单会随答案重新计算。", "muted"));
+      }
     }
   </script>
 </body>

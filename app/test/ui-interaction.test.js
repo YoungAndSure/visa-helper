@@ -75,7 +75,13 @@ for (const mode of ["standard", "compatibility", "no-context"]) test(`material b
     const click = async (label) => { await until(idle, "UI ready"); return evaluate(`Array.from(${frame}.querySelectorAll('button')).find(b=>b.textContent===${JSON.stringify(label)} && !b.disabled).click()`); };
     const selected = async (id) => { await until(async () => (await store.get(application.id)).activeTask?.id === id, `select ${id}`); await until(idle, `render ${id}`); };
     const selectRow = async (id, title) => {
-      if (await evaluate(`${frame}.querySelector('#all-tasks').hidden`)) await click("全部任务");
+      if (await evaluate(`${frame}.querySelector('#all-tasks').hidden`)) {
+        const count = messages.length;
+        await click("全部任务");
+        await until(async () => !(await store.get(application.id)).activeTask && await idle(), "back to checklist");
+        assert.equal(await evaluate(`${frame}.querySelector('#all-tasks').hidden`), false);
+        assert.equal(messages.length, count, "Returning to overview must not insert a user message");
+      }
       await evaluate(`Array.from(${frame}.querySelectorAll('.task')).find(row=>row.textContent.includes(${JSON.stringify(title)})).querySelector('button').click()`);
       await selected(id);
     };
@@ -95,13 +101,19 @@ for (const mode of ["standard", "compatibility", "no-context"]) test(`material b
     assert.equal(contexts.at(-1).applicationId, application.id);
     assert.equal(contexts.at(-1).nextAction.type, "open_url");
     assert.equal(await evaluate(`${frame}.querySelector('#all-tasks').hidden`), true);
+    assert.equal(await evaluate(`${frame}.querySelector('progress').getAttribute('aria-label')`), "当前任务阶段进度");
+    assert.match(await text(), /阶段 1 \/ 3/);
+    assert.doesNotMatch(await text(), /已完成 0 \/ 12 项材料/);
     await click("使用填写指引"); await until(async () => (await store.get(application.id)).taskFlow?.node === "filling");
+    await until(async () => (await text()).includes("阶段 2 / 3"));
     const guideUrl = await evaluate(`${frame}.querySelector('a[href*="/guides/"]').href`);
     const page = await (await fetch(guideUrl)).text(); assert.equal((page.match(/data-page="/g) ?? []).length, 4);
     assert.doesNotMatch(page, /填好后的自查|□/);
     await click("保存并暂停，准备其他材料");
     await until(async () => !(await store.get(application.id)).activeTask && await idle());
     assert.match(await text(), /已暂停/);
+    assert.equal(await evaluate(`${frame}.querySelector('progress').getAttribute('aria-label')`), "材料准备完成进度");
+    assert.equal(await evaluate(`${frame}.querySelector('#all-tasks').hidden`), false);
     // Per-material entry exercises errors visibly, then succeeds without redoing the interview.
     failStart = true;
     await evaluate(`Array.from(${frame}.querySelectorAll('.task')).find(row=>row.textContent.includes('护照照片')).querySelector('button').click()`);
@@ -109,7 +121,9 @@ for (const mode of ["standard", "compatibility", "no-context"]) test(`material b
     await selectRow("photo", "护照照片"); await until(() => messages.length === 2, "row button chat handoff");
     assert.equal(messages.at(-1).content[0].text, "准备护照照片");
     assert.equal(contexts.at(-1).taskId, "photo");
+    assert.match(await text(), /阶段 1 \/ 2/);
     await click("不上传，自己检查"); await until(async () => (await store.get(application.id)).taskFlow?.node === "self_check"); await until(idle);
+    assert.match(await text(), /阶段 2 \/ 2/);
     await evaluate(`${frame}.querySelector('input[type=checkbox]').click()`);
     const flow = (await store.get(application.id)).taskFlow, check = flow.checkCatalog[0].id;
     await click("保存并暂停，准备其他材料"); await until(async () => !(await store.get(application.id)).activeTask && await idle());
@@ -117,6 +131,7 @@ for (const mode of ["standard", "compatibility", "no-context"]) test(`material b
     assert.equal(persisted.tasks.find(({ id }) => id === "photo").status, "paused");
     await selectRow("schengen_form", "统一申根签证申请表");
     assert.equal((await store.get(application.id)).taskFlow.node, "filling");
+    assert.match(await text(), /阶段 2 \/ 3/);
     await selectRow("photo", "护照照片");
     assert.equal((await store.get(application.id)).taskFlow.node, "self_check");
     assert.equal((await store.get(application.id)).taskFlow.data.checks[check], true);
@@ -125,6 +140,7 @@ for (const mode of ["standard", "compatibility", "no-context"]) test(`material b
     await click("确认完成这项材料");
     await until(async () => !(await store.get(application.id)).activeTask && await idle(), "complete returns to full list");
     assert.equal(await evaluate(`${frame}.querySelector('#all-tasks').hidden`), false);
+    assert.equal(await evaluate(`${frame}.querySelector('progress').value`), 1);
     assert.match(await evaluate(`Array.from(${frame}.querySelectorAll('.task')).find(row=>row.textContent.includes('护照照片')).textContent`), /已完成/);
     assert.match(await evaluate(`Array.from(${frame}.querySelectorAll('.task')).find(row=>row.textContent.includes('统一申根签证申请表')).textContent`), /已暂停/);
     assert.equal(messages.length, messageCount, "Completion must show the queue without another synthetic user message");

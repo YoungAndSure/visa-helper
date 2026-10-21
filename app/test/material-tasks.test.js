@@ -32,6 +32,32 @@ test("all 25 Iceland task IDs resolve; collect tasks share one profile and draft
   assert.throws(() => newTaskProgress("unknown"), { code: "TASK_NOT_IMPLEMENTED" });
 });
 
+test("task progress covers every saved node, groups review alternatives, and resets after edits", () => {
+  const expected = { prepare: "prepare", acquiring: "prepare", filling: "fill", review_choice: "check",
+    self_check: "check", await_upload: "check", assisted_check: "check", done: null };
+  for (const definition of taskDefinitions()) {
+    const stages = definition.workflow === "collect-v1" ? ["prepare", "check"] : ["prepare", "fill", "check"];
+    for (const node of Object.keys(definition.machine.states)) {
+      assert.ok(Object.hasOwn(expected, node), `Specify progress for new node ${definition.id}/${node}`);
+      const saved = { ...newTaskProgress(definition.id), node, status: node === "done" ? "done" : "in_progress" };
+      const { progress } = taskState(definition.id, saved, facts);
+      assert.deepEqual(progress.stages.map(({ id }) => id), stages);
+      assert.equal(progress.currentStage, expected[node], `${definition.id}/${node}`);
+      assert.equal(progress.completedStages, node === "done" ? stages.length : stages.indexOf(expected[node]));
+      assert.equal(progress.totalStages, stages.length);
+      assert.equal(progress.complete, node === "done");
+    }
+  }
+  const f = fixture("daily_itinerary");
+  f.step("GUIDE_READY"); assert.equal(f.flow.progress.currentStage, "fill");
+  f.step("FILLED"); f.step("ASSISTED_CHECK");
+  const before = f.flow.progress;
+  f.step("SELF_CHECK"); assert.deepEqual(f.flow.progress, before, "Switching review method does not invent extra progress");
+  f.step("FINISH", { ...f.flow.data, checks: checks(getTaskDefinition("daily_itinerary")), prepared: true });
+  assert.equal(f.flow.progress.complete, true);
+  f.step("EDIT"); assert.equal(f.flow.progress.completedStages, 0);
+});
+
 test("every configured material completes privately without storing a document; every history replays", () => {
   for (const definition of materials) {
     const f = fixture(definition.id);
