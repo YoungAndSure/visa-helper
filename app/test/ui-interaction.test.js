@@ -41,7 +41,8 @@ for (const mode of ["standard", "compatibility", "no-context"]) test(`material b
     });</script>`;
   const legacy = `<script>window.openai={toolOutput:${escape(initial.structuredContent)},toolResponseMetadata:{mcp_tool_result:${escape(initial)}},
     callTool:async(name,args)=>({mcp_tool_result:await(await fetch('/rpc',{method:'POST',body:JSON.stringify({name,arguments:args})})).json()}),
-    setWidgetState:(state)=>{window.savedWidgetState=state;},
+    setWidgetState:(state)=>{window.savedWidgetState=state;window.openai.widgetState=state;
+      dispatchEvent(new CustomEvent('openai:set_globals',{detail:{globals:{widgetState:state}}}));},
     sendFollowUpMessage:async({prompt})=>{await fetch('/context',{method:'POST',body:JSON.stringify({structuredContent:window.savedWidgetState.modelContent})});await fetch('/message',{method:'POST',body:JSON.stringify({content:[{type:'text',text:prompt}]})});}
   };</script>`;
   let guideHandler;

@@ -193,8 +193,12 @@
     }).catch(() => {});
     // Some ChatGPT mounts already have the initial result instead of replaying
     // a tool-result notification. Hydrate by the supplied ID, never ask for it.
-    function readInitialHostState() {
-      const state = window.openai;
+    function readInitialHostState(event) {
+      const changed = event?.detail?.globals;
+      // setWidgetState also emits this event. Its background modelContent must
+      // not replay the original toolOutput over a newly selected task.
+      if (changed && !["toolInput", "toolOutput", "toolResponseMetadata"].some((key) => Object.hasOwn(changed, key))) return;
+      const state = changed ? { ...window.openai, ...changed } : window.openai;
       const envelope = normalizeResult(state?.toolResponseMetadata);
       if (envelope?.structuredContent?.application || envelope?._meta?.application) applyResult(envelope);
       else if (state?.toolOutput?.application) applyResult({ structuredContent: state.toolOutput,
