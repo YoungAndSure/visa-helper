@@ -18,7 +18,10 @@ export async function browser(root, url) {
   if (!binary) throw new Error("UI regression requires Chrome/Chromium. Set CHROME_BIN to an installed executable.");
   const child = spawn(binary, ["--headless", "--no-sandbox", "--disable-dev-shm-usage", "--disable-gpu", "--no-first-run", "--no-proxy-server",
     "--disable-background-networking", "--remote-debugging-port=0", `--user-data-dir=${root}/chrome`, "--window-size=1000,1100", url], { stdio: "ignore" });
-  const close = async () => { if (child.exitCode === null) { const exited = new Promise((resolve) => child.once("exit", resolve)); child.kill(); await exited; } };
+  const close = async () => {
+    if (child.exitCode !== null || child.signalCode !== null) return;
+    const exited = new Promise((resolve) => child.once("exit", resolve)); child.kill(); await exited;
+  };
   let ws;
   try {
     const port = await until(async () => { try { return (await readFile(`${root}/chrome/DevToolsActivePort`, "utf8")).split("\n")[0]; } catch { return null; } }, "Chromium startup");
@@ -37,6 +40,10 @@ export async function browser(root, url) {
       const result = await cdp("Runtime.evaluate", { expression, returnByValue: true, awaitPromise: true });
       if (result.exceptionDetails) throw new Error(JSON.stringify(result.exceptionDetails));
       return result.result.value;
-    }, async close() { ws.close(); await close(); } };
+    }, async close() {
+      // Let Chromium stop its profile writers before removing the test directory.
+      await Promise.race([cdp("Browser.close").catch(() => {}), new Promise((resolve) => setTimeout(resolve, 1000))]);
+      ws.close(); await close();
+    } };
   } catch (error) { ws?.close(); await close(); throw error; }
 }

@@ -135,6 +135,6 @@ for (const mode of ["standard", "compatibility", "no-context"]) test(`material b
     assert.ok(calls.some(({ name, arguments: args }) => name === "start_task" && args.action === "pause"));
   } finally {
     await activeBrowser?.close(); await new Promise((resolve) => server.close(resolve));
-    await client.close(); await mcp.close(); await rm(root, { recursive: true, force: true });
+    await client.close(); await mcp.close(); await rm(root, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
   }
 });
